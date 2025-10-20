@@ -7,10 +7,13 @@ import { animeData, categories } from './animeData';
 function App() {
   const [selectedAnime, setSelectedAnime] = useState(null);
   const [activeCategory, setActiveCategory] = useState('Todos');
+  const [searchTerm, setSearchTerm] = useState('');
 
-  const filteredAnime = activeCategory === 'Todos' 
-    ? animeData 
-    : animeData.filter(anime => anime.category === activeCategory);
+  const filteredAnime = animeData.filter(anime => {
+    const matchesCategory = activeCategory === 'Todos' || anime.category === activeCategory;
+    const matchesSearch = anime.title.toLowerCase().includes(searchTerm.toLowerCase());
+    return matchesCategory && matchesSearch;
+  });
 
   return (
     <div className="min-h-screen p-8">
@@ -37,8 +40,46 @@ function App() {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6, delay: 0.2 }}
-        className="flex justify-center gap-4 mb-12 flex-wrap"
+        className="max-w-7xl mx-auto mb-12"
       >
+        {/* Search Bar */}
+        <div className="mb-6 flex justify-center">
+          <div className="relative w-full max-w-md">
+            <input
+              type="text"
+              placeholder="Buscar anime por título..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full px-6 py-3 pl-12 rounded-lg bg-white/10 backdrop-blur-md border border-white/20 text-purple-300 placeholder-purple-300/50 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-300"
+            />
+            <svg 
+              className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-purple-300/70" 
+              fill="none" 
+              stroke="currentColor" 
+              viewBox="0 0 24 24"
+            >
+              <path 
+                strokeLinecap="round" 
+                strokeLinejoin="round" 
+                strokeWidth={2} 
+                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" 
+              />
+            </svg>
+            {searchTerm && (
+              <button
+                onClick={() => setSearchTerm('')}
+                className="absolute right-4 top-1/2 -translate-y-1/2 text-purple-300/70 hover:text-white transition-colors"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Category Buttons */}
+        <div className="flex justify-center gap-4 flex-wrap">
         <button
           onClick={() => setActiveCategory('Todos')}
           className={`px-6 py-3 rounded-lg font-semibold transition-all duration-300 ${
@@ -62,6 +103,7 @@ function App() {
             {category}
           </button>
         ))}
+        </div>
       </motion.div>
 
       {/* Anime Grid */}
@@ -72,9 +114,10 @@ function App() {
         className="max-w-7xl mx-auto"
       >
         {categories.map((category) => {
-          const categoryAnime = animeData.filter(anime => anime.category === category);
+          const categoryAnime = filteredAnime.filter(anime => anime.category === category);
           
           if (activeCategory !== 'Todos' && activeCategory !== category) return null;
+          if (categoryAnime.length === 0) return null;
           
           return (
             <div key={category} className="mb-12">
@@ -95,6 +138,14 @@ function App() {
             </div>
           );
         })}
+        
+        {filteredAnime.length === 0 && (
+          <div className="text-center py-20">
+            <p className="text-2xl text-purple-300/70">
+              No se encontraron animes con "{searchTerm}"
+            </p>
+          </div>
+        )}
       </motion.div>
 
       {/* Modal */}
