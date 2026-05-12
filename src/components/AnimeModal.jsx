@@ -95,10 +95,18 @@ const AnimeModal = ({ anime, onClose }) => {
                     <span>{anime.doIRecommend}</span>
                   </div>
 
-                  <div className="flex items-center gap-2">
-                    <span className="text-purple-300 font-semibold">Valoración:</span>
-                    <span className="text-yellow-400">{anime.rating}</span>
-                  </div>
+                  {anime.rating && (
+                    <div className="flex items-center gap-2">
+                      <span className="text-purple-300 font-semibold">Rating (mientras lo veo):</span>
+                      <span className="text-yellow-400">{anime.rating}</span>
+                    </div>
+                  )}
+                  {anime.ratingAfterWatching && (
+                    <div className="flex items-center gap-2">
+                      <span className="text-purple-300 font-semibold">Rating final:</span>
+                      <span className="text-yellow-400">{anime.ratingAfterWatching}</span>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -145,7 +153,7 @@ const AnimeModal = ({ anime, onClose }) => {
                     </a>
                   ))
                 ) : (
-                  <p className="text-gray-400 italic">No hay openings disponibles.</p>
+                  <p className="text-gray-400 italic">No hay endings disponibles.</p>
                 )}
               </div>
             </div>
@@ -189,11 +197,23 @@ const AnimeModal = ({ anime, onClose }) => {
             </div>
 
             {/* Personal Opinion */}
-            <div className="bg-gradient-to-br from-purple-500/10 to-blue-500/10 rounded-xl p-6 border border-purple-400/30">
-              <h3 className="text-2xl font-bold text-purple-300 mb-3">Opinión Personal</h3>
-              <p className="text-gray-300 leading-relaxed italic">
-                "{anime.personalOpinion}"
-              </p>
+            <div className="flex flex-col gap-4">
+              {anime.personalOpinion && (
+                <div className="bg-gradient-to-br from-purple-500/10 to-blue-500/10 rounded-xl p-6 border border-purple-400/30">
+                  <h3 className="text-2xl font-bold text-purple-300 mb-3">Opinión Personal (mientras lo veo)</h3>
+                  <p className="text-gray-300 leading-relaxed italic">
+                    "{anime.personalOpinion}"
+                  </p>
+                </div>
+              )}
+              {anime.personalOpinionAfterWatching && (
+                <div className="bg-gradient-to-br from-purple-500/10 to-blue-500/10 rounded-xl p-6 border border-purple-400/30">
+                  <h3 className="text-2xl font-bold text-purple-300 mb-3">Opinión Personal final</h3>
+                  <p className="text-gray-300 leading-relaxed italic">
+                    "{anime.personalOpinionAfterWatching}"
+                  </p>
+                </div>
+              )}
             </div>
           </div>
         </motion.div>

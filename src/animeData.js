@@ -1,7 +1,6 @@
 // Anime data structure - easily customizable
 export const animeData = [
   // VISTO (Watched)
-
   {
     id: 2,
     title: "Call of the Night",
@@ -26,9 +25,12 @@ export const animeData = [
       "A la espera de la 2a temporada en plataformas oficiales.",
     ],
     languages: ["Japonés"],
-    rating: "10/10",
+    rating: "8.5/10",
+    ratingAfterWatching: "10/10",
     personalOpinion:
       "Anime muy muy original, con una muy buena animación. Cuenta con una historia nunca antes vista, y buena variedad de personajes. Lo más destacado sin duda es la banda sonora, de la mano de Creepy Nuts (dato curioso, la canción Yofukashi no Uta ha inspirado el anime entero, que a su vez es el ending de la temporada 1 y algunos episodios de la 2).",
+    personalOpinionAfterWatching:
+      "",
     openings: [
       {
         name: "Daten - Creepy Nuts (Temporada 1)",
@@ -74,9 +76,12 @@ export const animeData = [
       "No, no puedes ver legalmente 1 de las películas ni la 1a temporada.",
     ],
     languages: ["Japonés"],
-    rating: "10/10",
+    rating: "9/10",
+    ratingAfterWatching: "10/10",
     personalOpinion:
       "Descubrí este anime gracias a su ending de la temporada 1, 'Fukashigi no Karte', que me enamoró. Creo que si ese ending nunca se hubiese vuelto famoso, no hubiera descubierto la serie. La historia es para decirlo claro, una fumada. Los personajes y la forma en la que la trama se desarrolla está muy bien hecha.",
+    personalOpinionAfterWatching:
+      "",
     openings: [
       {
         name: "Kimi no Sei - The Peggies (Temporada 1)",
@@ -130,8 +135,11 @@ export const animeData = [
     ],
     languages: ["Japonés", "Español (España)", "Inglés", "Francés", "Alemán", "Italiano", "Portugués (Brasil)"],
     rating: "9.1/10",
+    ratingAfterWatching: "9.3/10",
     personalOpinion:
       "Anime con mucho fanservice, y del bueno. A la espera de la tercera temporada. Material de waifu... para dar y tomar. Clásico del romance.",
+    personalOpinionAfterWatching:
+      "",
     openings: [
       {
         name: "San San Days - Spira Spica (Temporada 1)",
@@ -164,13 +172,13 @@ export const animeData = [
       "https://m.media-amazon.com/images/S/pv-target-images/47841083191a83af5ca8696e4d9342d11285395848c37cbd9819084c618a7eb9.jpg",
     description:
       "Hijo de una legendaria actriz, Yu Ayase, siendo mediocre, se muda con tres hermanas superdotadas",
-    genres: ["Romance", "Comedia"],
+    genres: ["Romance", "Comedia", "Harem", "Slice of life"],
     fullSynopsis:
       "Yu Ayase, hijo de una legendaria actriz ya fallecida, es tremendamente mediocre. Cuando recibe una invitación para mudarse a casa de una amiga de su madre, Yu se sorprende al descubrir que vivirá con tres hermanas superdotadas que son tan guapas como inteligentes... y que gobiernan su nuevo instituto como las Tres Emperadoras. ¿Conseguirá Yu derretir los fríos corazones de las hermanas y cumplir el último deseo de su madre, que forme una familia feliz?",
-    episodes: "1 temporada/12",
+    episodes: "1 temporada/12 episodios",
     hasManga: true,
     hasLightNovel: false,
-    amigonnareadanyofthem: "No",
+    amigonnareadanyofthem: "Me voy a leer el manga cuando salga en español",
     doIRecommend: "Si, si te gusta el romance",
     platforms: [
       "Crunchyroll",
@@ -178,27 +186,70 @@ export const animeData = [
       "Cualquier plataforma pirata.",
     ],
     languages: ["Japonés", "Inglés", "Alemán"],
-    rating: "Cuando lo termine",
+    rating: "7.5/10",
+    ratingAfterWatching: "8/10",
     personalOpinion:
       "De momento me está gustando, es una comedia romántica entretenida, y menos cliché que otras muchas.",
+    personalOpinionAfterWatching:
+      "",
     openings: [
       {
-        name: "Daten - Creepy Nuts (Temporada 1)",
-        url: "https://youtu.be/AwXRPWmgLbU?si=h3xSFR1e87UGm6yR",
-      },
-      {
-        name: "Mirage - Creepy Nuts (Temporada 2)",
-        url: "https://youtu.be/l5S0JhqULAU?si=-8WHEKVmAPfJs9Ml",
+        name: "Kimi ni Fusawashii Kiseki - MAISONdes feat. Rei",
+        url: "https://www.youtube.com/results?search_query=Kimi+ni+Fusawashii+Kiseki+MAISONdes",
       },
     ],
     endings: [
       {
-        name: "Yofukashino Uta - Creepy Nuts (Temporada 1)",
-        url: "https://youtu.be/PvyaVqfylu4?si=RG1lmHKuYxrwnUbq",
+        name: "Aimai Graffiti - Yurina Amami (Versión Kazuki)",
+        url: "https://www.youtube.com/results?search_query=Aimai+Graffiti+Yurina+Amami",
       },
       {
-        name: "Nemure - Creepy Nuts (Temporada 2)",
-        url: "https://youtu.be/K5T_aKoN31Q?si=A2sqdOIOOk_OIJ4l",
+        name: "One Road - Aoi Koga (Versión Niko)",
+        url: "https://www.youtube.com/results?search_query=One+Road+Aoi+Koga",
+      },
+      {
+        name: "Sunrise Prism - Yoshino Aoyama (Versión Miwa)",
+        url: "https://www.youtube.com/results?search_query=Sunrise+Prism+Yoshino+Aoyama",
+      },
+    ],
+  },
+  {
+    id: 5,
+    title: "I made friends with the second prettiest girl in my class",
+    japaneseTitle: "Class de 2-banme ni Kawaii Onnanoko to Tomodachi ni Natta (クラスで2番目に可愛い女の子と友だちになった)",
+    category: "Viendo",
+    image:
+      "https://myanimelist.net/images/anime/1423/155713l.jpg",
+    description:
+      "Maki Maehara se hace amigo en secreto de Umi Asanagi, la segunda chica más guapa de su clase, y pasan tiempo juntos los viernes.",
+    genres: ["Romance", "Comedia", "Escolar"],
+    fullSynopsis:
+      "Yo, Maehara Maki, no lograba conectar con nadie durante mis años de instituto, y me resultaba difícil hacer amigos. Entonces, llegó un punto de inflexión. Una chica llamada Asanagi entró en mi vida. A pesar de ser conocida clandestinamente como la 'segunda chica más guapa de la clase' por los chicos, ella eligió pasar sus viernes conmigo en lugar de con su mejor amiga Amami, quien ostentaba el título de 'chica más guapa de la clase'. En la comodidad de mi casa, nos adentrábamos en el mundo de los videojuegos, veíamos películas, nos sumergíamos en los mangas, nos dábamos atracones de comida basura y bebíamos refrescos, despreocupados y contentos. Para el mundo exterior, puede que pareciésemos un poco desastrosos, pero tanto para Asanagi como para mí, era un tiempo juntos secreto y muy preciado.",
+    episodes: "1 temporada/12 episodios",
+    hasManga: true,
+    hasLightNovel: true,
+    amigonnareadanyofthem: "Si el manga sale en español, sí.",
+    doIRecommend: "Si, mucho!",
+    platforms: [
+      "Crunchyroll",
+      "Cualquier plataforma pirata."
+    ],
+    languages: ["Japonés", "Inglés"],
+    rating: "9.5/10",
+    ratingAfterWatching: "9.7/10",
+    personalOpinion: "",
+    personalOpinionAfterWatching:
+      "",
+    openings: [
+      {
+        name: "Submarine Youth - reGretGirl",
+        url: "https://www.youtube.com/watch?v=n4PRWtY26Uc&list=RDn4PRWtY26Uc&start_radio=1",
+      },
+    ],
+    endings: [
+      {
+        name: "Zutto Ichiban ni Shite ne - Koresawa",
+        url: "https://www.youtube.com/watch?v=1IKax57ZOXs&list=RD1IKax57ZOXs&start_radio=1",
       },
     ],
   },
@@ -206,6 +257,81 @@ export const animeData = [
   // NO VISTO (Not Watched)
 
   // ABANDONADO (Dropped)
+  {
+    id: 6,
+    title: "Rent-a-Girlfriend",
+    japaneseTitle: "Kanojo, Okarishimasu (彼女、お借りします)",
+    category: "Abandonado",
+    image:
+      "https://myanimelist.net/images/anime/1902/128382l.jpg",
+    description:
+      "Un estudiante universitario con el corazón roto contrata a una novia de alquiler, pero sus mentiras complican su vida.",
+    genres: ["Comedia", "Romance", "Harem"],
+    fullSynopsis:
+      "Kazuya Kinoshita es un estudiante universitario de 20 años que, tras ser abandonado por su primera novia, decide contratar a una novia de alquiler a través de una aplicación para calmar su soledad. Chizuru Mizuhara resulta ser la chica perfecta en todos los sentidos, pero las cosas se complican cuando un malentendido en el hospital les obliga a fingir delante de sus abuelas que tienen una relación real y seria.",
+    episodes: "5 temporadas/50 episodios",
+    hasManga: true,
+    hasLightNovel: false,
+    amigonnareadanyofthem: "",
+    doIRecommend: "",
+    platforms: [
+      "Crunchyroll",
+      "Cualquier plataforma pirata."
+    ],
+    languages: ["Japonés", "Español (Latinoamérica)", "Inglés", "Francés", "Alemán"],
+    rating: "",
+    ratingAfterWatching: "",
+    personalOpinion: "",
+    personalOpinionAfterWatching: "",
+    openings: [
+      {
+        name: "Centimeter - the peggies (Temporada 1)",
+        url: "https://www.youtube.com/results?search_query=the+peggies+Centimeter+Rent-A-Girlfriend+opening",
+      },
+      {
+        name: "Himitsu Koigokoro - CHiCO with HoneyWorks (Temporada 2)",
+        url: "https://www.youtube.com/results?search_query=CHiCO+with+HoneyWorks+Himitsu+Koigokoro+opening",
+      },
+      {
+        name: "Renai millimeter film - halca (Temporada 3)",
+        url: "https://youtu.be/7Ca6V5P11ZE?si=GCv25GFyd-aalITR",
+      },
+      {
+        name: "Umitsuki - ClariS (Temporada 4)",
+        url: "https://youtu.be/VOdmjxK8QGQ?si=r8wbvwJM0HgFCsZ7",
+      },
+      {
+        name: "Non Scenario Etude - Sora Amamiya (Temporada 5)",
+        url: "https://youtu.be/SCv4mleVUMQ?si=vj5ufVruQ9qVz6ak",
+      },
+    ],
+    endings: [
+      {
+        name: "Kokuhaku Bungee Jump - halca (Temporada 1, ep 2-6, 8-11)",
+        url: "https://www.youtube.com/watch?v=vy8_DOJLyzE",
+      },
+      {
+        name: "First Drop - halca (Temporada 1, ep 7)",
+        url: "https://youtu.be/CUT4-fCRvs4?si=moCrFS6T6w1_zbh_",
+      },
+      {
+        name: "Ienai - MIMiNARI (feat. asmi) (Temporada 2)",
+        url: "https://www.youtube.com/watch?v=EwRD3Lu7jUE",
+      },
+      {
+        name: "End Roll - Amber's (Temporada 3)",
+        url: "https://youtu.be/AM3ygLQt2Cc?si=Q5gQEy6_f1aTrVZb",
+      },
+      {
+        name: "Boku no Vega - Regal Lily (Temporada 4)",
+        url: "https://youtu.be/4G_FxiIALwo?si=SFXELggYBJ5Lyl2i",
+      },
+      {
+        name: "204-gōshitsu - Nakigoto (Temporada 5)",
+        url: "https://youtu.be/JKP0xrfmbPw?si=1yLaye5gvTP0rSia",
+      },
+    ],
+  },
 ];
 
 export const categories = ["Visto", "Viendo", "No visto", "Abandonado"];
