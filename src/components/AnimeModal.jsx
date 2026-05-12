@@ -1,12 +1,11 @@
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 
 const AnimeModal = ({ anime, onClose }) => {
   if (!anime) return null;
 
   return (
-    <AnimatePresence>
-      <motion.div
-        initial={{ opacity: 0 }}
+    <motion.div
+      initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         transition={{ duration: 0.3 }}
@@ -23,7 +22,7 @@ const AnimeModal = ({ anime, onClose }) => {
           exit={{ scale: 0.9, opacity: 0, y: 20 }}
           transition={{ duration: 0.3 }}
           onClick={(e) => e.stopPropagation()}
-          className="relative max-w-4xl w-full max-h-[90vh] overflow-y-auto bg-white/10 backdrop-blur-xl rounded-2xl border border-white/20 shadow-2xl"
+          className="relative max-w-4xl w-full max-h-[90vh] overflow-y-auto bg-white/10 dark:bg-gray-900/95 backdrop-blur-xl rounded-2xl border border-white/20 dark:border-gray-700 shadow-2xl"
         >
           {/* Close Button */}
           <button
@@ -218,7 +217,6 @@ const AnimeModal = ({ anime, onClose }) => {
           </div>
         </motion.div>
       </motion.div>
-    </AnimatePresence>
   );
 };
 
