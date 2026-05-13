@@ -1,9 +1,10 @@
 import { motion } from 'framer-motion';
 
-const AnimeCard = ({ anime, onClick }) => {
+const AnimeCard = ({ anime, onClick, isElastic = false }) => {
   return (
     <motion.div
-      layout
+      layout={isElastic ? true : "position"}
+      layoutId={`card-${anime.id}`}
       initial={{ opacity: 0, scale: 0.8 }}
       animate={{ opacity: 1, scale: 1 }}
       exit={{ opacity: 0, scale: 0.8 }}
@@ -14,21 +15,21 @@ const AnimeCard = ({ anime, onClick }) => {
     >
       <div className="bg-white/10 dark:bg-gray-800/60 backdrop-blur-md rounded-xl overflow-hidden border border-gray-200 dark:border-gray-700 shadow-xl hover:shadow-2xl hover:shadow-purple-500/20 transition-all duration-300">
         {/* Image Container */}
-        <div className="relative overflow-hidden h-64">
+        <div className="relative overflow-hidden w-full">
           <img 
             src={anime.image} 
             alt={anime.title}
-            className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+            className="w-full h-auto block group-hover:scale-110 transition-transform duration-300"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
         </div>
         
         {/* Content */}
         <div className="p-4">
-          <h3 className="text-xl font-bold text-gray-800 dark:text-gray-100 mb-2 truncate">
+          <h3 className="text-xl font-bold text-gray-800 dark:text-gray-100 mb-2">
             {anime.title}
           </h3>
-          <p className="text-gray-600 dark:text-gray-400 text-sm mb-3 line-clamp-2">
+          <p className="text-gray-600 dark:text-gray-400 text-sm mb-3">
             {anime.description}
           </p>
           

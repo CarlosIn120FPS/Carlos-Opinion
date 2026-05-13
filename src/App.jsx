@@ -2,10 +2,18 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import AnimeCard from './components/AnimeCard';
 import AnimeModal from './components/AnimeModal';
-import { animeData, categories } from './animeData';
+import MangaModal from './components/MangaModal';
+import LightNovelModal from './components/LightNovelModal';
+import PageNavigationModal from './components/PageNavigationModal';
+
+import { animeData, categories as animeCategories } from './animeData';
+import { mangaData, mangaCategories } from './mangaData';
+import { lightNovelData, lightNovelCategories } from './lightNovelData';
 
 function App() {
-  const [selectedAnime, setSelectedAnime] = useState(null);
+  const [currentPage, setCurrentPage] = useState('anime'); // 'anime', 'manga', 'lightnovel'
+  const [isNavOpen, setIsNavOpen] = useState(false);
+  const [selectedItem, setSelectedItem] = useState(null);
   const [activeCategory, setActiveCategory] = useState('Todos');
   const [searchTerm, setSearchTerm] = useState('');
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -19,6 +27,32 @@ function App() {
     return false;
   });
 
+  // Column Count state
+  const [columnCount, setColumnCount] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('columnCount');
+      return saved ? parseInt(saved, 10) : 4;
+    }
+    return 4;
+  });
+
+  // Elastic animation state
+  const [isElastic, setIsElastic] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('isElastic');
+      return saved ? JSON.parse(saved) : false;
+    }
+    return false;
+  });
+
+  useEffect(() => {
+    localStorage.setItem('columnCount', columnCount);
+  }, [columnCount]);
+
+  useEffect(() => {
+    localStorage.setItem('isElastic', JSON.stringify(isElastic));
+  }, [isElastic]);
+
   useEffect(() => {
     if (isDarkMode) {
       document.documentElement.classList.add('dark');
@@ -29,11 +63,29 @@ function App() {
     }
   }, [isDarkMode]);
 
-  const filteredAnime = animeData.filter(anime => {
-    const matchesCategory = activeCategory === 'Todos' || anime.category === activeCategory;
-    const matchesSearch = anime.title.toLowerCase().includes(searchTerm.toLowerCase());
+  // Reset category and search when switching pages
+  useEffect(() => {
+    setActiveCategory('Todos');
+    setSearchTerm('');
+    setSelectedItem(null);
+  }, [currentPage]);
+
+  const currentData = currentPage === 'anime' ? animeData : currentPage === 'manga' ? mangaData : lightNovelData;
+  const currentCategories = currentPage === 'anime' ? animeCategories : currentPage === 'manga' ? mangaCategories : lightNovelCategories;
+  
+  const pageTitle = currentPage === 'anime' ? "Carlos' Opinion" : currentPage === 'manga' ? "Carlos' Manga Opinion" : "Carlos' Light Novel Opinion";
+  const searchPlaceholder = currentPage === 'anime' ? "Buscar anime por título..." : currentPage === 'manga' ? "Buscar manga por título..." : "Buscar novela ligera por título...";
+  const pageDescription = currentPage === 'anime' 
+    ? "La página web en la que Carlos comparte su opinión sobre animes que ha visto, está viendo, verá, o ha abandonado."
+    : currentPage === 'manga'
+    ? "La página web en la que Carlos comparte su opinión sobre mangas que ha leído, está leyendo o ha abandonado."
+    : "La página web en la que Carlos comparte su opinión sobre novelas ligeras que ha leído, está leyendo o ha abandonado.";
+
+  const filteredItems = currentData.filter(item => {
+    const matchesCategory = activeCategory === 'Todos' || item.category === activeCategory;
+    const matchesSearch = item.title.toLowerCase().includes(searchTerm.toLowerCase());
     return matchesCategory && matchesSearch;
-  });
+  }).sort((a, b) => a.id - b.id);
 
   return (
     <div className="min-h-screen p-8 transition-colors duration-300 dark:bg-[#0f172a]">
@@ -44,11 +96,19 @@ function App() {
         transition={{ duration: 0.6 }}
         className="text-center mb-12"
       >
-        <h1 className="text-6xl font-bold mb-4 bg-gradient-to-r from-purple-400 via-blue-400 to-indigo-400 bg-clip-text text-transparent">
-          Carlos' Opinion
-        </h1>
-        <p className="text-xl text-gray-800 dark:text-gray-300">
-          La pagina web en la que Carlos comparte su opinión sobre animes que ha visto, está viendo, verá, o ha abandonado.
+        <button 
+          onClick={() => setIsNavOpen(true)}
+          className="hover:scale-105 transition-transform duration-300 relative group mb-4"
+        >
+          <h1 className="text-5xl md:text-6xl font-bold pb-2 bg-gradient-to-r from-purple-400 via-blue-400 to-indigo-400 bg-clip-text text-transparent">
+            {pageTitle}
+          </h1>
+          <span className="absolute -bottom-4 left-1/2 -translate-x-1/2 text-sm text-purple-500 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
+            Click para cambiar de sección
+          </span>
+        </button>
+        <p className="text-xl text-gray-800 dark:text-gray-300 mt-6 max-w-2xl mx-auto relative z-10">
+          {pageDescription}
         </p>
         
         {/* Decorative line */}
@@ -67,7 +127,7 @@ function App() {
           <div className="relative w-full max-w-md">
             <input
               type="text"
-              placeholder="Buscar anime por título..."
+              placeholder={searchPlaceholder}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full px-6 py-3 pl-12 rounded-lg bg-white shadow-sm dark:bg-gray-800/50 backdrop-blur-md border border-gray-200 dark:border-gray-700 text-purple-800 dark:text-purple-100 placeholder-purple-400 dark:placeholder-purple-300/50 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-300"
@@ -78,12 +138,7 @@ function App() {
               stroke="currentColor" 
               viewBox="0 0 24 24"
             >
-              <path 
-                strokeLinecap="round" 
-                strokeLinejoin="round" 
-                strokeWidth={2} 
-                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" 
-              />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
             </svg>
             {searchTerm && (
               <button
@@ -100,29 +155,29 @@ function App() {
 
         {/* Category Buttons */}
         <div className="flex justify-center gap-4 flex-wrap items-center relative">
-        <button
-          onClick={() => setActiveCategory('Todos')}
-          className={`px-6 py-3 rounded-lg font-semibold transition-all duration-300 ${
-            activeCategory === 'Todos'
-              ? 'bg-gradient-to-r from-purple-500 to-blue-500 text-white shadow-lg shadow-purple-500/50'
-              : 'bg-white dark:bg-gray-800/60 shadow-sm dark:shadow-none backdrop-blur-md border border-gray-200 dark:border-gray-700 text-purple-600 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700'
-          }`}
-        >
-          Todos
-        </button>
-        {categories.map((category) => (
           <button
-            key={category}
-            onClick={() => setActiveCategory(category)}
+            onClick={() => setActiveCategory('Todos')}
             className={`px-6 py-3 rounded-lg font-semibold transition-all duration-300 ${
-              activeCategory === category
+              activeCategory === 'Todos'
                 ? 'bg-gradient-to-r from-purple-500 to-blue-500 text-white shadow-lg shadow-purple-500/50'
                 : 'bg-white dark:bg-gray-800/60 shadow-sm dark:shadow-none backdrop-blur-md border border-gray-200 dark:border-gray-700 text-purple-600 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700'
             }`}
           >
-            {category}
+            Todos
           </button>
-        ))}
+          {currentCategories.map((category) => (
+            <button
+              key={category}
+              onClick={() => setActiveCategory(category)}
+              className={`px-6 py-3 rounded-lg font-semibold transition-all duration-300 ${
+                activeCategory === category
+                  ? 'bg-gradient-to-r from-purple-500 to-blue-500 text-white shadow-lg shadow-purple-500/50'
+                  : 'bg-white dark:bg-gray-800/60 shadow-sm dark:shadow-none backdrop-blur-md border border-gray-200 dark:border-gray-700 text-purple-600 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700'
+              }`}
+            >
+              {category}
+            </button>
+          ))}
           
           {/* Settings Menu */}
           <div className="relative">
@@ -149,7 +204,7 @@ function App() {
                   <div className="p-4 border-b border-gray-100 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50">
                     <h3 className="font-semibold text-gray-700 dark:text-gray-200">Ajustes</h3>
                   </div>
-                  <div className="p-2">
+                  <div className="p-2 border-b border-gray-100 dark:border-gray-700">
                     <button
                       onClick={() => setIsDarkMode(!isDarkMode)}
                       className="w-full flex items-center justify-between px-4 py-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-200"
@@ -159,6 +214,34 @@ function App() {
                         <div className={`w-4 h-4 rounded-full bg-white shadow-sm transform transition-transform duration-300 ${isDarkMode ? 'translate-x-6' : 'translate-x-0'}`} />
                       </div>
                     </button>
+                    <button
+                      onClick={() => {
+                        const newValue = !isElastic;
+                        setIsElastic(newValue);
+                        localStorage.setItem('isElastic', JSON.stringify(newValue));
+                        window.location.reload();
+                      }}
+                      className="w-full flex items-center justify-between px-4 py-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-200 mt-1"
+                    >
+                      <span className="text-gray-700 dark:text-gray-300">Animación Elástica</span>
+                      <div className={`w-12 h-6 rounded-full transition-colors duration-300 flex items-center p-1 ${isElastic ? 'bg-purple-500' : 'bg-gray-300 dark:bg-gray-600'}`}>
+                        <div className={`w-4 h-4 rounded-full bg-white shadow-sm transform transition-transform duration-300 ${isElastic ? 'translate-x-6' : 'translate-x-0'}`} />
+                      </div>
+                    </button>
+                  </div>
+                  <div className="px-4 py-3 border-t border-gray-100 dark:border-gray-700">
+                    <label className="flex items-center justify-between text-sm text-gray-700 dark:text-gray-300 mb-2">
+                      <span>Columnas por fila</span>
+                      <span className="font-bold text-purple-500">{columnCount}</span>
+                    </label>
+                    <input 
+                      type="range" 
+                      min="1" 
+                      max="6" 
+                      value={columnCount} 
+                      onChange={(e) => setColumnCount(parseInt(e.target.value, 10))}
+                      className="w-full accent-purple-500"
+                    />
                   </div>
                 </motion.div>
               )}
@@ -167,24 +250,24 @@ function App() {
         </div>
       </motion.div>
 
-      {/* Anime Grid */}
+      {/* Grid Content */}
       <motion.div 
-        layout
+        layout={isElastic ? true : "position"}
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ duration: 0.6, delay: 0.4 }}
-        className="max-w-7xl mx-auto"
+        className="w-full transition-all duration-500"
       >
         <AnimatePresence>
-          {categories.map((category) => {
-            const categoryAnime = filteredAnime.filter(anime => anime.category === category);
+          {currentCategories.map((category) => {
+            const categoryItems = filteredItems.filter(item => item.category === category);
             
             if (activeCategory !== 'Todos' && activeCategory !== category) return null;
-            if (categoryAnime.length === 0) return null;
+            if (categoryItems.length === 0) return null;
             
             return (
               <motion.div 
-                layout
+                layout={isElastic ? true : "position"}
                 initial={{ opacity: 0, scale: 0.9, y: 20 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.9, y: -20 }}
@@ -197,24 +280,35 @@ function App() {
                   {category}
                 </h2>
                 
-                <motion.div layout className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                  <AnimatePresence>
-                    {categoryAnime.map((anime) => (
-                      <AnimeCard 
-                        key={anime.id} 
-                        anime={anime} 
-                        onClick={setSelectedAnime}
-                      />
-                    ))}
-                  </AnimatePresence>
-                </motion.div>
+                <div 
+                  className="grid gap-6 items-start" 
+                  style={{ gridTemplateColumns: `repeat(${columnCount}, minmax(0, 1fr))` }}
+                >
+                  {Array.from({ length: columnCount }).map((_, colIndex) => {
+                    const columnItems = categoryItems.filter((_, idx) => idx % columnCount === colIndex);
+                    return (
+                      <div key={colIndex} className="flex flex-col gap-6">
+                        <AnimatePresence>
+                          {columnItems.map((item) => (
+                            <AnimeCard 
+                              key={`${item.id}-${isElastic ? 'elastic' : 'rigid'}`} 
+                              anime={item} 
+                              onClick={setSelectedItem}
+                              isElastic={isElastic}
+                            />
+                          ))}
+                        </AnimatePresence>
+                      </div>
+                    );
+                  })}
+                </div>
               </motion.div>
             );
           })}
         </AnimatePresence>
         
         <AnimatePresence>
-          {filteredAnime.length === 0 && (
+          {filteredItems.length === 0 && (
             <motion.div 
               layout
               initial={{ opacity: 0, y: 20 }}
@@ -223,20 +317,42 @@ function App() {
               className="text-center py-20"
             >
               <p className="text-2xl text-purple-600 dark:text-purple-300/70 font-semibold">
-                No se encontraron animes con "{searchTerm}"
+                No se encontraron resultados con "{searchTerm}"
               </p>
             </motion.div>
           )}
         </AnimatePresence>
       </motion.div>
 
-      {/* Modal */}
+      {/* Navigation Modal */}
+      <PageNavigationModal 
+        isOpen={isNavOpen} 
+        onClose={() => setIsNavOpen(false)} 
+        currentPage={currentPage}
+        onNavigate={setCurrentPage}
+      />
+
+      {/* Content Modals */}
       <AnimatePresence>
-        {selectedAnime && (
+        {selectedItem && currentPage === 'anime' && (
           <AnimeModal 
-            key="modal"
-            anime={selectedAnime} 
-            onClose={() => setSelectedAnime(null)} 
+            key="anime-modal"
+            anime={selectedItem} 
+            onClose={() => setSelectedItem(null)} 
+          />
+        )}
+        {selectedItem && currentPage === 'manga' && (
+          <MangaModal 
+            key="manga-modal"
+            manga={selectedItem} 
+            onClose={() => setSelectedItem(null)} 
+          />
+        )}
+        {selectedItem && currentPage === 'lightnovel' && (
+          <LightNovelModal 
+            key="ln-modal"
+            novel={selectedItem} 
+            onClose={() => setSelectedItem(null)} 
           />
         )}
       </AnimatePresence>
@@ -245,4 +361,3 @@ function App() {
 }
 
 export default App;
-

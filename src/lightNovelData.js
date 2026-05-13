@@ -1,0 +1,50 @@
+export const lightNovelData = [
+  {
+    id: 1,
+    title: "Mushoku Tensei: Jobless Reincarnation",
+    japaneseTitle: "無職転生 〜異世界行ったら本気だす〜",
+    category: "Leído",
+    image: "https://cdn.myanimelist.net/images/manga/3/118335l.jpg",
+    description: "Un nini de 34 años es atropellado y reencarna en un mundo de fantasía mágica, decidido a vivir sin arrepentimientos.",
+    genres: ["Isekai", "Fantasía", "Aventura", "Drama", "Ecchi"],
+    fullSynopsis: "Tras ser expulsado de su casa tras la muerte de sus padres, un nini de 34 años que nunca ha logrado nada en su vida se da cuenta de que ha llegado a un callejón sin salida. Al intentar salvar a unos adolescentes de ser atropellados por un camión, muere y reencarna en un mundo de espadas y hechicería como Rudeus Greyrat. Conservando sus recuerdos y conocimientos de su vida pasada, promete vivir esta nueva vida al máximo y no repetir sus errores.",
+    volumes: "26 (Finalizada)",
+    author: "Rifujin na Magonote",
+    illustrator: "Shirotaka",
+    hasAnime: true,
+    hasManga: true,
+    doIRecommend: "Sí, es el abuelo de los isekai modernos, tiene un mundo increíble y un gran desarrollo de personajes.",
+    languages: ["Inglés", "Japonés", "Español"],
+    rating: "9/10",
+    ratingAfterWatching: "10/10",
+    personalOpinion: "El desarrollo de mundo y de Rudeus es sublime. Muy diferente al anime en cuanto a nivel de detalle interno de la mente del protagonista.",
+    personalOpinionAfterWatching: "Una obra que cierra perfectamente todos sus arcos.",
+    physicalStores: [
+      {
+        name: "Amazon",
+        languages: [
+          {
+            language: "Inglés",
+            volumes: [
+              { name: "Volumen 1", url: "https://www.amazon.es/Mushoku-Tensei-Jobless-Reincarnation-Light/dp/1626928624/" },
+              { name: "Volumen 2", url: "https://www.amazon.es/Mushoku-Tensei-Jobless-Reincarnation-Light/dp/162692985X/" }
+            ]
+          }
+        ]
+      },
+      {
+        name: "Casa del Libro",
+        languages: [
+          {
+            language: "Inglés",
+            volumes: [
+              { name: "Volumen 1 (Inglés)", url: "https://www.casadellibro.com/libro-mushoku-tensei-jobless-reincarnation-light-novel-1/9781626928627/7101859" }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+];
+
+export const lightNovelCategories = ["Leído", "Leyendo", "No leído", "Abandonado"];

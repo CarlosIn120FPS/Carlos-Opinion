@@ -2,6 +2,86 @@
 export const animeData = [
   // VISTO (Watched)
   {
+    id: 8,
+    title: "Alya Sometimes Hides Her Feelings in Russian",
+    japaneseTitle: "Tokidoki Bosotto Roshia-go de Dereru Tonari no Alya-san (時々ボソッとロシア語でデレる隣のアーリャさん)",
+    category: "Visto",
+    image: "https://imgsrv.crunchyroll.com/cdn-cgi/image/fit=contain,format=auto,quality=85,width=1200,height=675/catalog/crunchyroll/d503056131dd28ac9887ee6e8e80c0de.png",
+    description: "La popular y hermosa Alya murmura cosas dulces en ruso creyendo que su compañero no la entiende, pero él domina el idioma a la perfección.",
+    genres: ["Romance", "Comedia", "Escolar", "Slice of life"],
+    fullSynopsis: "Alisa Mikhailovna Kujou, cariñosamente llamada Alya, es una hermosa y popular estudiante de secundaria con raíces rusas y japonesas. Su compañero de pupitre, Masachika Kuze, es un chico que parece perezoso y desmotivado. Alya a veces murmura en ruso cosas dulces o sus verdaderos sentimientos sobre Masachika, creyendo que nadie puede entenderla. Sin embargo, lo que ella no sabe es que Masachika entiende el ruso a nivel nativo, pero finge no hacerlo para ver qué más dice. Así comienza una divertida y tierna comedia romántica de malentendidos.",
+    episodes: "1 temporada/12 episodios",
+    hasManga: true,
+    hasLightNovel: true,
+    amigonnareadanyofthem: "",
+    doIRecommend: "",
+    platforms: [
+      "Crunchyroll",
+      "Cualquier plataforma pirata."
+    ],
+    languages: ["Japonés", "Español", "Ruso"],
+    rating: "",
+    ratingAfterWatching: "",
+    personalOpinion: "",
+    personalOpinionAfterWatching: "",
+    openings: [
+      {
+        name: "1-ban Kagayaku Hoshi - Sumire Uesaka",
+        url: "https://youtu.be/MBM7qyH-YDY?si=5h7plh1FFHGbiuvo"
+      }
+    ],
+    endings: [
+      {
+        name: "Gakuen Tengoku - Sumire Uesaka (Ep 1)",
+        url: "https://www.youtube.com/watch?v=WMdXTiLrT2g&list=PLgIaT9Vp2WwPTkBkifFSeqSXlDsZFP17s&index=1"
+      },
+      {
+        name: "Kawaikute Gomen - Sumire Uesaka (Ep 2)",
+        url: "https://www.youtube.com/watch?v=wiciFs4eZg0&list=PLgIaT9Vp2WwPTkBkifFSeqSXlDsZFP17s&index=2"
+      },
+      {
+        name: "Omoide ga Ippai - Sumire Uesaka (Ep 3)",
+        url: "https://www.youtube.com/watch?v=O9S2bWkaiMI&list=PLgIaT9Vp2WwPTkBkifFSeqSXlDsZFP17s&index=3"
+      },
+      {
+        name: "Hare Hare Yukai - Sumire Uesaka (Ep 4)",
+        url: "https://www.youtube.com/watch?v=O9S2bWkaiMI&list=PLgIaT9Vp2WwPTkBkifFSeqSXlDsZFP17s&index=4"
+      },
+      {
+        name: "Chiisana Koi no Uta - Sumire Uesaka (Ep 5)",
+        url: "https://www.youtube.com/watch?v=O9S2bWkaiMI&list=PLgIaT9Vp2WwPTkBkifFSeqSXlDsZFP17s&index=5"
+      },
+      {
+        name: "Secret Base ~Kimi ga Kureta Mono~ - Sumire Uesaka (Ep 6)",
+        url: "https://www.youtube.com/watch?v=O9S2bWkaiMI&list=PLgIaT9Vp2WwPTkBkifFSeqSXlDsZFP17s&index=6"
+      },
+      {
+        name: "Love Story wa Totsuzen ni - Sumire Uesaka (Ep 7)",
+        url: "https://www.youtube.com/watch?v=O9S2bWkaiMI&list=PLgIaT9Vp2WwPTkBkifFSeqSXlDsZFP17s&index=7"
+      },
+      {
+        name: "CHE.R.RY - Sumire Uesaka (Ep 8)",
+        url: "https://www.youtube.com/watch?v=O9S2bWkaiMI&list=PLgIaT9Vp2WwPTkBkifFSeqSXlDsZFP17s&index=8"
+      },
+      {
+        name: "World is Mine - Sumire Uesaka (Ep 9)",
+        url: "https://www.youtube.com/watch?v=O9S2bWkaiMI&list=PLgIaT9Vp2WwPTkBkifFSeqSXlDsZFP17s&index=9"
+      },
+      {
+        name: "Koi no Uta - Sumire Uesaka (Ep 10)",
+        url: "https://www.youtube.com/watch?v=O9S2bWkaiMI&list=PLgIaT9Vp2WwPTkBkifFSeqSXlDsZFP17s&index=10"
+      },
+      {
+        name: "Kimagure Romantic - Sumire Uesaka (Ep 11)",
+        url: "https://www.youtube.com/watch?v=O9S2bWkaiMI&list=PLgIaT9Vp2WwPTkBkifFSeqSXlDsZFP17s&index=11"
+      },
+      {
+        name: "Hanamoyou - Sumire Uesaka (Ep 12)",
+        url: "https://www.youtube.com/watch?v=O9S2bWkaiMI&list=PLgIaT9Vp2WwPTkBkifFSeqSXlDsZFP17s&index=12"
+      }
+    ]
+  },
+  {
     id: 2,
     title: "Call of the Night",
     japaneseTitle: "Yofukashi no Uta (よふかしのうた)",
@@ -167,7 +247,7 @@ export const animeData = [
     title: "High School DxD",
     japaneseTitle: "Haisukūru Dī Dī (ハイスクールD×D)",
     category: "Visto",
-    image: "https://cdn.myanimelist.net/images/anime/11/37025.jpg",
+    image: "https://m.media-amazon.com/images/M/MV5BODVhMWE1NjctYjcwMC00MzQwLWI5YzItMTcyMTNiNmE5MTFjXkEyXkFqcGc@._V1_.jpg",
     description: "Un estudiante pervertido es asesinado en su primera cita y revivido como un demonio sirviente de Rias Gremory.",
     genres: ["Acción", "Harem", "Comedia", "Sobrenatural", "Ecchi"],
     fullSynopsis: "Issei Hyodo es un estudiante de secundaria pervertido cuyo mayor sueño es tener su propio harén. Su vida cambia drásticamente cuando una chica llamada Yuma Amano le pide una cita, solo para revelarse como un ángel caído y asesinarlo. Sin embargo, es rescatado y revivido por Rias Gremory, una hermosa demonio de clase alta, quien lo convierte en su sirviente. Ahora, como parte del Club de Investigación de lo Oculto, Issei debe entrenar para sobrevivir en el peligroso mundo de los ángeles, ángeles caídos y demonios, mientras protege a su nueva ama.",
@@ -176,7 +256,7 @@ export const animeData = [
     hasLightNovel: true,
     amigonnareadanyofthem: "Both",
     doIRecommend: "Hell yeah. Must watch.",
-    platforms: ["Cualquier plataforma pirata."],
+    platforms: [ "Cualquier plataforma pirata."],
     languages: ["Japonés", "Español (Latinoamérica)", "Inglés"],
     rating: "",
     ratingAfterWatching: "10/10",
