@@ -162,12 +162,72 @@ export const animeData = [
     ],
   },
 
-  // VIENDO (Watching)
+  {
+    id: 7,
+    title: "High School DxD",
+    japaneseTitle: "Haisukūru Dī Dī (ハイスクールD×D)",
+    category: "Visto",
+    image: "https://cdn.myanimelist.net/images/anime/11/37025.jpg",
+    description: "Un estudiante pervertido es asesinado en su primera cita y revivido como un demonio sirviente de Rias Gremory.",
+    genres: ["Acción", "Harem", "Comedia", "Sobrenatural", "Ecchi"],
+    fullSynopsis: "Issei Hyodo es un estudiante de secundaria pervertido cuyo mayor sueño es tener su propio harén. Su vida cambia drásticamente cuando una chica llamada Yuma Amano le pide una cita, solo para revelarse como un ángel caído y asesinarlo. Sin embargo, es rescatado y revivido por Rias Gremory, una hermosa demonio de clase alta, quien lo convierte en su sirviente. Ahora, como parte del Club de Investigación de lo Oculto, Issei debe entrenar para sobrevivir en el peligroso mundo de los ángeles, ángeles caídos y demonios, mientras protege a su nueva ama.",
+    episodes: "4 temporadas / 49 episodios + OVAs",
+    hasManga: true,
+    hasLightNovel: true,
+    amigonnareadanyofthem: "Both",
+    doIRecommend: "Hell yeah. Must watch.",
+    platforms: ["Cualquier plataforma pirata."],
+    languages: ["Japonés", "Español (Latinoamérica)", "Inglés"],
+    rating: "",
+    ratingAfterWatching: "10/10",
+    personalOpinion: "",
+    personalOpinionAfterWatching: "",
+    openings: [
+      {
+        name: "Trip -Innocent of D- - Larval Stage Planning (Temporada 1)",
+        url: "https://www.youtube.com/watch?v=PXTVdbYq18Y&list=RDPXTVdbYq18Y&start_radio=1"
+      },
+      {
+        name: "Sympathy - Larval Stage Planning (Temporada 2)",
+        url: "https://youtu.be/qR8eoT4fdaU?si=WMxMJdVXpxOIoP-Q"
+      },
+      {
+        name: "BLESS YoUr NAME - ChouCho (Temporada 3)",
+        url: "https://youtu.be/aihTuyOQaOk?si=4StY5OW-2Sp03Urv"
+      },
+      {
+        name: "SWITCH - Minami (Temporada 4)",
+        url: "https://youtu.be/wrNvWEEHzTk?si=uBQ5UJs3tmlglcWq"
+      }
+    ],
+    endings: [
+      {
+        name: "STUDYxSTUDY - StylipS (Temporada 1)",
+        url: "https://youtu.be/8HmyWJXohv0?si=OiSVeS8aIenFsVi4"
+      },
+      {
+        name: "Houteishiki wa Kotaenai - Occult Research Club Girls (Temporada 2, Parte 1)",
+        url: "https://youtu.be/6LReNbmreF8?si=CxpczweXYQoFzXBH"
+      },
+      {
+        name: "Lovely Devil - Occult Research Club Girls (Temporada 2, Parte 2)",
+        url: "https://youtu.be/laUSOsAUbO4?si=k79ZKCZK2HIPF4Iq"
+      },
+      {
+        name: "Give Me Secret - StylipS (Temporada 3)",
+        url: "https://youtu.be/BDGQXYvW9E8?si=iijJZUjc4EUisi8y"
+      },
+      {
+        name: "Motenai Kuse ni - Tapimiru (Temporada 4)",
+        url: "https://youtu.be/J1UCcpG0Ylw?si=MjwxhnmF6ekYUxpY"
+      }
+    ],
+  },
   {
     id: 1,
     title: "Dealing with Mikadono Sisters Is a Breeze",
-    japaneseTitle: "Mikadono-san Shimai wa Angai, Choroi. (帝乃三姉妹は案外、チョロい。)",
-    category: "Viendo",
+    japaneseTitle: "Mikadono-san Shimai wa Angai, Choroi. (帝乃三姉妹は案外, チョロい。)",
+    category: "Visto",
     image:
       "https://m.media-amazon.com/images/S/pv-target-images/47841083191a83af5ca8696e4d9342d11285395848c37cbd9819084c618a7eb9.jpg",
     description:
@@ -213,6 +273,8 @@ export const animeData = [
       },
     ],
   },
+
+  // VIENDO (Watching)
   {
     id: 5,
     title: "I made friends with the second prettiest girl in my class",
