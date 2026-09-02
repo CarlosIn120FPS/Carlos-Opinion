@@ -134,17 +134,19 @@ El menú, los filtros y el buscador salen del registro; `App.jsx` no se toca.
 Se autoaloja en el homelab, en el nodo **Pavilion** (el que va 24/7), detrás de
 Nginx Proxy Manager.
 
-Como Pavilion está en una IP de LAN y GitHub no puede llegar hasta él, el
-despliegue va al revés: Actions compila y publica el `dist/` en la rama `deploy`,
-y un timer en Pavilion la consulta cada 5 minutos. **Sin abrir ningún puerto hacia
-dentro y sin credenciales en el servidor.**
+```bash
+git push casa main      # Pavilion compila y publica (~1 min)
+git push github main    # copia de seguridad
+```
+
+**GitHub no interviene en el hosting**: es solo el sitio del que descargar el
+código si algún día hace falta. Todo el despliegue ocurre dentro de la red local.
 
 👉 **Detalle completo en [deploy/README.md](deploy/README.md)**
 
-- `.github/workflows/deploy.yml` — compila, pasa el lint y publica la rama `deploy`
-- `deploy/docker-compose.yml` — contenedor `nginx:alpine` (~8 MB de RAM)
+- `deploy/post-receive` — el hook que compila y publica al recibir el push
+- `deploy/docker-compose.yml` — contenedor `nginx:alpine` (~2 MB de RAM)
 - `deploy/nginx.conf` — `try_files` y política de caché
-- `deploy/carlos-opinion-update.{sh,service,timer}` — el actualizador por pull
 
 `base` vale `/` por defecto (servidor propio, en la raíz de un subdominio). Tanto
 las rutas de los JSON como el `basename` del router se derivan de él, así que no
