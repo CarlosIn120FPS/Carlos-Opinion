@@ -1,129 +1,198 @@
-# Guía de Personalización - Carlos' Experience
+# Guía de Personalización — Carlos' Opinion
 
-## 📝 Cómo Personalizar los Animes
+Todo el contenido de la web vive en tres ficheros JSON:
 
-### Ubicación del Archivo
-El archivo con todos los datos se encuentra en: `src/animeData.js`
+```
+public/data/anime.json
+public/data/manga.json
+public/data/lightnovels.json
+```
 
-### Estructura de un Anime
+**Ya no hay que tocar código ni recompilar para añadir una ficha.** Antes los datos
+eran módulos JavaScript que se empaquetaban dentro del bundle; ahora la web los pide
+al arrancar, así que basta con editar el JSON y recargar la página.
 
-```javascript
+---
+
+## Las dos formas de añadir contenido
+
+### A) En el servidor (rápida, sin compilar)
+
+Edita directamente el JSON dentro de la carpeta que sirve el servidor web:
+
+```bash
+nano /var/www/carlos-opinion/data/anime.json
+```
+
+Guardas, recargas el navegador (Ctrl+F5 para saltarte la caché) y ya está.
+
+> ⚠️ Este cambio **no** vuelve al repositorio de GitHub. Acuérdate de replicarlo en
+> `public/data/` del repo, o el siguiente despliegue lo pisará.
+
+### B) En el repositorio (la buena para que no se pierda)
+
+Edita `public/data/anime.json`, haz commit y despliega. Es la que mantiene GitHub
+como fuente de verdad.
+
+---
+
+## Añadir un anime
+
+Abre `public/data/anime.json`. Tiene esta forma:
+
+```json
 {
-  id: 1,                    // ⚠️ IMPORTANTE: Debe ser único
-  title: "Título del Anime",
-  category: "Visto",        // Opciones: "Visto", "Viendo", "No visto", "Abandonado"
-  image: "URL_de_la_imagen",
-  description: "Descripción breve que aparece en la tarjeta",
-  genres: ["Género1", "Género2", "Género3"],
-  fullSynopsis: "Sinopsis completa que aparece en el modal",
-  episodes: 24,             // Número de episodios
-  hasManga: true,          // true si tiene manga, false si no
-  platforms: ["Netflix", "Crunchyroll"],
-  languages: ["Japonés", "Español", "Inglés"],
-  rating: "9/10",          // Tu valoración
-  personalOpinion: "Tu opinión personal sobre el anime"
+  "categories": ["Visto", "Viendo", "No visto", "Abandonado"],
+  "items": [ ... aquí van las fichas ... ]
 }
 ```
 
-### Pasos para Personalizar
+Copia una ficha existente dentro de `items`, pégala y cambia los valores:
 
-#### 1. Cambiar imágenes de los animes existentes
-```javascript
-// Encuentra el anime que quieres modificar y cambia la URL
+```json
 {
-  id: 1,
-  title: "Attack on Titan",
-  image: "https://mi-imagen.com/attack-on-titan.jpg",  // ← Cambia aquí
-  // ... resto de campos
+  "id": 9,
+  "title": "Título en español o inglés",
+  "japaneseTitle": "Título japonés (日本語)",
+  "category": "Visto",
+  "image": "https://.../portada.jpg",
+  "description": "Una o dos frases. Es lo que se ve en la tarjeta.",
+  "genres": ["Romance", "Comedia"],
+  "fullSynopsis": "La sinopsis larga, para el modal.",
+  "episodes": "1 temporada/12 episodios",
+  "hasManga": true,
+  "hasLightNovel": false,
+  "willReadSource": "Sí, voy a leerme el manga.",
+  "doIRecommend": "Sí, mucho.",
+  "platforms": ["Crunchyroll", "Netflix"],
+  "languages": ["Japonés", "Español"],
+  "rating": "8.5/10",
+  "ratingFinal": "9/10",
+  "personalOpinion": "Lo que pensaba mientras lo veía.",
+  "personalOpinionFinal": "Lo que pienso al terminarlo.",
+  "openings": [
+    { "name": "Nombre del opening - Artista", "url": "https://youtu.be/..." }
+  ],
+  "endings": [
+    { "name": "Nombre del ending - Artista", "url": "https://youtu.be/..." }
+  ]
 }
 ```
 
-#### 2. Modificar información
-```javascript
-{
-  id: 1,
-  title: "Attack on Titan",
-  episodes: 87,              // ← Cambia el número
-  rating: "10/10",           // ← Cambia la valoración
-  personalOpinion: "Mi nueva opinión",  // ← Cambia la opinión
-  // ... resto de campos
-}
+### Reglas que importan
+
+- **`id` tiene que ser único dentro de ese fichero** (no entre ficheros: el manga y
+  el anime pueden tener los dos un `id: 1`). El orden en pantalla se ordena por `id`,
+  no por la posición en el JSON.
+- **`category` tiene que coincidir exactamente** con una de las de `categories`,
+  tildes incluidas. Si escribes una que no está en la lista, la ficha se muestra
+  igualmente en una sección propia al final — pero seguramente sea una errata.
+- **Comas**: JSON no admite coma después del último elemento de una lista o del
+  último campo de un objeto. Es el fallo número uno al editar a mano.
+- **Comillas dobles siempre**, tanto en las claves como en los textos. Si tu texto
+  lleva comillas dentro, escápalas: `\"así\"`.
+
+### Campos opcionales
+
+Puedes dejar cualquier campo en `""` o quitarlo directamente. Si un campo está
+vacío, esa fila no se pinta.
+
+Los pares de opinión funcionan así:
+
+| Tienes | Se muestra |
+|---|---|
+| `rating` y `ratingFinal` | "Rating (mientras lo veo)" y "Rating final" |
+| solo `ratingFinal` | "Rating" a secas |
+| solo `rating` | "Rating (mientras lo veo)" |
+| ninguno | nada |
+
+Igual con `personalOpinion` / `personalOpinionFinal`.
+
+---
+
+## Añadir un manga o una novela ligera
+
+Mismo procedimiento con `manga.json` o `lightnovels.json`. Cambian algunos campos:
+
+| Campo | anime | manga | novela |
+|---|:--:|:--:|:--:|
+| `episodes` | ✅ | — | — |
+| `chapters` / `volumes` | — | ✅ | `volumes` |
+| `author` | — | ✅ | ✅ |
+| `illustrator` | — | — | ✅ |
+| `hasAnime` | — | ✅ | ✅ |
+| `hasManga` | ✅ | — | ✅ |
+| `hasLightNovel` | ✅ | — | — |
+| `openings` / `endings` | ✅ | — | — |
+| `physicalStores` | — | ✅ | ✅ |
+
+### Tiendas físicas (`physicalStores`)
+
+Va anidado en tres niveles: tienda → idioma → volúmenes.
+
+```json
+"physicalStores": [
+  {
+    "name": "Amazon",
+    "languages": [
+      {
+        "language": "Español",
+        "volumes": [
+          { "name": "Volumen 1", "url": "https://www.amazon.es/dp/..." },
+          { "name": "Volumen 2", "url": "https://www.amazon.es/dp/..." }
+        ]
+      }
+    ]
+  }
+]
 ```
 
-#### 3. Agregar un nuevo anime
-```javascript
-// Al final del array animeData, agrega:
-{
-  id: 9,                     // ⚠️ Usa un ID que no exista
-  title: "Nuevo Anime",
-  category: "Viendo",
-  image: "URL_de_la_imagen",
-  description: "Descripción corta",
-  genres: ["Acción", "Aventura"],
-  fullSynopsis: "Sinopsis completa...",
-  episodes: 12,
-  hasManga: false,
-  platforms: ["Crunchyroll"],
-  languages: ["Japonés", "Español"],
-  rating: "8/10",
-  personalOpinion: "Mi opinión..."
-}
+---
+
+## Añadir una sección nueva (películas, doujinshi...)
+
+1. Crea `public/data/peliculas.json` con la misma forma (`categories` + `items`).
+2. Crea el modal en `src/components/`.
+3. Añade una entrada en `src/data/contentTypes.js`, con su `slug` (el trozo de URL).
+
+Eso es todo — el menú de navegación, los filtros, el buscador y **la ruta**
+(`/peliculas`, `/peliculas/1`) salen solos del registro. No hay que tocar `App.jsx`
+ni `src/routes.jsx`.
+
+---
+
+## Cambiar los estilos
+
+Los colores son clases de [Tailwind](https://tailwindcss.com/docs). Los degradados
+morado→azul de la cabecera y los botones están en `src/App.jsx`; cada modal tiene su
+propia identidad visual y se toca en su fichero:
+
+| Fichero | Estilo |
+|---|---|
+| `src/components/AnimeModal.jsx` | Cristal esmerilado (*glassmorphism*) |
+| `src/components/MangaModal.jsx` | Viñeta de cómic, bordes negros |
+| `src/components/LightNovelModal.jsx` | Libro con columnas y textura de papel |
+
+---
+
+## Ver los cambios
+
+```bash
+npm install      # solo la primera vez
+npm run dev      # http://localhost:5173/
 ```
 
-#### 4. Eliminar un anime
-Simplemente borra todo el objeto del anime del array.
+El servidor recarga solo al guardar. Si editas un JSON de `public/data/` y no ves el
+cambio, recarga con Ctrl+F5.
 
-### 💡 Consejos
+---
 
-1. **Imágenes**: Puedes usar:
-   - URLs externas: `"https://ejemplo.com/imagen.jpg"`
-   - Imágenes locales: Guárdalas en `public/images/` y usa `"/images/nombre.jpg"`
+## Problemas comunes
 
-2. **Categorías**: Deben ser exactamente:
-   - "Visto"
-   - "Viendo"
-   - "No visto"
-   - "Abandonado"
-
-3. **IDs**: Asegúrate de que cada anime tenga un ID único
-
-4. **Géneros**: Puedes usar cualquier texto, algunos ejemplos:
-   - Acción, Drama, Romance, Comedia, Thriller
-   - Fantasía, Ciencia Ficción, Sobrenatural
-   - Horror, Misterio, Psicológico
-   - Shounen, Seinen, Slice of Life
-
-## 🚀 Ver los Cambios
-
-Después de modificar `src/animeData.js`:
-
-1. Si el servidor está corriendo (`npm run dev`), los cambios se verán automáticamente
-2. Si no está corriendo, inicia el servidor con `npm run dev`
-3. Abre http://localhost:5173 en tu navegador
-
-## 🎨 Personalizar Estilos
-
-### Colores del Fondo
-En `src/index.css` (línea con el gradiente):
-```css
-/* Modifica los colores aquí */
-background: linear-gradient(to bottom right, #312e81, #581c87, #1e3a8a);
-```
-
-### Colores de los Botones
-En `src/App.jsx`, busca las clases de los botones y modifica:
-```javascript
-className="bg-gradient-to-r from-purple-500 to-blue-500"
-// Cambia purple-500 y blue-500 por otros colores de Tailwind
-```
-
-## ❓ Problemas Comunes
-
-**Problema**: Los cambios no se ven
-- **Solución**: Asegúrate de guardar el archivo y que el servidor esté corriendo
-
-**Problema**: Error después de agregar un anime
-- **Solución**: Verifica que el ID sea único y que la sintaxis sea correcta (comas, comillas, etc.)
-
-**Problema**: Las imágenes no cargan
-- **Solución**: Verifica que las URLs sean correctas y accesibles
+| Síntoma | Causa casi siempre |
+|---|---|
+| "No se pudieron cargar los datos de esta sección" | JSON mal formado. Pégalo en [jsonlint.com](https://jsonlint.com/) y te dice la línea. |
+| Una ficha no aparece | `category` mal escrita, o estás con un filtro puesto. |
+| Sale un recuadro gris con el título en vez de la portada | La URL de `image` ya no responde. Cámbiala. |
+| El orden no es el que esperas | Se ordena por `id`, no por la posición en el fichero. |
+| Cambié el JSON en el servidor y al desplegar se perdió | Es lo esperado: replícalo también en el repo. |

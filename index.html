@@ -1,10 +1,30 @@
 <!doctype html>
-<html lang="en">
+<!-- La web está entera en español: con lang="en" los lectores de pantalla la leían
+     con voz inglesa y los buscadores la indexaban como si fuera inglés. -->
+<html lang="es">
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#0f172a" />
+
     <title>Carlos' Opinion</title>
+    <meta
+      name="description"
+      content="Opiniones y reseñas de Carlos sobre los animes, mangas y novelas ligeras que ha visto, está viendo o ha abandonado."
+    />
+
+    <!-- Para las vistas previas al compartir el enlace.
+         TODO al migrar al servidor propio: añadir <meta property="og:url"> y
+         <meta property="og:image"> con la URL absoluta definitiva del dominio. -->
+    <meta property="og:type" content="website" />
+    <meta property="og:locale" content="es_ES" />
+    <meta property="og:title" content="Carlos' Opinion" />
+    <meta
+      property="og:description"
+      content="Opiniones y reseñas de Carlos sobre los animes, mangas y novelas ligeras que ha visto, está viendo o ha abandonado."
+    />
+    <meta name="twitter:card" content="summary_large_image" />
   </head>
   <body>
     <div id="root"></div>

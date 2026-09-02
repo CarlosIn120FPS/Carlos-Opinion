@@ -1,0 +1,6 @@
+* text=auto eol=lf
+*.sh text eol=lf
+post-receive text eol=lf
+*.png binary
+*.jpg binary
+*.svg text eol=lf

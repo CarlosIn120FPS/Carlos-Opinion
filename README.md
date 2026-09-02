@@ -1,117 +1,164 @@
-# Carlos' Experience - Galería de Anime
+# Carlos' Opinion
 
-Una galería elegante y futurista de animes con diseño glassmorphism y estética científica, construida con React, Tailwind CSS y Framer Motion.
+La web donde Carlos comparte su opinión sobre los **animes**, **mangas** y **novelas
+ligeras** que ha visto o leído, está viendo o leyendo, verá, o ha abandonado.
 
-![Carlos' Experience](https://github.com/user-attachments/assets/83363d01-a76a-4b20-bafa-41e3cf931a64)
+Construida con React, Vite, Tailwind CSS y Framer Motion.
+
+![Carlos' Opinion](https://github.com/user-attachments/assets/83363d01-a76a-4b20-bafa-41e3cf931a64)
 
 ## 🎨 Características
 
-- **Diseño Glassmorphism**: Interfaz con efectos de cristal líquido, transparencias y desenfoque suave
-- **Categorías organizadas**: Visto, Viendo, No visto, Abandonado
-- **Filtrado dinámico**: Sistema de filtros para visualizar animes por categoría
-- **Tarjetas interactivas**: Hover effects con animaciones suaves
-- **Modal detallado**: Panel modal con información completa del anime
-- **Animaciones fluidas**: Implementadas con Framer Motion
-- **Diseño para PC**: Optimizado para pantallas de ordenador (no responsive)
-- **Estética científica**: Diseño limpio y minimalista inspirado en experimentos de laboratorio
+- **Tres secciones con identidad propia**: cada medio tiene su propio lenguaje visual
+  - *Anime* — cristal esmerilado (glassmorphism)
+  - *Manga* — viñeta de cómic, bordes negros y bocadillos
+  - *Novela ligera* — libro paginado con columnas de texto y textura de papel
+- **Categorías organizadas**: Visto/Leído, Viendo/Leyendo, No visto/No leído, Abandonado
+- **URLs reales**: cada sección y cada ficha tienen su dirección, el botón atrás
+  funciona y puedes enlazar directamente a una opinión concreta
+- **Buscador y filtrado** por título y categoría
+- **Tema claro y oscuro**, respetando la preferencia del sistema
+- **Columnas configurables** (1–6), ajustadas automáticamente al ancho de pantalla
+- **Animaciones** con Framer Motion, con modo elástico opcional
+- **Datos fuera del bundle**: el contenido son JSON que se cargan en tiempo de
+  ejecución, así que añadir una ficha no requiere recompilar
 
 ## 🚀 Instalación y Uso
 
 ### Requisitos previos
-- Node.js 16 o superior
-- npm o yarn
+- Node.js 18 o superior
+- npm
 
 ### Instalación
 
 ```bash
-# Clonar el repositorio
-git clone https://github.com/CarlosIn120FPS/Carlos-Experience.git
+git clone https://github.com/CarlosIn120FPS/Carlos-Opinion.git
+cd Carlos-Opinion
 
-# Navegar al directorio
-cd Carlos-Experience
-
-# Instalar dependencias
 npm install
-
-# Iniciar el servidor de desarrollo
-npm run dev
-
-# Construir para producción
-npm run build
+npm run dev          # desarrollo -> http://localhost:5173/
+npm run build        # producción -> dist/  (base = /)
+npm run build:pages  # producción para GitHub Pages (base = /Carlos-Opinion/)
+npm run preview      # sirve dist/ tal cual se desplegará
+npm run lint
 ```
 
-## ✏️ Personalización de Datos
+## ✏️ Añadir contenido
 
-Todos los datos de los animes se encuentran en el archivo `src/animeData.js`. Puedes modificar fácilmente:
+Todo el contenido vive en `public/data/*.json`. **No hay que tocar código.**
 
-### Estructura de datos del anime:
-
-```javascript
-{
-  id: 1,                    // ID único
-  title: "Nombre del Anime",
-  category: "Visto",        // Categorías: "Visto", "Viendo", "No visto", "Abandonado"
-  image: "URL de la imagen",
-  description: "Descripción corta",
-  genres: ["Género1", "Género2"],
-  fullSynopsis: "Sinopsis extendida completa",
-  episodes: 24,
-  hasManga: true,          // true o false
-  platforms: ["Plataforma1", "Plataforma2"],
-  languages: ["Idioma1", "Idioma2"],
-  rating: "9/10",
-  personalOpinion: "Tu opinión personal"
-}
+```
+public/data/anime.json
+public/data/manga.json
+public/data/lightnovels.json
 ```
 
-### Cómo personalizar:
+Cada fichero tiene la forma `{ "categories": [...], "items": [...] }`. Para añadir una
+ficha, copias otra dentro de `items` y cambias los valores.
 
-1. Abre el archivo `src/animeData.js`
-2. Modifica los datos existentes o agrega nuevos animes siguiendo la estructura
-3. Las imágenes pueden ser URLs externas o rutas locales en la carpeta `public`
-4. Los cambios se reflejarán automáticamente en el navegador
+👉 **Los campos, las reglas y los errores típicos están en
+[CUSTOMIZATION_GUIDE.md](CUSTOMIZATION_GUIDE.md).**
 
-## 🎯 Capturas de Pantalla
+Como los JSON se sirven como ficheros estáticos, también se pueden editar
+directamente en el servidor sin recompilar ni desplegar (acordándose de replicar el
+cambio en el repositorio).
 
-### Vista Principal con Filtros
-![Vista Principal](https://github.com/user-attachments/assets/6b04435d-0d64-4b73-9785-68a724a1830f)
+## 🔗 Rutas
 
-### Modal de Detalles
-![Modal de Detalles](https://github.com/user-attachments/assets/afb376be-f92e-4004-8e28-8f0eb12fd258)
+| Ruta | Qué muestra |
+|---|---|
+| `/` | Redirige a `/anime` |
+| `/anime` | Sección de anime |
+| `/manga` | Sección de manga |
+| `/novelas` | Sección de novelas ligeras |
+| `/anime/2` | Abre directamente la ficha con `id: 2` de anime |
+| cualquier otra | Redirige a `/anime` |
+
+Los slugs salen del campo `slug` de `src/data/contentTypes.js`: añadir una sección
+nueva crea su ruta sola, sin tocar `src/routes.jsx`.
 
 ## 🛠️ Tecnologías Utilizadas
 
-- **React** - Biblioteca de UI
-- **Vite** - Build tool y dev server
-- **Tailwind CSS** - Framework de CSS utility-first
-- **Framer Motion** - Biblioteca de animaciones
-- **JavaScript ES6+** - Lenguaje de programación
+- **React 19** — biblioteca de UI
+- **React Router 7** — rutas por sección y ficha
+- **Vite 7** — build tool y dev server
+- **Tailwind CSS 3** — CSS utility-first
+- **Framer Motion** — animaciones
+- **JavaScript ES6+**
 
 ## 📁 Estructura del Proyecto
 
 ```
-Carlos-Experience/
+Carlos-Opinion/
+├── public/
+│   └── data/
+│       ├── anime.json           # CONTENIDO (editable sin recompilar)
+│       ├── manga.json           # CONTENIDO
+│       └── lightnovels.json     # CONTENIDO
 ├── src/
 │   ├── components/
-│   │   ├── AnimeCard.jsx      # Componente de tarjeta de anime
-│   │   └── AnimeModal.jsx     # Componente de modal
-│   ├── animeData.js           # Datos de los animes (PERSONALIZABLE)
-│   ├── App.jsx                # Componente principal
-│   ├── index.css              # Estilos globales con Tailwind
-│   └── main.jsx               # Punto de entrada
-├── public/                    # Archivos estáticos
+│   │   ├── ContentCard.jsx          # Tarjeta, común a los tres tipos
+│   │   ├── CoverImage.jsx           # Portada con recambio si la URL falla
+│   │   ├── AnimeModal.jsx           # Modal estilo cristal
+│   │   ├── MangaModal.jsx           # Modal estilo viñeta
+│   │   ├── LightNovelModal.jsx      # Modal estilo libro
+│   │   └── PageNavigationModal.jsx  # Selector de sección
+│   ├── data/
+│   │   ├── contentTypes.js      # Registro de secciones + slugs (añadir una va aquí)
+│   │   └── useContentData.js    # Carga y normalización de los JSON
+│   ├── hooks/
+│   │   └── useModalChrome.js    # Escape + bloqueo de scroll de los modales
+│   ├── lib/
+│   │   ├── opinionFields.js     # Lógica compartida de ratings y opiniones
+│   │   └── storage.js           # Acceso tolerante a localStorage
+│   ├── App.jsx                  # Componente principal (lee sección y ficha de la URL)
+│   ├── routes.jsx               # Tabla de rutas
+│   ├── index.css                # Tailwind
+│   └── main.jsx                 # Punto de entrada + BrowserRouter
 ├── index.html
 ├── tailwind.config.js
 ├── vite.config.js
 └── package.json
 ```
 
+## ➕ Añadir una sección nueva
+
+1. `public/data/loquesea.json` con la misma forma.
+2. Un modal en `src/components/`.
+3. Una entrada en `src/data/contentTypes.js`.
+
+El menú, los filtros y el buscador salen del registro; `App.jsx` no se toca.
+
+## 🌐 Despliegue
+
+Se autoaloja en el homelab, en el nodo **Pavilion** (el que va 24/7), detrás de
+Nginx Proxy Manager.
+
+Como Pavilion está en una IP de LAN y GitHub no puede llegar hasta él, el
+despliegue va al revés: Actions compila y publica el `dist/` en la rama `deploy`,
+y un timer en Pavilion la consulta cada 5 minutos. **Sin abrir ningún puerto hacia
+dentro y sin credenciales en el servidor.**
+
+👉 **Detalle completo en [deploy/README.md](deploy/README.md)**
+
+- `.github/workflows/deploy.yml` — compila, pasa el lint y publica la rama `deploy`
+- `deploy/docker-compose.yml` — contenedor `nginx:alpine` (~8 MB de RAM)
+- `deploy/nginx.conf` — `try_files` y política de caché
+- `deploy/carlos-opinion-update.{sh,service,timer}` — el actualizador por pull
+
+`base` vale `/` por defecto (servidor propio, en la raíz de un subdominio). Tanto
+las rutas de los JSON como el `basename` del router se derivan de él, así que no
+hay ninguna ruta escrita a mano. Para GitHub Pages: `npm run build:pages`.
+
+Al haber rutas de verdad, el servidor debe devolver `index.html` para cualquier ruta
+que no sea un fichero (`try_files $uri $uri/ /index.html`), o entrar directo a
+`/anime` dará 404. Ya está en la configuración de nginx incluida.
+
 ## 🎨 Paleta de Colores
 
-- **Fondo**: Gradiente de índigo, púrpura y azul oscuro
-- **Glassmorphism**: Blanco con opacidad 10-20%
-- **Acentos**: Púrpura (purple-400 a purple-500) y Azul (blue-400 a blue-500)
-- **Texto**: Blanco y tonos de gris claro
+- **Acentos**: púrpura (`purple-400`–`purple-500`) y azul (`blue-400`–`blue-500`)
+- **Tema oscuro**: fondo `#0f172a`, superficies `gray-800`
+- **Tema claro**: fondo blanco, superficies con borde `gray-200`
 
 ## 📝 Licencia
 
@@ -120,4 +167,3 @@ Este proyecto está bajo la Licencia Apache 2.0. Ver el archivo [LICENSE](LICENS
 ## 👨‍💻 Autor
 
 Carlos - [@CarlosIn120FPS](https://github.com/CarlosIn120FPS)
-

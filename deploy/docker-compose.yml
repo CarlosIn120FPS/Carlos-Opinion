@@ -1,0 +1,53 @@
+# Carlos' Opinion — servidor estático en Pavilion (192.168.50.148)
+#
+# Se despliega en ~/carlos-opinion/ siguiendo la convención del nodo
+# (/home/carlosalexei/<servicio>/docker-compose.yml).
+#
+# NO expone nada a la WAN: publica solo en la IP de LAN. Quien da la cara a
+# internet es Nginx Proxy Manager, con un Proxy Host apuntando a este puerto.
+
+services:
+  carlos-opinion:
+    image: nginx:alpine
+    container_name: carlos-opinion
+    restart: unless-stopped
+
+    # Bind explícito a la IP de LAN, nunca 0.0.0.0 (criterio del nodo).
+    ports:
+      - "192.168.50.148:8098:80"
+
+    volumes:
+      # El contenido lo deja aquí el despliegue desde GitHub Actions.
+      - ./site:/usr/share/nginx/html:ro
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+
+    # Regla permanente del nodo: todo servicio nuevo por debajo de 100 MB de RAM.
+    # Un nginx sirviendo ficheros estáticos anda por 10-15 MB; 64 MB va sobrado.
+    mem_limit: 64m
+
+    # Endurecimiento: el contenedor no necesita escribir en ningún sitio salvo
+    # sus directorios temporales, que van en tmpfs.
+    read_only: true
+    tmpfs:
+      - /var/cache/nginx
+      - /var/run
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+
+    healthcheck:
+      # 127.0.0.1 y no localhost: dentro del contenedor, localhost resuelve
+      # también a ::1 y wget lo intenta primero, pero nginx solo escucha en IPv4
+      # — daba "connection refused" y marcaba el contenedor unhealthy con la web
+      # funcionando perfectamente.
+      test: ["CMD", "wget", "-qO", "/dev/null", "http://127.0.0.1/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"

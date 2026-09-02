@@ -1,122 +1,213 @@
-import { useState, useEffect } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Navigate, useNavigate, useParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import AnimeCard from './components/AnimeCard';
-import AnimeModal from './components/AnimeModal';
-import MangaModal from './components/MangaModal';
-import LightNovelModal from './components/LightNovelModal';
+import ContentCard from './components/ContentCard';
 import PageNavigationModal from './components/PageNavigationModal';
 
-import { animeData, categories as animeCategories } from './animeData';
-import { mangaData, mangaCategories } from './mangaData';
-import { lightNovelData, lightNovelCategories } from './lightNovelData';
+import {
+  CONTENT_TYPES,
+  CONTENT_TYPE_BY_SLUG,
+  DEFAULT_CONTENT_TYPE,
+  DEFAULT_SLUG,
+} from './data/contentTypes';
+import { useContentData } from './data/useContentData';
+import { readStored, writeStored, parseBoolean, parseIntInRange } from './lib/storage';
+
+const MIN_COLUMNS = 1;
+const MAX_COLUMNS = 6;
+
+// El número de columnas era un estilo inline, así que ganaba a cualquier clase
+// responsive de Tailwind: un móvil se comía las 4 columnas por defecto. Ahora la
+// preferencia del usuario se topa con lo que cabe de verdad en la pantalla.
+const maxColumnsFor = (width) => {
+  if (width < 640) return 1;
+  if (width < 768) return 2;
+  if (width < 1024) return 3;
+  if (width < 1280) return 4;
+  return MAX_COLUMNS;
+};
 
 function App() {
-  const [currentPage, setCurrentPage] = useState('anime'); // 'anime', 'manga', 'lightnovel'
+  // La sección y la ficha abierta ya no son estado: son la URL. Eso es lo que hace
+  // que el botón atrás funcione y que se pueda enlazar a una opinión concreta.
+  const { sectionSlug, itemId } = useParams();
+  const navigate = useNavigate();
+
+  // Una sección desconocida (/pelis, una URL vieja) redirige al final del
+  // componente. Aquí caemos en la de por defecto para que los hooks de abajo se
+  // llamen siempre, pasase lo que pasase con la URL.
+  const knownType = CONTENT_TYPE_BY_SLUG[sectionSlug];
+  const type = knownType ?? CONTENT_TYPES[DEFAULT_CONTENT_TYPE];
+
   const [isNavOpen, setIsNavOpen] = useState(false);
-  const [selectedItem, setSelectedItem] = useState(null);
   const [activeCategory, setActiveCategory] = useState('Todos');
   const [searchTerm, setSearchTerm] = useState('');
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const settingsRef = useRef(null);
 
-  // Theme state
-  const [isDarkMode, setIsDarkMode] = useState(() => {
-    if (typeof window !== 'undefined') {
-      return localStorage.getItem('theme') === 'dark' || 
-        (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches);
-    }
-    return false;
-  });
+  const [isDarkMode, setIsDarkMode] = useState(() =>
+    readStored('theme', window.matchMedia('(prefers-color-scheme: dark)').matches, (raw) => raw === 'dark'),
+  );
 
-  // Column Count state
-  const [columnCount, setColumnCount] = useState(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('columnCount');
-      return saved ? parseInt(saved, 10) : 4;
-    }
-    return 4;
-  });
+  const [columnCount, setColumnCount] = useState(() =>
+    readStored('columnCount', 4, (raw) => parseIntInRange(raw, MIN_COLUMNS, MAX_COLUMNS)),
+  );
 
-  // Elastic animation state
-  const [isElastic, setIsElastic] = useState(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('isElastic');
-      return saved ? JSON.parse(saved) : false;
-    }
-    return false;
-  });
+  const [isElastic, setIsElastic] = useState(() => readStored('isElastic', false, parseBoolean));
+
+  const [maxColumns, setMaxColumns] = useState(() => maxColumnsFor(window.innerWidth));
+
+  const { status, data, error } = useContentData(type);
 
   useEffect(() => {
-    localStorage.setItem('columnCount', columnCount);
-  }, [columnCount]);
+    const handleResize = () => setMaxColumns(maxColumnsFor(window.innerWidth));
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  useEffect(() => writeStored('columnCount', String(columnCount)), [columnCount]);
+  useEffect(() => writeStored('isElastic', String(isElastic)), [isElastic]);
 
   useEffect(() => {
-    localStorage.setItem('isElastic', JSON.stringify(isElastic));
-  }, [isElastic]);
-
-  useEffect(() => {
-    if (isDarkMode) {
-      document.documentElement.classList.add('dark');
-      localStorage.setItem('theme', 'dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-      localStorage.setItem('theme', 'light');
-    }
+    document.documentElement.classList.toggle('dark', isDarkMode);
+    writeStored('theme', isDarkMode ? 'dark' : 'light');
   }, [isDarkMode]);
 
   // Reset category and search when switching pages
   useEffect(() => {
     setActiveCategory('Todos');
     setSearchTerm('');
-    setSelectedItem(null);
-  }, [currentPage]);
+  }, [type.id]);
 
-  const currentData = currentPage === 'anime' ? animeData : currentPage === 'manga' ? mangaData : lightNovelData;
-  const currentCategories = currentPage === 'anime' ? animeCategories : currentPage === 'manga' ? mangaCategories : lightNovelCategories;
-  
-  const pageTitle = currentPage === 'anime' ? "Carlos' Opinion" : currentPage === 'manga' ? "Carlos' Manga Opinion" : "Carlos' Light Novel Opinion";
-  const searchPlaceholder = currentPage === 'anime' ? "Buscar anime por título..." : currentPage === 'manga' ? "Buscar manga por título..." : "Buscar novela ligera por título...";
-  const pageDescription = currentPage === 'anime' 
-    ? "La página web en la que Carlos comparte su opinión sobre animes que ha visto, está viendo, verá, o ha abandonado."
-    : currentPage === 'manga'
-    ? "La página web en la que Carlos comparte su opinión sobre mangas que ha leído, está leyendo o ha abandonado."
-    : "La página web en la que Carlos comparte su opinión sobre novelas ligeras que ha leído, está leyendo o ha abandonado.";
+  // El menú de ajustes se quedaba abierto para siempre: no se cerraba ni al
+  // pulsar fuera ni con Escape.
+  useEffect(() => {
+    if (!isSettingsOpen) return undefined;
+    const handlePointerDown = (event) => {
+      if (settingsRef.current && !settingsRef.current.contains(event.target)) setIsSettingsOpen(false);
+    };
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape') setIsSettingsOpen(false);
+    };
+    document.addEventListener('mousedown', handlePointerDown);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', handlePointerDown);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isSettingsOpen]);
 
-  const filteredItems = currentData.filter(item => {
-    const matchesCategory = activeCategory === 'Todos' || item.category === activeCategory;
-    const matchesSearch = item.title.toLowerCase().includes(searchTerm.toLowerCase());
-    return matchesCategory && matchesSearch;
-  }).sort((a, b) => a.id - b.id);
+  const items = useMemo(() => data?.items ?? [], [data]);
+  const categories = useMemo(() => data?.categories ?? [], [data]);
+  const effectiveColumns = Math.min(columnCount, maxColumns);
+
+  const filteredItems = useMemo(() => {
+    const needle = searchTerm.toLowerCase();
+    return items
+      .filter((item) => {
+        const matchesCategory = activeCategory === 'Todos' || item.category === activeCategory;
+        return matchesCategory && item.title.toLowerCase().includes(needle);
+      })
+      .sort((a, b) => a.id - b.id);
+  }, [items, activeCategory, searchTerm]);
+
+  const visibleCategories = useMemo(
+    () => (activeCategory === 'Todos' ? categories : categories.filter((c) => c === activeCategory)),
+    [categories, activeCategory],
+  );
+
+  // La ficha abierta se deriva de la URL, no se guarda.
+  const selectedItem = useMemo(
+    () => (itemId ? (items.find((item) => String(item.id) === itemId) ?? null) : null),
+    [items, itemId],
+  );
+
+  // Enlace a una ficha que ya no existe (id cambiado, enlace viejo): en vez de
+  // dejar la página en blanco, volvemos a la sección sin ensuciar el historial.
+  useEffect(() => {
+    if (status === 'ready' && itemId && !selectedItem) {
+      navigate(`/${type.slug}`, { replace: true });
+    }
+  }, [status, itemId, selectedItem, navigate, type.slug]);
+
+  const closeNav = useCallback(() => setIsNavOpen(false), []);
+  const openItem = useCallback((item) => navigate(`/${type.slug}/${item.id}`), [navigate, type.slug]);
+  const closeItem = useCallback(() => navigate(`/${type.slug}`), [navigate, type.slug]);
+  const goToSection = useCallback(
+    (typeId) => navigate(`/${CONTENT_TYPES[typeId].slug}`),
+    [navigate],
+  );
+
+  const ItemModal = type.Modal;
+
+  // Todos los hooks ya se han llamado, así que aquí ya es seguro salir.
+  if (!knownType) return <Navigate to={`/${DEFAULT_SLUG}`} replace />;
+
+  // El mensaje de "sin resultados" siempre interpolaba el término de búsqueda,
+  // así que una categoría vacía anunciaba: No se encontraron resultados con "".
+  const renderEmptyState = () => {
+    if (searchTerm) {
+      return (
+        <>
+          <p className="text-2xl text-purple-600 dark:text-purple-300/70 font-semibold">
+            No se encontraron resultados con &quot;{searchTerm}&quot;
+          </p>
+          <button
+            onClick={() => setSearchTerm('')}
+            className="mt-4 px-5 py-2 rounded-lg font-semibold bg-gradient-to-r from-purple-500 to-blue-500 text-white shadow-lg shadow-purple-500/30"
+          >
+            Limpiar búsqueda
+          </button>
+        </>
+      );
+    }
+    if (activeCategory !== 'Todos') {
+      return (
+        <p className="text-2xl text-purple-600 dark:text-purple-300/70 font-semibold">
+          Todavía no hay nada en «{activeCategory}».
+        </p>
+      );
+    }
+    return (
+      <p className="text-2xl text-purple-600 dark:text-purple-300/70 font-semibold">
+        Esta sección todavía está vacía.
+      </p>
+    );
+  };
 
   return (
     <div className="min-h-screen p-8 transition-colors duration-300 dark:bg-[#0f172a]">
       {/* Header */}
-      <motion.header 
+      <motion.header
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6 }}
         className="text-center mb-12"
       >
-        <button 
+        <button
           onClick={() => setIsNavOpen(true)}
-          className="hover:scale-105 transition-transform duration-300 relative group mb-4"
+          aria-haspopup="dialog"
+          aria-expanded={isNavOpen}
+          className="hover:scale-105 transition-transform duration-300 relative group mb-4 rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-500"
         >
           <h1 className="text-5xl md:text-6xl font-bold pb-2 bg-gradient-to-r from-purple-400 via-blue-400 to-indigo-400 bg-clip-text text-transparent">
-            {pageTitle}
+            {type.pageTitle}
           </h1>
           <span className="absolute -bottom-4 left-1/2 -translate-x-1/2 text-sm text-purple-500 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
             Click para cambiar de sección
           </span>
         </button>
         <p className="text-xl text-gray-800 dark:text-gray-300 mt-6 max-w-2xl mx-auto relative z-10">
-          {pageDescription}
+          {type.pageDescription}
         </p>
-        
+
         {/* Decorative line */}
         <div className="mt-6 h-1 w-64 mx-auto bg-gradient-to-r from-transparent via-purple-500 to-transparent rounded-full" />
       </motion.header>
 
       {/* Category Filter */}
-      <motion.div 
+      <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6, delay: 0.2 }}
@@ -126,26 +217,29 @@ function App() {
         <div className="mb-6 flex justify-center">
           <div className="relative w-full max-w-md">
             <input
-              type="text"
-              placeholder={searchPlaceholder}
+              type="search"
+              aria-label={type.searchPlaceholder}
+              placeholder={type.searchPlaceholder}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full px-6 py-3 pl-12 rounded-lg bg-white shadow-sm dark:bg-gray-800/50 backdrop-blur-md border border-gray-200 dark:border-gray-700 text-purple-800 dark:text-purple-100 placeholder-purple-400 dark:placeholder-purple-300/50 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-300"
             />
-            <svg 
-              className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-purple-400 dark:text-purple-300/70" 
-              fill="none" 
-              stroke="currentColor" 
+            <svg
+              className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-purple-400 dark:text-purple-300/70 pointer-events-none"
+              fill="none"
+              stroke="currentColor"
               viewBox="0 0 24 24"
+              aria-hidden="true"
             >
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
             </svg>
             {searchTerm && (
               <button
                 onClick={() => setSearchTerm('')}
+                aria-label="Limpiar búsqueda"
                 className="absolute right-4 top-1/2 -translate-y-1/2 text-purple-400 hover:text-purple-600 dark:text-purple-300/70 dark:hover:text-white transition-colors"
               >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
               </button>
@@ -155,20 +249,11 @@ function App() {
 
         {/* Category Buttons */}
         <div className="flex justify-center gap-4 flex-wrap items-center relative">
-          <button
-            onClick={() => setActiveCategory('Todos')}
-            className={`px-6 py-3 rounded-lg font-semibold transition-all duration-300 ${
-              activeCategory === 'Todos'
-                ? 'bg-gradient-to-r from-purple-500 to-blue-500 text-white shadow-lg shadow-purple-500/50'
-                : 'bg-white dark:bg-gray-800/60 shadow-sm dark:shadow-none backdrop-blur-md border border-gray-200 dark:border-gray-700 text-purple-600 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700'
-            }`}
-          >
-            Todos
-          </button>
-          {currentCategories.map((category) => (
+          {['Todos', ...categories].map((category) => (
             <button
               key={category}
               onClick={() => setActiveCategory(category)}
+              aria-pressed={activeCategory === category}
               className={`px-6 py-3 rounded-lg font-semibold transition-all duration-300 ${
                 activeCategory === category
                   ? 'bg-gradient-to-r from-purple-500 to-blue-500 text-white shadow-lg shadow-purple-500/50'
@@ -178,15 +263,16 @@ function App() {
               {category}
             </button>
           ))}
-          
+
           {/* Settings Menu */}
-          <div className="relative">
+          <div className="relative" ref={settingsRef}>
             <button
-              onClick={() => setIsSettingsOpen(!isSettingsOpen)}
-              className="p-3 rounded-full bg-white dark:bg-gray-800/60 shadow-sm dark:shadow-lg backdrop-blur-md border border-gray-200 dark:border-gray-700 text-purple-600 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 transition-all duration-300"
+              onClick={() => setIsSettingsOpen((open) => !open)}
               aria-label="Ajustes"
+              aria-expanded={isSettingsOpen}
+              className="p-3 rounded-full bg-white dark:bg-gray-800/60 shadow-sm dark:shadow-lg backdrop-blur-md border border-gray-200 dark:border-gray-700 text-purple-600 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 transition-all duration-300"
             >
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
               </svg>
@@ -194,7 +280,7 @@ function App() {
 
             <AnimatePresence>
               {isSettingsOpen && (
-                <motion.div 
+                <motion.div
                   initial={{ opacity: 0, y: -10, scale: 0.95 }}
                   animate={{ opacity: 1, y: 0, scale: 1 }}
                   exit={{ opacity: 0, y: -10, scale: 0.95 }}
@@ -206,7 +292,8 @@ function App() {
                   </div>
                   <div className="p-2 border-b border-gray-100 dark:border-gray-700">
                     <button
-                      onClick={() => setIsDarkMode(!isDarkMode)}
+                      onClick={() => setIsDarkMode((value) => !value)}
+                      aria-pressed={isDarkMode}
                       className="w-full flex items-center justify-between px-4 py-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-200"
                     >
                       <span className="text-gray-700 dark:text-gray-300">Tema Oscuro</span>
@@ -214,13 +301,12 @@ function App() {
                         <div className={`w-4 h-4 rounded-full bg-white shadow-sm transform transition-transform duration-300 ${isDarkMode ? 'translate-x-6' : 'translate-x-0'}`} />
                       </div>
                     </button>
+                    {/* Antes esto hacía window.location.reload(). El estado ya es
+                        reactivo y la `key` de la tarjeta fuerza el remontaje, así
+                        que el recargón solo servía para el parpadeo en blanco. */}
                     <button
-                      onClick={() => {
-                        const newValue = !isElastic;
-                        setIsElastic(newValue);
-                        localStorage.setItem('isElastic', JSON.stringify(newValue));
-                        window.location.reload();
-                      }}
+                      onClick={() => setIsElastic((value) => !value)}
+                      aria-pressed={isElastic}
                       className="w-full flex items-center justify-between px-4 py-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-200 mt-1"
                     >
                       <span className="text-gray-700 dark:text-gray-300">Animación Elástica</span>
@@ -230,18 +316,24 @@ function App() {
                     </button>
                   </div>
                   <div className="px-4 py-3 border-t border-gray-100 dark:border-gray-700">
-                    <label className="flex items-center justify-between text-sm text-gray-700 dark:text-gray-300 mb-2">
+                    <label htmlFor="column-count" className="flex items-center justify-between text-sm text-gray-700 dark:text-gray-300 mb-2">
                       <span>Columnas por fila</span>
-                      <span className="font-bold text-purple-500">{columnCount}</span>
+                      <span className="font-bold text-purple-500">{effectiveColumns}</span>
                     </label>
-                    <input 
-                      type="range" 
-                      min="1" 
-                      max="6" 
-                      value={columnCount} 
+                    <input
+                      id="column-count"
+                      type="range"
+                      min={MIN_COLUMNS}
+                      max={MAX_COLUMNS}
+                      value={columnCount}
                       onChange={(e) => setColumnCount(parseInt(e.target.value, 10))}
                       className="w-full accent-purple-500"
                     />
+                    {effectiveColumns < columnCount && (
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                        Limitado a {effectiveColumns} por el ancho de la pantalla.
+                      </p>
+                    )}
                   </div>
                 </motion.div>
               )}
@@ -251,110 +343,106 @@ function App() {
       </motion.div>
 
       {/* Grid Content */}
-      <motion.div 
-        layout={isElastic ? true : "position"}
+      <motion.div
+        layout={isElastic ? true : 'position'}
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ duration: 0.6, delay: 0.4 }}
         className="w-full transition-all duration-500"
       >
-        <AnimatePresence>
-          {currentCategories.map((category) => {
-            const categoryItems = filteredItems.filter(item => item.category === category);
-            
-            if (activeCategory !== 'Todos' && activeCategory !== category) return null;
-            if (categoryItems.length === 0) return null;
-            
-            return (
-              <motion.div 
-                layout={isElastic ? true : "position"}
-                initial={{ opacity: 0, scale: 0.9, y: 20 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.9, y: -20 }}
-                transition={{ duration: 0.4 }}
-                key={category} 
-                className="mb-12"
-              >
-                <h2 className="text-3xl font-bold text-purple-500 dark:text-purple-300 mb-6 flex items-center gap-3">
-                  <span className="w-2 h-8 bg-gradient-to-b from-purple-500 to-blue-500 rounded-full" />
-                  {category}
-                </h2>
-                
-                <div 
-                  className="grid gap-6 items-start" 
-                  style={{ gridTemplateColumns: `repeat(${columnCount}, minmax(0, 1fr))` }}
+        {status === 'loading' && (
+          <div className="text-center py-20" role="status" aria-live="polite">
+            <div className="mx-auto w-10 h-10 rounded-full border-4 border-purple-300 border-t-purple-600 animate-spin" />
+            <p className="mt-4 text-purple-600 dark:text-purple-300/70 font-semibold">Cargando…</p>
+          </div>
+        )}
+
+        {status === 'error' && (
+          <div className="text-center py-20" role="alert">
+            <p className="text-2xl text-red-600 dark:text-red-400 font-semibold">
+              No se pudieron cargar los datos de esta sección.
+            </p>
+            <p className="mt-2 text-gray-600 dark:text-gray-400">{error?.message}</p>
+          </div>
+        )}
+
+        {status === 'ready' && (
+          <>
+            <AnimatePresence>
+              {visibleCategories.map((category) => {
+                const categoryItems = filteredItems.filter((item) => item.category === category);
+                if (categoryItems.length === 0) return null;
+
+                return (
+                  <motion.div
+                    layout={isElastic ? true : 'position'}
+                    initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.9, y: -20 }}
+                    transition={{ duration: 0.4 }}
+                    key={category}
+                    className="mb-12"
+                  >
+                    <h2 className="text-3xl font-bold text-purple-500 dark:text-purple-300 mb-6 flex items-center gap-3">
+                      <span className="w-2 h-8 bg-gradient-to-b from-purple-500 to-blue-500 rounded-full" />
+                      {category}
+                    </h2>
+
+                    <div
+                      className="grid gap-6 items-start"
+                      style={{ gridTemplateColumns: `repeat(${effectiveColumns}, minmax(0, 1fr))` }}
+                    >
+                      {Array.from({ length: effectiveColumns }).map((_, colIndex) => {
+                        const columnItems = categoryItems.filter((_, idx) => idx % effectiveColumns === colIndex);
+                        return (
+                          <div key={colIndex} className="flex flex-col gap-6">
+                            <AnimatePresence>
+                              {columnItems.map((item) => (
+                                <ContentCard
+                                  key={`${item.id}-${isElastic ? 'elastic' : 'rigid'}`}
+                                  item={item}
+                                  typeId={type.id}
+                                  onSelect={openItem}
+                                  isElastic={isElastic}
+                                />
+                              ))}
+                            </AnimatePresence>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </motion.div>
+                );
+              })}
+            </AnimatePresence>
+
+            <AnimatePresence>
+              {filteredItems.length === 0 && (
+                <motion.div
+                  layout
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -20 }}
+                  className="text-center py-20"
                 >
-                  {Array.from({ length: columnCount }).map((_, colIndex) => {
-                    const columnItems = categoryItems.filter((_, idx) => idx % columnCount === colIndex);
-                    return (
-                      <div key={colIndex} className="flex flex-col gap-6">
-                        <AnimatePresence>
-                          {columnItems.map((item) => (
-                            <AnimeCard 
-                              key={`${item.id}-${isElastic ? 'elastic' : 'rigid'}`} 
-                              anime={item} 
-                              onClick={setSelectedItem}
-                              isElastic={isElastic}
-                            />
-                          ))}
-                        </AnimatePresence>
-                      </div>
-                    );
-                  })}
-                </div>
-              </motion.div>
-            );
-          })}
-        </AnimatePresence>
-        
-        <AnimatePresence>
-          {filteredItems.length === 0 && (
-            <motion.div 
-              layout
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              className="text-center py-20"
-            >
-              <p className="text-2xl text-purple-600 dark:text-purple-300/70 font-semibold">
-                No se encontraron resultados con "{searchTerm}"
-              </p>
-            </motion.div>
-          )}
-        </AnimatePresence>
+                  {renderEmptyState()}
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </>
+        )}
       </motion.div>
 
       {/* Navigation Modal */}
-      <PageNavigationModal 
-        isOpen={isNavOpen} 
-        onClose={() => setIsNavOpen(false)} 
-        currentPage={currentPage}
-        onNavigate={setCurrentPage}
-      />
-
-      {/* Content Modals */}
       <AnimatePresence>
-        {selectedItem && currentPage === 'anime' && (
-          <AnimeModal 
-            key="anime-modal"
-            anime={selectedItem} 
-            onClose={() => setSelectedItem(null)} 
-          />
+        {isNavOpen && (
+          <PageNavigationModal key="nav-modal" currentPage={type.id} onNavigate={goToSection} onClose={closeNav} />
         )}
-        {selectedItem && currentPage === 'manga' && (
-          <MangaModal 
-            key="manga-modal"
-            manga={selectedItem} 
-            onClose={() => setSelectedItem(null)} 
-          />
-        )}
-        {selectedItem && currentPage === 'lightnovel' && (
-          <LightNovelModal 
-            key="ln-modal"
-            novel={selectedItem} 
-            onClose={() => setSelectedItem(null)} 
-          />
-        )}
+      </AnimatePresence>
+
+      {/* Content Modal */}
+      <AnimatePresence>
+        {selectedItem && <ItemModal key={`${type.id}-modal`} item={selectedItem} onClose={closeItem} />}
       </AnimatePresence>
     </div>
   );

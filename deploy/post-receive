@@ -1,0 +1,64 @@
+#!/usr/bin/env bash
+# Carlos' Opinion — hook de despliegue (Pavilion)
+#
+# Se instala en ~/carlos-opinion/repo.git/hooks/post-receive y se dispara solo
+# cuando haces `git push casa main` desde tu PC.
+#
+# Todo ocurre dentro de casa: recibe el código, compila y publica. GitHub no
+# interviene en ningún momento — allí solo se guarda copia.
+
+set -euo pipefail
+
+BASE="/home/carlosalexei/carlos-opinion"
+REPO="$BASE/repo.git"
+BUILD="$BASE/build"
+SITE="$BASE/site"
+BRANCH="main"
+
+# Durante un hook, git deja GIT_DIR apuntando al repo bare. Si no lo quitamos,
+# los comandos de git dentro de $BUILD creerían que su repo es el bare.
+unset GIT_DIR GIT_WORK_TREE GIT_QUARANTINE_PATH
+
+log()   { echo "  $*"; }
+fallo() { echo "  ERROR: $*" >&2; echo "  >>> NO se ha publicado nada. La web sigue con la versión anterior."; exit 1; }
+
+while read -r _old newrev ref; do
+  [ "$ref" = "refs/heads/$BRANCH" ] || { log "Ignorando $ref (solo se publica $BRANCH)"; continue; }
+
+  echo
+  echo "=== Desplegando ${newrev:0:7} ==="
+
+  mkdir -p "$BUILD"
+  git --git-dir="$REPO" --work-tree="$BUILD" checkout -f "$BRANCH" \
+    || fallo "no se pudo extraer el código"
+
+  cd "$BUILD"
+
+  # node_modules se conserva entre despliegues (está en .gitignore, el checkout
+  # no lo toca). Solo se reinstala si cambió package-lock.json — en un dv6,
+  # `npm ci` cada vez serían minutos de más por nada.
+  lock_actual=$(sha256sum package-lock.json | cut -d' ' -f1)
+  if [ ! -d node_modules ] || [ ! -f .lock-hash ] || [ "$(cat .lock-hash)" != "$lock_actual" ]; then
+    log "Dependencias cambiadas: npm ci..."
+    npm ci --no-audit --no-fund >/dev/null 2>&1 || fallo "npm ci falló"
+    echo "$lock_actual" > .lock-hash
+  else
+    log "Dependencias sin cambios, reutilizando node_modules"
+  fi
+
+  log "Compilando..."
+  npm run build >/dev/null 2>&1 || fallo "el build falló (prueba 'npm run build' en tu PC para ver el error)"
+
+  # --- Guardas: más vale no publicar que publicar una web rota ---------------
+  [ -s dist/index.html ] || fallo "el build no generó index.html"
+  for f in anime manga lightnovels; do
+    [ -s "dist/data/$f.json" ] || fallo "falta dist/data/$f.json"
+    jq -e . "dist/data/$f.json" >/dev/null 2>&1 || fallo "data/$f.json no es JSON válido"
+  done
+
+  # --delay-updates mueve todo a su sitio al final: nadie pilla la web a medias.
+  rsync -a --delete --delay-updates dist/ "$SITE/" || fallo "no se pudo copiar a $SITE"
+
+  echo "  Publicado. https://opinion.carlosin120fps.duckdns.org"
+  echo
+done
