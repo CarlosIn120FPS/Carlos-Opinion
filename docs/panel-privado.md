@@ -99,3 +99,90 @@ De `integracion-jellyfin.md`, y que este panel absorbe o potencia:
   que escriba Carlos. La máquina propone datos objetivos; la voz es suya.
 - **No exponerlo sin lista de acceso.** Es una herramienta de escritura sobre el
   repositorio: si entra alguien, edita la web.
+
+---
+
+# Ampliación: crítica episodio a episodio
+
+> Segunda idea de Carlos, la misma noche. El panel no es solo para rellenar los
+> huecos de una ficha: es donde escribe **mientras ve la serie**.
+
+## Qué quiere
+
+*"Si me veo un episodio, que me ponga: episodio ocho, opinión: lo que sea, rating:
+lo que sea. Quiero hacer literalmente como críticas."*
+
+Es decir: más tarjetas, y más cosas dentro de cada tarjeta. Según va viendo un anime,
+va dejando **opinión y nota de cada capítulo**, no solo de la serie entera.
+
+## Por qué esto es lo más valioso de todo lo apuntado
+
+Los datos lo dicen: **`personalOpinionFinal` está vacío en 8 de 8 fichas**, y
+`personalOpinion` en 4 de 8. No es falta de opinión. Es que *"escribe tu veredicto
+definitivo sobre esta obra"* da pereza y se pospone para siempre, mientras que
+*"acabo de ver el episodio 7 y esto ha sido una salvajada"* se escribe en diez
+segundos.
+
+Y resuelve un hueco real del formato actual: los animes en **"Viendo"** no tienen
+dónde poner lo que uno va pensando sin comprometerse a un veredicto. Cuando termine
+la serie, no parte de una página en blanco: parte de sus doce entradas.
+
+## Forma propuesta
+
+Un campo nuevo opcional, **solo se añade, nunca se reescribe**:
+
+```json
+"episodios": [
+  { "ep": 8, "fecha": "2026-09-02", "rating": "9/10",
+    "opinion": "La pelea del final es lo mejor de la temporada." }
+]
+```
+
+Notas de diseño:
+
+- **`ep` puede faltar.** A veces la nota es de la serie, no de un capítulo. Un campo
+  suelto de "nota general con fecha" cubre el diario sin obligar a numerar.
+- **`rating` opcional.** Muchas veces querrá comentar sin puntuar.
+- **La fecha la pone el panel**, no él.
+- Con temporadas: `"temporada": 2` junto a `ep`, o `"ep": "2x08"`. Decidir al
+  implementar, mirando cómo lo escribe él de forma natural.
+
+En la web pública esto puede ser un bloque desplegable dentro del modal
+("**Mientras lo veía**"), y en la tarjeta un contador discreto: *"12 comentarios"*.
+
+## La regla que no se negocia
+
+**Aquí la IA no escribe nunca.** Ni una entrada, ni un resumen de las entradas, ni
+una sugerencia de nota. Todo el valor de este campo es que son las palabras de Carlos
+en el momento en que las pensó.
+
+---
+
+# Idea aparte: integración con Crunchyroll
+
+> Tercera idea de la misma noche. Apuntada, pero es la más incierta de las tres.
+
+## Qué quiere
+
+Que lo que vaya viendo en Crunchyroll entre solo en la web: que se sepa qué anime
+está viendo y por qué episodio va, y que eso alimente tanto la ficha como las
+críticas por capítulo.
+
+## Lo que hay que investigar antes de prometer nada
+
+- **Crunchyroll no tiene API pública.** Existe la que usa su propia aplicación, y
+  clientes no oficiales que la envuelven, pero eso es terreno movedizo: cambia sin
+  aviso y puede chocar con sus condiciones de uso. **Hay que mirarlo antes de
+  diseñar nada encima.**
+- **Jellyfin sí lo tiene fácil.** Lleva el progreso de reproducción de serie y
+  guarda qué episodios están vistos, y su API es pública y documentada. Para lo que
+  ves en tu propio servidor, esto ya funciona hoy.
+
+Así que lo sensato es partirlo:
+
+1. **Primero Jellyfin**, que es viable ya y cubre lo que tienes descargado.
+2. **Crunchyroll después**, si al investigarlo resulta razonable.
+
+Merece la pena recordar un dato de hoy: de tus 8 fichas, **solo 3 están en
+Jellyfin**. Escribes de series que no siempre guardas — que es justo el hueco que
+cubriría Crunchyroll, y por eso la idea tiene sentido aunque sea la más difícil.
