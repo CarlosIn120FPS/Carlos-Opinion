@@ -1,4 +1,4 @@
-# Generador de borradores de ficha — Fase 1
+# Generador de borradores de ficha
 
 Genera el esqueleto de una ficha de anime a partir de fuentes públicas, para no
 tener que transcribir a mano títulos japoneses, géneros, episodios y las listas de
@@ -14,14 +14,21 @@ siempre vacíos. Esos son tuyos.
 |---|---|
 | Fuentes | AniList (grafo, títulos, géneros, sinopsis) y animethemes.moe (temas) |
 | Claves necesarias | **ninguna**, las dos son públicas |
-| Ollama | todavía no (fase 2) |
-| Jellyfin | todavía no (fase 2) — de momento se le dice qué anime generar |
-| Escribe en git | no, imprime por pantalla |
+| Ollama | **sí** — traduce la sinopsis y propone la descripción corta |
+| Verificación de enlaces | **sí** — ninguno se publica sin comprobar que responde |
+| Jellyfin | todavía no (fase 3) — de momento se le dice qué anime generar |
+| Escribe en git | **sí**, a la rama `borradores` con `--a-borradores` |
 
 ## Uso
 
 ```bash
+# imprime el borrador por pantalla
 python3 generar.py --titulo "Alya Sometimes Hides Her Feelings in Russian"
+
+# lo publica en la rama `borradores` para revisarlo desde tu PC
+python3 generar.py --titulo "Go-Toubun no Hanayome" --a-borradores
+
+python3 generar.py --sin-ollama --sin-verificar   # más rápido, sin realce"
 python3 generar.py --anilist-id 162804
 python3 generar.py --anilist-id 162804 --sin-temas     # más rápido
 
@@ -82,3 +89,58 @@ Los tres campos marcados en `_meta._revisar` son exactamente donde conviene mira
   web) y timer nocturno.
 
 Ver `../docs/integracion-jellyfin.md` para el plan completo.
+
+---
+
+## Qué papel tiene la IA, y por qué es el que es
+
+El generador **accede a internet** y comprueba los datos. Lo que no hace es dejar
+que el modelo de lenguaje afirme hechos.
+
+**Datos y enlaces → fuentes deterministas.** AniList da el grafo de la franquicia,
+los géneros y los booleanos. animethemes.moe da los temas **con el episodio exacto
+en el que suena cada uno** y un enlace de vídeo real. Ninguno de los dos se
+inventa nada: o lo tienen o no lo tienen.
+
+**El LLM solo transforma texto que ya se le ha dado:** traducir la sinopsis y
+proponer la descripción corta. Ni géneros, ni booleanos, ni números, ni enlaces,
+ni valoraciones.
+
+La razón no es teórica. Los 12 endings de Alya estuvieron mal durante meses porque
+apuntaban a enlaces que nadie podía verificar, y arreglarlos costó 49 agentes
+buscando en internet. Cuando después se le preguntó a animethemes, lo tenía bien
+**a la primera**, incluyendo las dos correcciones de nombre que tanto costaron
+(`ED6 = Himitsu no Kotoba`, `ED12 = Hanamoyoi`).
+
+Un modelo de 9B diciendo "este es el vídeo del episodio 6" es exactamente el fallo
+del que venimos. Una fuente que lo sabe, no.
+
+### Verificación de enlaces
+
+Antes de publicar, cada URL se comprueba pidiendo un kilobyte (`Range`, no `HEAD`:
+`v.animethemes.moe` responde 403 a HEAD y 206 a un GET con rango).
+
+- **404 y similares** → enlace roto: se sustituye por una búsqueda en YouTube.
+- **403/429/5xx/timeout** → no concluyente: el enlace **se conserva** y se anota.
+  Destruir un enlace bueno por un tropiezo de red sería peor que dejarlo.
+
+Nunca se escribe una URL vacía, y nunca se inventa un identificador de vídeo.
+
+## Flujo completo
+
+```
+python3 generar.py --titulo "..." --a-borradores        (en Pavilion)
+        ↓  drafts/anime/<id>.json en la rama `borradores`
+git fetch casa && git show casa/borradores:drafts/PENDIENTES.md   (en tu PC)
+        ↓
+node scripts/promote.mjs <id> --categoria "Viendo"
+        ↓  la ficha entra en public/data/anime.json con tus campos vacíos
+escribes tu opinión  →  git push casa main  →  publicado
+```
+
+La rama `borradores` **no puede romper la web**: el hook de despliegue solo actúa
+sobre `main`, y `main` nunca contiene `drafts/`, así que el bot y tú no escribís
+jamás en los mismos ficheros.
+
+`promote.mjs` **se niega** a insertar la ficha si no le das `--categoria`, y se
+niega si algún `anilistId` de esa franquicia ya está publicado.
