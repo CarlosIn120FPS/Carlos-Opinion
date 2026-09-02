@@ -761,9 +761,54 @@ def ids_ya_publicados(ruta_anime_json):
     return publicados, sin_declarar
 
 
+def _normalizar(texto):
+    import re
+    import unicodedata
+    t = unicodedata.normalize("NFKD", texto or "").encode("ascii", "ignore").decode().lower()
+    t = re.sub(r"\b(season|temporada|part|parte|the movie|movie|specials?|ova|s\d+)\b", " ", t)
+    return " ".join(re.sub(r"[^a-z0-9]+", " ", t).split())
+
+
+def otras_secciones(ruta_anime_json):
+    """Titulos ya cubiertos en manga o en novelas ligeras.
+
+    Una obra vive en UNA sola seccion: la de como la consume Carlos. Chainsaw Man
+    esta en manga porque lo lee; si no fuera a leerlo, seria una ficha de anime.
+    Asi que proponer una ficha de anime de algo que ya esta como manga es
+    duplicar, no completar.
+    """
+    carpeta = os.path.dirname(os.path.abspath(ruta_anime_json))
+    cubiertos = {}
+    for fichero, seccion in (("manga.json", "manga"), ("lightnovels.json", "novela ligera")):
+        ruta = os.path.join(carpeta, fichero)
+        if not os.path.isfile(ruta):
+            continue
+        with open(ruta, encoding="utf-8") as f:
+            for it in json.load(f).get("items", []):
+                for t in (it.get("title"), it.get("japaneseTitle")):
+                    n = _normalizar(t)
+                    if n:
+                        cubiertos[n] = (seccion, it.get("title"))
+    return cubiertos
+
+
+def _cubierta_en_otra_seccion(obras, cubiertos):
+    for m in obras:
+        titulos = m.get("title") or {}
+        for t in (titulos.get("english"), titulos.get("romaji")):
+            n = _normalizar(t)
+            if not n:
+                continue
+            for clave, valor in cubiertos.items():
+                if n == clave or n.startswith(clave + " ") or clave.startswith(n + " "):
+                    return valor
+    return None
+
+
 def pendientes(ruta_anime_json, generar=False, limite=None):
     biblioteca, sin_anilist = jellyfin_animes()
     publicados, sin_declarar = ids_ya_publicados(ruta_anime_json)
+    cubiertos = otras_secciones(ruta_anime_json)
 
     print(f"Jellyfin: {len(biblioteca)} animes con id de AniList")
     if sin_anilist:
@@ -780,7 +825,7 @@ def pendientes(ruta_anime_json, generar=False, limite=None):
         print("  Arreglalo con --backfill-ids (te propone el id y tu lo confirmas).")
 
     # Agrupar la biblioteca en franquicias, saltando las ya vistas.
-    vistos, grupos = set(), []
+    vistos, grupos, en_otra_seccion = set(), [], []
     for anilist_id in sorted(biblioteca):
         if anilist_id in vistos:
             continue
@@ -795,7 +840,18 @@ def pendientes(ruta_anime_json, generar=False, limite=None):
         if ids & publicados:
             continue  # esta franquicia ya esta en la web
         raiz = raiz_de_la_franquicia(obras)
+        otra = _cubierta_en_otra_seccion(obras, cubiertos)
+        if otra:
+            en_otra_seccion.append((raiz, otra))
+            continue
         grupos.append((raiz, obras, sorted(ids & set(biblioteca))))
+
+    if en_otra_seccion:
+        print()
+        print(f"YA LOS TIENES EN OTRA SECCION ({len(en_otra_seccion)}), no se generan:")
+        for raiz, (seccion, titulo) in en_otra_seccion:
+            nombre = (raiz.get("title") or {}).get("english") or (raiz.get("title") or {}).get("romaji")
+            print(f"  {nombre}  ->  ficha de {seccion}: «{titulo}»")
 
     print()
     print(f"PENDIENTES: {len(grupos)} franquicia(s) en Jellyfin que no estan en la web")
