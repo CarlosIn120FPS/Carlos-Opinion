@@ -8,8 +8,11 @@ exec >>"$LOG" 2>&1
 
 echo "=== arrancado ==="
 
-# 1. Esperar. Sondeo cada 10 min, hasta 24 h. Sin prisa: insistir alarga el castigo.
-for i in $(seq 1 144); do
+# 1. Esperar a AniList, pero SIN depender de el. Da mejores datos (generos,
+# titulo nativo, numero de episodios), asi que merece la pena esperar un rato.
+# Pasadas 3 horas se tira igual: el generador cae solo a animethemes, que agrupa
+# la franquicia y trae los temas, que es lo importante.
+for i in $(seq 1 18); do
   if python3 - <<'PY'
 import json, sys, urllib.request
 try:
@@ -25,7 +28,7 @@ PY
     echo "[$(date -Is)] AniList responde tras $((i*10)) min de espera"
     break
   fi
-  [ "$i" = 144 ] && { echo "[$(date -Is)] 24 h y sigue bloqueado. Abandono."; exit 1; }
+  [ "$i" = 18 ] && echo "[$(date -Is)] 3 h y sigue bloqueado. Sigo igual con animethemes."
   sleep 600
 done
 

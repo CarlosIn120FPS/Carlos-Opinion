@@ -237,6 +237,21 @@ def media_por_id(anilist_id, sin_cache=False):
 # --------------------------------------------------------------------------
 
 def franquicia(anilist_id, limite=25):
+    """La franquicia, por AniList si se puede y si no por animethemes.
+
+    Devuelve (obras, fuente). Las dos rutas dan la misma forma de datos; la de
+    animethemes trae menos campos y por eso el borrador marca mas cosas para
+    revisar. Tener dos fuentes es lo que evita que un bloqueo de una deje el
+    generador inservible.
+    """
+    try:
+        return franquicia_anilist(anilist_id, limite), "anilist"
+    except ErrorFuente as e:
+        print(f"    AniList no disponible ({e}); probando con animethemes", file=sys.stderr)
+        return franquicia_animethemes(anilist_id), "animethemes"
+
+
+def franquicia_anilist(anilist_id, limite=25):
     """Devuelve todos los Media de la franquicia, ordenados cronologicamente."""
     vistos, pendientes, obras = set(), [anilist_id], []
     while pendientes and len(vistos) < limite:
@@ -270,6 +285,79 @@ def franquicia(anilist_id, limite=25):
         return (m.get("seasonYear") or (m.get("startDate") or {}).get("year") or 9999, m["id"])
 
     return sorted(obras, key=clave)
+
+
+# --------------------------------------------------------------------------
+# Ruta alternativa: animethemes.moe
+#
+# AniList es mejor fuente (generos, titulo nativo, en que se basa la obra), pero
+# es un unico punto de fallo: si bloquea la IP, el generador se queda ciego.
+# animethemes agrupa por SERIE, que es justo nuestra nocion de franquicia, y vive
+# en otro dominio con otras reglas. Peor datos, pero vivo cuando el otro no esta.
+# --------------------------------------------------------------------------
+
+FORMATOS_AT = {"TV": "TV", "Movie": "MOVIE", "Special": "SPECIAL", "OVA": "OVA", "ONA": "ONA"}
+
+
+def _at(ruta, include=None):
+    url = ANIMETHEMES_URL + ruta
+    if include:
+        url += ("&" if "?" in ruta else "?") + "include=" + urllib.parse.quote(include)
+    time.sleep(0.5)
+    return _pedir_json(url)
+
+
+def _at_normalizar(a):
+    """Convierte un anime de animethemes a la forma que usa el resto del codigo."""
+    ids = {r.get("site"): r.get("external_id") for r in (a.get("resources") or [])}
+    anilist_id = ids.get("AniList")
+    return {
+        "id": int(anilist_id) if str(anilist_id or "").isdigit() else f"at:{a.get('slug')}",
+        "title": {"romaji": a.get("name"), "english": a.get("name"), "native": None},
+        "format": FORMATOS_AT.get(a.get("media_format"), a.get("media_format")),
+        "status": "FINISHED",
+        "episodes": None,          # animethemes no lo tiene
+        "seasonYear": a.get("year"),
+        "startDate": {"year": a.get("year")},
+        "genres": [],              # tampoco
+        "tags": [],
+        "description": a.get("synopsis") or "",
+        "coverImage": {},
+        "source": None,
+        "relations": {"edges": []},
+        "_slug_at": a.get("slug"),
+    }
+
+
+def franquicia_animethemes(anilist_id):
+    """La franquicia segun animethemes: su concepto de `series`."""
+    d = _at(f"/anime?filter[has]=resources&filter[site]=AniList&filter[external_id]={anilist_id}",
+            include="series")
+    animes = d.get("anime") or []
+    if not animes:
+        raise ErrorFuente(f"animethemes no conoce el AniList id {anilist_id}")
+    series = animes[0].get("series") or []
+
+    if not series:
+        # Sin serie: la obra va sola. Es correcto para obras unicas.
+        slugs = [animes[0].get("slug")]
+    else:
+        s = _at(f"/series/{series[0]['slug']}", include="anime").get("series") or {}
+        slugs = [a.get("slug") for a in (s.get("anime") or []) if a.get("slug")]
+
+    obras = []
+    for slug in slugs:
+        try:
+            a = _at(f"/anime/{slug}",
+                    include="resources,animethemes.song.artists,animethemes.animethemeentries.videos"
+                    ).get("anime") or {}
+            if a:
+                obras.append(_at_normalizar(a))
+        except ErrorFuente as e:
+            print(f"    aviso: animethemes fallo con {slug}: {e}", file=sys.stderr)
+    if not obras:
+        raise ErrorFuente(f"animethemes no devolvio ninguna obra para {anilist_id}")
+    return sorted(obras, key=lambda m: (m.get("seasonYear") or 9999, str(m["id"])))
 
 
 def raiz_de_la_franquicia(obras):
@@ -645,10 +733,8 @@ CAMPOS_DE_CARLOS = [
 ]
 
 
-def construir_borrador(anilist_id, con_temas=True):
-    obras = franquicia(anilist_id)
-    if not obras:
-        raise ErrorFuente(f"no se pudo construir la franquicia de {anilist_id}")
+def construir_borrador(anilist_id, con_temas=True, respaldo=None):
+    obras, fuente = franquicia(anilist_id)
     raiz = raiz_de_la_franquicia(obras)
     manga, novela = tiene_fuente(obras)
     ops, eds = ([], [])
@@ -674,7 +760,17 @@ def construir_borrador(anilist_id, con_temas=True):
     for c in CAMPOS_DE_CARLOS:
         ficha[c] = ""
 
+    # Con animethemes faltan generos, titulo nativo, numero de episodios y en que
+    # se basa la obra. El borrador sale igual, pero diciendo que hay que mirarlo.
+    if fuente == "animethemes":
+        if respaldo:
+            ficha["image"] = ficha["image"] or respaldo.get("image", "")
+            ficha["japaneseTitle"] = ficha["japaneseTitle"] or respaldo.get("japaneseTitle", "")
+            ficha["genres"] = ficha["genres"] or respaldo.get("genres", [])
+        ficha.setdefault("_meta", {})
+
     ficha["_meta"] = {
+        "fuente": fuente,
         "anilistIds": [m["id"] for m in obras],
         "franquicia": [
             {"id": m["id"], "formato": m.get("format"),
@@ -682,8 +778,15 @@ def construir_borrador(anilist_id, con_temas=True):
              "titulo": (m.get("title") or {}).get("romaji")}
             for m in obras
         ],
-        "_revisar": ["episodes", "fullSynopsis", "genres"],
+        "_revisar": (["episodes", "fullSynopsis", "genres"] if fuente == "anilist" else
+                     ["episodes", "fullSynopsis", "genres", "japaneseTitle",
+                      "hasManga", "hasLightNovel", "image"]),
     }
+    if fuente == "animethemes":
+        ficha["_meta"]["_avisos"] = [
+            "generado SIN AniList (estaba caido o bloqueado): faltan generos, titulo "
+            "nativo, numero de episodios y si tiene manga o novela. Revisa esos campos."
+        ]
     return ficha
 
 
@@ -830,7 +933,7 @@ def pendientes(ruta_anime_json, generar=False, limite=None):
         if anilist_id in vistos:
             continue
         try:
-            obras = franquicia(anilist_id)
+            obras, _fuente = franquicia(anilist_id)
         except ErrorFuente as e:
             print(f"  aviso: {anilist_id} no se pudo agrupar: {e}", file=sys.stderr)
             vistos.add(anilist_id)
@@ -903,7 +1006,7 @@ def backfill_ids(ruta_anime_json):
             continue
         elegido = candidatos[0]
         try:
-            ids = [m["id"] for m in franquicia(elegido["id"])]
+            ids = [m["id"] for m in franquicia(elegido["id"])[0]]
         except ErrorFuente:
             ids = [elegido["id"]]
         print(f'  ficha {it.get("id")} "{it.get("title")}"')
