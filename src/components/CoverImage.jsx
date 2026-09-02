@@ -3,10 +3,21 @@ import { useEffect, useState } from 'react';
 // Las portadas se sirven desde CDNs ajenos (Crunchyroll, Netflix, MyAnimeList) y
 // esas URLs llevan tokens que rotan. Cuando una caduca, antes quedaba el icono de
 // imagen rota; ahora al menos se lee el título.
+// Una portada puede ser una URL externa o un fichero propio en public/ (p.ej.
+// "covers/anime-8.jpg"). Las relativas necesitan el prefijo de `base`, o darian
+// 404 al compilar con `npm run build:pages`, que sirve desde /Carlos-Opinion/.
+const resolveSrc = (src) => {
+  if (!src) return src;
+  if (/^(https?:)?\/\//.test(src) || src.startsWith('data:')) return src;
+  return `${import.meta.env.BASE_URL}${src.replace(/^\//, '')}`;
+};
+
 const CoverImage = ({ src, alt, className = '', wrapperClassName = '' }) => {
   const [failed, setFailed] = useState(false);
 
   useEffect(() => setFailed(false), [src]);
+
+  const resolved = resolveSrc(src);
 
   if (!src || failed) {
     return (
@@ -27,7 +38,7 @@ const CoverImage = ({ src, alt, className = '', wrapperClassName = '' }) => {
 
   return (
     <img
-      src={src}
+      src={resolved}
       alt={alt}
       loading="lazy"
       decoding="async"

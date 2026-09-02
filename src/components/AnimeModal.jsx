@@ -107,15 +107,21 @@ const AnimeModal = ({ item, onClose }) => {
                   <span>{item.hasLightNovel ? 'Sí' : 'No'}</span>
                 </div>
 
-                <div className="flex items-center gap-2">
-                  <span className="text-purple-300 font-semibold">Voy a leer alguno de ellos?</span>
-                  <span>{item.willReadSource}</span>
-                </div>
+                {/* Con guarda: sin ella, una ficha a medias enseña la etiqueta
+                    seguida de nada — hoy pasa en la de Alya. */}
+                {item.willReadSource && (
+                  <div className="flex items-center gap-2">
+                    <span className="text-purple-300 font-semibold">Voy a leer alguno de ellos?</span>
+                    <span>{item.willReadSource}</span>
+                  </div>
+                )}
 
-                <div className="flex items-center gap-2">
-                  <span className="text-purple-300 font-semibold">Lo recomiendo?</span>
-                  <span>{item.doIRecommend}</span>
-                </div>
+                {item.doIRecommend && (
+                  <div className="flex items-center gap-2">
+                    <span className="text-purple-300 font-semibold">Lo recomiendo?</span>
+                    <span>{item.doIRecommend}</span>
+                  </div>
+                )}
 
                 {ratings.map((entry) => (
                   <div key={entry.key} className="flex items-center gap-2">
@@ -139,17 +145,28 @@ const AnimeModal = ({ item, onClose }) => {
               <h3 className="text-2xl font-bold text-purple-300 mb-3">{section.title}</h3>
               <div className="flex flex-wrap gap-3">
                 {section.tracks.length > 0 ? (
-                  section.tracks.map((track, index) => (
-                    <a
-                      key={`${track.url}-${index}`}
-                      href={track.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="px-4 py-2 rounded-lg bg-gradient-to-r from-purple-500/40 to-blue-500/40 border border-purple-400/50 text-purple-100 hover:scale-105 hover:bg-purple-500/60 transition-transform duration-200 shadow-md"
-                    >
-                      {track.name}
-                    </a>
-                  ))
+                  // Un tema sin url se pinta como texto, no como enlace: si no,
+                  // sale un boton clicable que no lleva a ninguna parte.
+                  section.tracks.map((track, index) =>
+                    track.url ? (
+                      <a
+                        key={`${track.url}-${index}`}
+                        href={track.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="px-4 py-2 rounded-lg bg-gradient-to-r from-purple-500/40 to-blue-500/40 border border-purple-400/50 text-purple-100 hover:scale-105 hover:bg-purple-500/60 transition-transform duration-200 shadow-md"
+                      >
+                        {track.name}
+                      </a>
+                    ) : (
+                      <span
+                        key={`${track.name}-${index}`}
+                        className="px-4 py-2 rounded-lg bg-white/5 border border-purple-400/20 text-purple-200/70"
+                      >
+                        {track.name}
+                      </span>
+                    ),
+                  )
                 ) : (
                   <p className="text-gray-400 italic">{section.empty}</p>
                 )}

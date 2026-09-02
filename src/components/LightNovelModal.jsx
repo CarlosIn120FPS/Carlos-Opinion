@@ -265,10 +265,12 @@ const LightNovelModal = ({ item, onClose }) => {
                   </p>
                 ))}
 
-                <div className="mt-4 pt-4 border-t border-stone-300 dark:border-stone-700">
-                  <strong className="block text-stone-900 dark:text-stone-100 mb-1">¿Lo recomiendo?</strong>
-                  <p className="italic text-stone-600 dark:text-stone-400">{item.doIRecommend}</p>
-                </div>
+                {item.doIRecommend && (
+                  <div className="mt-4 pt-4 border-t border-stone-300 dark:border-stone-700">
+                    <strong className="block text-stone-900 dark:text-stone-100 mb-1">¿Lo recomiendo?</strong>
+                    <p className="italic text-stone-600 dark:text-stone-400">{item.doIRecommend}</p>
+                  </div>
+                )}
               </div>
             </div>
 

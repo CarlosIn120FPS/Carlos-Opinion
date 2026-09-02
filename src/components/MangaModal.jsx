@@ -193,12 +193,14 @@ const MangaModal = ({ item, onClose }) => {
                     <span className="text-xl font-black text-red-600 dark:text-red-400">{entry.value}</span>
                   </div>
                 ))}
-                <div className="mt-4">
-                  <span className="font-black block mb-1">¿Lo recomiendo?</span>
-                  <p className="border-2 border-dashed border-gray-400 dark:border-gray-600 p-2 font-medium bg-gray-50 dark:bg-gray-900/50">
-                    {item.doIRecommend}
-                  </p>
-                </div>
+                {item.doIRecommend && (
+                  <div className="mt-4">
+                    <span className="font-black block mb-1">¿Lo recomiendo?</span>
+                    <p className="border-2 border-dashed border-gray-400 dark:border-gray-600 p-2 font-medium bg-gray-50 dark:bg-gray-900/50">
+                      {item.doIRecommend}
+                    </p>
+                  </div>
+                )}
               </div>
 
               {/* Speech bubbles. Antes cada rama pintaba su propio bocadillo y la

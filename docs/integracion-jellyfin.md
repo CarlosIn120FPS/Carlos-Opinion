@@ -245,3 +245,43 @@ Aviso: si vas a usar el `--serie` a mano mientras el timer existe, hace falta `f
 
 1. **¿Qué es "una colección" para ti?** ¿La carpeta de la serie con todas sus temporadas dentro (como Kaguya con Season 0-4), o las BoxSets tipo "青春ブタ野郎シリーズ"? El código es casi el mismo, pero el disparador cambia y no quiero adivinarlo.
 2. **¿`ollama list` devuelve exactamente `qwen3.5:9b`?** Todo el presupuesto de VRAM (5,6 GB de 8) descansa sobre ese tag.
+---
+
+## Anexo — resuelta la pregunta 1: qué es "una colección"
+
+**Respuesta de Carlos (septiembre de 2026):** la unidad es la **franquicia entera**.
+Aunque en Jellyfin *Las Quintillizas* estén partidas entre la serie (en Series) y la
+película (en Movies), en la web eso es **UNA sola ficha**: "Las Quintillizas".
+
+Esto no es una preferencia nueva, es lo que ya hacen los datos actuales:
+
+| Ficha | `episodes` |
+|---|---|
+| Rascal Does Not Dream of... (muchas variantes) | `2 temporadas/26 episodios + 3 películas + 1 película anunciada para 2026` |
+| High School DxD | `4 temporadas / 49 episodios + OVAs` |
+| Rent-a-Girlfriend | `5 temporadas/50 episodios` |
+
+Y los temas se anotan por temporada: Rent-a-Girlfriend tiene 11, DxD 9, Aobuta 6.
+(Alya es la excepción y va por episodio, porque esa serie cambia de ED cada capítulo.)
+
+### Qué cambia en el diseño
+
+1. **El disparador NO puede ser la BoxSet de Jellyfin.** Las 7 BoxSets existentes las
+   creó el plugin de TMDb y solo agrupan películas: ninguna contiene una Serie. No
+   sirven para juntar la serie con su peli.
+
+2. **La franquicia se deriva del grafo de relaciones de AniList**, no de cómo esté
+   organizado Jellyfin. Desde cualquier entrada se recorren `SEQUEL`, `PREQUEL`,
+   `SIDE_STORY` y los nodos `MOVIE` hasta cerrar el conjunto, y ese conjunto es la
+   ficha. Es la misma cadena que ya hacía falta para los temas por temporada, solo que
+   ahora también define la unidad.
+
+3. **La idempotencia cambia de clave.** Ya NO es "¿aparece este `anilistId` en
+   `anime.json`?", sino **"¿aparece en `anime.json` algún `anilistId` de esta
+   franquicia?"**. Por eso conviene guardar en la ficha el conjunto completo
+   (`anilistIds: [...]`) y no un solo id.
+
+4. **Consecuencia directa y deseable:** añadir a Jellyfin la temporada 2 de algo que ya
+   está en la web **no genera nada**. Solo las franquicias nuevas producen borrador.
+   Si algún día quieres enterarte de que una ficha se ha quedado corta ("tu ficha dice
+   3 temporadas, Jellyfin tiene 4"), eso es un chequeo aparte que **reporta y no edita**.
