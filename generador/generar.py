@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
 """Generador de borradores de ficha para Carlos' Opinion.
 
-FASE 1: solo fuentes publicas sin clave (AniList + animethemes.moe).
-Jellyfin y TMDB entran despues como fuentes opcionales.
+Fuentes: AniList (grafo de franquicia, titulos, generos), animethemes.moe (temas
+con su episodio exacto y enlace de video), Jellyfin (que hay en la biblioteca) y
+Ollama en Strix (traducir la sinopsis). Las tres primeras son deterministas; el
+LLM solo transforma texto que ya se le ha dado.
 
 La unidad de una ficha es la FRANQUICIA entera, no la temporada ni la pelicula:
 "Las Quintillizas" es una ficha aunque en Jellyfin esten la serie y la pelicula
@@ -16,6 +18,8 @@ Uso:
     ./generar.py --titulo "Alya Sometimes Hides Her Feelings in Russian"
     ./generar.py --anilist-id 162804
     ./generar.py --calibrar ../public/data/anime.json
+    ./generar.py --pendientes ../public/data/anime.json
+    ./generar.py --pendientes ../public/data/anime.json --generar --limite 3
 """
 
 import argparse
@@ -38,7 +42,17 @@ OLLAMA_URL = os.environ.get("CO_OLLAMA", "http://192.168.50.14:11434") + "/api/g
 OLLAMA_MODELO = os.environ.get("CO_MODELO", "qwen3.5:9b")
 OLLAMA_TIMEOUT = 180
 TIMEOUT = 20  # sin esto, un servidor que no responde cuelga el proceso para siempre
-PAUSA = 0.8   # AniList limita a 90 peticiones/min; vamos holgados
+
+# AniList anuncia 90 peticiones/min pero ahora mismo sirve DEGRADADO a 30/min, y
+# pasarse no da un 429 educado: te bloquea la IP entera con un 403 sin cabeceras,
+# y afecta a toda la casa porque los dos nodos salen por la misma IP publica.
+# 2,2 s = 27/min, por debajo del limite con margen.
+PAUSA = float(os.environ.get("CO_PAUSA", "2.2"))
+
+# Caché en disco. Una franquicia se consulta muchas veces (calibrar, listar
+# pendientes, generar), y los datos de AniList no cambian de un dia para otro.
+# Sin esto, una pasada sobre 52 franquicias son cientos de peticiones repetidas.
+CACHE_DIAS = 30
 
 # --------------------------------------------------------------------------
 # Generos: tabla estatica, nunca un LLM. Un genero inventado ensucia el
@@ -152,10 +166,15 @@ def _pedir_json(url, datos=None, cabeceras=None):
             with urllib.request.urlopen(peticion, timeout=TIMEOUT) as r:
                 return json.loads(r.read().decode("utf-8"))
         except urllib.error.HTTPError as e:
-            # 4xx que no sea 429 es culpa nuestra: reintentar no arregla nada.
-            if e.code != 429 and 400 <= e.code < 500:
+            # 429 y 403 los usa AniList para frenarte: hay que esperar, no rendirse.
+            # El resto de 4xx es culpa nuestra y reintentar no arregla nada.
+            if e.code not in (403, 429) and 400 <= e.code < 500:
                 raise ErrorFuente(f"HTTP {e.code} en {url}") from e
             ultimo = ErrorFuente(f"HTTP {e.code} en {url}")
+            if e.code in (403, 429):
+                espera = int(e.headers.get("Retry-After") or 0) or (5 * (intento + 1))
+                time.sleep(min(espera, 60))
+                continue
         except Exception as e:
             ultimo = ErrorFuente(f"{type(e).__name__} en {url}: {e}")
         if intento < REINTENTOS - 1:
@@ -164,7 +183,7 @@ def _pedir_json(url, datos=None, cabeceras=None):
 
 
 def anilist(consulta, variables):
-    time.sleep(PAUSA)
+    time.sleep(PAUSA)  # solo se llega aqui si la cache no tenia el dato
     r = _pedir_json(ANILIST_URL, {"query": consulta, "variables": variables})
     if "errors" in r:
         raise ErrorFuente(f"AniList: {r['errors']}")
@@ -176,8 +195,41 @@ def buscar_en_anilist(titulo):
     return datos["Page"]["media"]
 
 
-def media_por_id(anilist_id):
-    return anilist(CONSULTA_MEDIA, {"id": anilist_id})["Media"]
+def _dir_cache(sub):
+    d = os.path.join(os.path.dirname(os.path.abspath(__file__)), "cache", sub)
+    os.makedirs(d, exist_ok=True)
+    return d
+
+
+def _cache_leer(sub, clave):
+    ruta = os.path.join(_dir_cache(sub), f"{clave}.json")
+    if not os.path.isfile(ruta):
+        return None
+    if (time.time() - os.path.getmtime(ruta)) > CACHE_DIAS * 86400:
+        return None
+    try:
+        with open(ruta, encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
+        return None  # caché corrupta: se ignora y se vuelve a pedir
+
+
+def _cache_escribir(sub, clave, valor):
+    ruta = os.path.join(_dir_cache(sub), f"{clave}.json")
+    tmp = ruta + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
+        json.dump(valor, f, ensure_ascii=False)
+    os.replace(tmp, ruta)   # atomico: nunca queda medio fichero
+
+
+def media_por_id(anilist_id, sin_cache=False):
+    if not sin_cache:
+        guardado = _cache_leer("anilist", anilist_id)
+        if guardado is not None:
+            return guardado
+    m = anilist(CONSULTA_MEDIA, {"id": anilist_id})["Media"]
+    _cache_escribir("anilist", anilist_id, m)
+    return m
 
 
 # --------------------------------------------------------------------------
@@ -207,6 +259,12 @@ def franquicia(anilist_id, limite=25):
                 pendientes.append(nodo["id"])
             elif tipo in ("SIDE_STORY", "ALTERNATIVE") and nodo.get("format") in FORMATOS_SECUNDARIOS:
                 pendientes.append(nodo["id"])
+
+    if not obras:
+        # Si TODOS los nodos fallaron, esto es un error de red, no una franquicia
+        # vacia. Antes se devolvia [] y reventaba mas adelante con un IndexError
+        # que no decia nada de la causa real.
+        raise ErrorFuente(f"no se pudo leer ningun nodo de la franquicia {anilist_id}")
 
     def clave(m):
         return (m.get("seasonYear") or (m.get("startDate") or {}).get("year") or 9999, m["id"])
@@ -331,6 +389,9 @@ def limpiar_descripcion(texto):
 # --------------------------------------------------------------------------
 
 def temas_de(anilist_id):
+    guardado = _cache_leer("animethemes", anilist_id)
+    if guardado is not None:
+        return guardado["ops"], guardado["eds"]
     url = (
         f"{ANIMETHEMES_URL}/anime?filter[has]=resources"
         f"&filter[site]=AniList&filter[external_id]={anilist_id}"
@@ -340,6 +401,7 @@ def temas_de(anilist_id):
     datos = _pedir_json(url)
     anime = (datos.get("anime") or [])
     if not anime:
+        _cache_escribir("animethemes", anilist_id, {"ops": [], "eds": []})
         return [], []
     ops, eds = [], []
     for tema in anime[0].get("animethemes") or []:
@@ -359,6 +421,7 @@ def temas_de(anilist_id):
         destino = ops if tipo == "OP" else eds if tipo == "ED" else None
         if destino is not None:
             destino.append({"nombre": etiqueta, "episodios": episodios, "video": video})
+    _cache_escribir("animethemes", anilist_id, {"ops": ops, "eds": eds})
     return ops, eds
 
 
@@ -625,6 +688,169 @@ def construir_borrador(anilist_id, con_temas=True):
 
 
 # --------------------------------------------------------------------------
+# Jellyfin — que hay en la biblioteca que no este ya en la web
+#
+# La clave de API NO va en el repositorio (que es publico): vive en
+# generador/.env con permisos 600, fuera del control de versiones.
+# --------------------------------------------------------------------------
+
+def cargar_env():
+    aqui = os.path.dirname(os.path.abspath(__file__))
+    candidatos = [
+        os.environ.get("CO_ENV"),
+        os.path.join(aqui, ".env"),
+        os.path.join(os.path.dirname(aqui), ".env"),
+        os.path.join(BASE, "generador", ".env"),
+    ]
+    ruta = next((c for c in candidatos if c and os.path.isfile(c)), None)
+    if not ruta:
+        raise ErrorFuente(
+            "no encuentro el .env con JELLYFIN_URL y JELLYFIN_KEY. Buscado en: "
+            + ", ".join(c for c in candidatos if c))
+    env = {}
+    with open(ruta, encoding="utf-8") as f:
+        for linea in f:
+            linea = linea.strip()
+            if linea and not linea.startswith("#") and "=" in linea:
+                k, v = linea.split("=", 1)
+                env[k.strip()] = v.strip()
+    return env
+
+
+def jellyfin_animes():
+    """Series y peliculas de la biblioteca que tengan id de AniList.
+
+    Tener id de AniList hace dos trabajos a la vez: enlaza con nuestra fuente y
+    descarta el cine normal (Bad Boys y compania no lo tienen).
+    Se deduplica por id: el mismo titulo aparece varias veces si esta en varias
+    bibliotecas, y en esta biblioteca pasa de verdad.
+    """
+    env = cargar_env()
+    url = env["JELLYFIN_URL"].rstrip("/") + "/Items?" + urllib.parse.urlencode({
+        "Recursive": "true",
+        "IncludeItemTypes": "Series,Movie",
+        "Fields": "ProviderIds,ProductionYear",
+        "SortBy": "SortName",
+        "Limit": "2000",
+        "api_key": env["JELLYFIN_KEY"],
+    })
+    datos = _pedir_json(url)
+
+    por_id, sin_anilist = {}, []
+    for item in datos.get("Items", []):
+        anilist_id = (item.get("ProviderIds") or {}).get("AniList")
+        if not anilist_id or not str(anilist_id).isdigit():
+            if (item.get("ProviderIds") or {}).get("AniDB"):
+                sin_anilist.append(item.get("Name"))  # es anime pero sin enlazar
+            continue
+        por_id.setdefault(int(anilist_id), item)
+    return por_id, sin_anilist
+
+
+def ids_ya_publicados(ruta_anime_json):
+    """Los anilistIds que ya estan en la web, y las fichas que aun no lo declaran."""
+    with open(ruta_anime_json, encoding="utf-8") as f:
+        items = json.load(f)["items"]
+    publicados, sin_declarar = set(), []
+    for it in items:
+        ids = it.get("anilistIds") or []
+        if ids:
+            publicados.update(ids)
+        else:
+            sin_declarar.append(it)
+    return publicados, sin_declarar
+
+
+def pendientes(ruta_anime_json, generar=False, limite=None):
+    biblioteca, sin_anilist = jellyfin_animes()
+    publicados, sin_declarar = ids_ya_publicados(ruta_anime_json)
+
+    print(f"Jellyfin: {len(biblioteca)} animes con id de AniList")
+    if sin_anilist:
+        print(f"  ({len(sin_anilist)} tienen AniDB pero no AniList y se quedan fuera: "
+              f"{', '.join(sin_anilist[:4])}{'...' if len(sin_anilist) > 4 else ''})")
+    print(f"Web: {len(publicados)} ids declarados en {len(sin_declarar) + (1 if publicados else 0)} fichas")
+
+    if sin_declarar:
+        print()
+        print(f"  AVISO: {len(sin_declarar)} ficha(s) de la web no declaran anilistIds, asi que")
+        print("  no se pueden descartar y saldran como pendientes aunque ya esten publicadas:")
+        for it in sin_declarar:
+            print(f"    - {it.get('title')}")
+        print("  Arreglalo con --backfill-ids (te propone el id y tu lo confirmas).")
+
+    # Agrupar la biblioteca en franquicias, saltando las ya vistas.
+    vistos, grupos = set(), []
+    for anilist_id in sorted(biblioteca):
+        if anilist_id in vistos:
+            continue
+        try:
+            obras = franquicia(anilist_id)
+        except ErrorFuente as e:
+            print(f"  aviso: {anilist_id} no se pudo agrupar: {e}", file=sys.stderr)
+            vistos.add(anilist_id)
+            continue
+        ids = {m["id"] for m in obras}
+        vistos |= ids
+        if ids & publicados:
+            continue  # esta franquicia ya esta en la web
+        raiz = raiz_de_la_franquicia(obras)
+        grupos.append((raiz, obras, sorted(ids & set(biblioteca))))
+
+    print()
+    print(f"PENDIENTES: {len(grupos)} franquicia(s) en Jellyfin que no estan en la web")
+    print()
+    for raiz, obras, en_biblioteca in grupos:
+        titulo = (raiz.get("title") or {}).get("english") or (raiz.get("title") or {}).get("romaji")
+        print(f"  #{raiz['id']:<8} {titulo}")
+        print(f"           franquicia: {len(obras)} obras | en tu Jellyfin: {len(en_biblioteca)}")
+
+    if generar:
+        objetivo = grupos[:limite] if limite else grupos
+        print()
+        print(f"Generando {len(objetivo)} borrador(es)...")
+        for raiz, _obras, _ in objetivo:
+            try:
+                ficha = construir_borrador(raiz["id"])
+                ficha, _ = realzar_con_ollama(ficha)
+                ficha, rotos, dudosos = verificar_enlaces(ficha)
+                ruta, estado = publicar_borrador(ficha)
+                print(f"  {estado}: {ficha['title']} ({rotos} enlaces rotos, {dudosos} sin comprobar)")
+            except Exception as e:
+                print(f"  FALLO en {raiz['id']}: {type(e).__name__}: {e}", file=sys.stderr)
+
+
+def backfill_ids(ruta_anime_json):
+    """Propone el anilistIds de las fichas que aun no lo declaran. NO escribe:
+    imprime el JSON para que Carlos lo pegue tras mirarlo. Un id equivocado aqui
+    hace que una franquicia deje de proponerse para siempre, en silencio."""
+    _publicados, sin_declarar = ids_ya_publicados(ruta_anime_json)
+    if not sin_declarar:
+        print("Todas las fichas declaran ya sus anilistIds.")
+        return
+    print("Propuesta (REVISALA antes de pegarla en public/data/anime.json):")
+    print()
+    for it in sin_declarar:
+        try:
+            candidatos = buscar_en_anilist(it.get("title", ""))
+        except ErrorFuente as e:
+            print(f'  ficha {it.get("id")} "{it.get("title")}": ERROR {e}')
+            continue
+        if not candidatos:
+            print(f'  ficha {it.get("id")} "{it.get("title")}": SIN RESULTADO -> ponlo a mano')
+            continue
+        elegido = candidatos[0]
+        try:
+            ids = [m["id"] for m in franquicia(elegido["id"])]
+        except ErrorFuente:
+            ids = [elegido["id"]]
+        print(f'  ficha {it.get("id")} "{it.get("title")}"')
+        print(f'      AniList dice: {elegido["title"].get("romaji")} ({elegido.get("seasonYear")})')
+        print(f'      "anilistIds": {json.dumps(ids)}')
+        print()
+
+
+# --------------------------------------------------------------------------
 # Publicacion en la rama `borradores`
 #
 # La regla que hace que esto no pueda romper nada: `main` NUNCA contiene
@@ -795,10 +1021,25 @@ def main():
     p.add_argument("--sin-verificar", action="store_true", help="no comprobar que los enlaces responden")
     p.add_argument("--a-borradores", action="store_true",
                    help="publicar el borrador en la rama `borradores` en vez de imprimirlo")
+    p.add_argument("--pendientes", metavar="RUTA",
+                   help="qué franquicias hay en Jellyfin que no estén ya en la web")
+    p.add_argument("--generar", action="store_true",
+                   help="con --pendientes, generar además los borradores")
+    p.add_argument("--limite", type=int, help="con --generar, cuántos como mucho")
+    p.add_argument("--backfill-ids", metavar="RUTA",
+                   help="proponer los anilistIds de las fichas que aún no los declaran")
     args = p.parse_args()
 
     if args.calibrar:
         calibrar(args.calibrar, args.solo)
+        return
+
+    if args.backfill_ids:
+        backfill_ids(args.backfill_ids)
+        return
+
+    if args.pendientes:
+        pendientes(args.pendientes, generar=args.generar, limite=args.limite)
         return
 
     anilist_id = args.anilist_id
