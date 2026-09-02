@@ -28,9 +28,9 @@ python3 generar.py --titulo "Alya Sometimes Hides Her Feelings in Russian"
 # lo publica en la rama `borradores` para revisarlo desde tu PC
 python3 generar.py --titulo "Go-Toubun no Hanayome" --a-borradores
 
-python3 generar.py --sin-ollama --sin-verificar   # más rápido, sin realce"
 python3 generar.py --anilist-id 162804
-python3 generar.py --anilist-id 162804 --sin-temas     # más rápido
+python3 generar.py --anilist-id 162804 --sin-temas               # más rápido
+python3 generar.py --anilist-id 162804 --sin-ollama --sin-verificar
 
 # comparar contra lo que ya escribiste a mano
 python3 generar.py --calibrar ../public/data/anime.json
@@ -81,12 +81,12 @@ Los tres campos marcados en `_meta._revisar` son exactamente donde conviene mira
 - **animethemes va por detrás en lo recién estrenado.** Para Mikadono devolvió 1
   ending y tú tienes 3.
 
-## Lo que falta (fases siguientes)
+## Lo que falta
 
-- **Fase 2:** Ollama para traducir la sinopsis y proponer la descripción corta;
-  escritura de borradores a la rama `borradores`; `promote.mjs` para insertarlos.
-- **Fase 3:** Jellyfin como disparador (qué franquicias hay que no estén ya en la
-  web) y timer nocturno.
+- **Fase 3:** Jellyfin como disparador — que mire qué franquicias tienes en la
+  biblioteca y no en la web, en vez de decirle tú el título. Necesita una API key
+  de Jellyfin. Y un timer nocturno, no cada 15 minutos: para ~1 anime al mes,
+  sondear cada cuarto de hora son 2.900 ejecuciones para un acierto.
 
 Ver `../docs/integracion-jellyfin.md` para el plan completo.
 
