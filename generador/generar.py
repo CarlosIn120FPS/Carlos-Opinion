@@ -770,12 +770,12 @@ def _normalizar(texto):
 
 
 def otras_secciones(ruta_anime_json):
-    """Titulos ya cubiertos en manga o en novelas ligeras.
+    """Fichas hermanas en manga o en novelas ligeras.
 
-    Una obra vive en UNA sola seccion: la de como la consume Carlos. Chainsaw Man
-    esta en manga porque lo lee; si no fuera a leerlo, seria una ficha de anime.
-    Asi que proponer una ficha de anime de algo que ya esta como manga es
-    duplicar, no completar.
+    OJO: una obra PUEDE estar en las tres secciones a la vez. Si Carlos se lee la
+    novela, se lee el manga y ve el anime, hay tres fichas, una por medio, cada
+    una con su opinion. Que exista la ficha de manga NO significa que sobre la de
+    anime: solo significa que son hermanas y conviene enlazarlas.
     """
     carpeta = os.path.dirname(os.path.abspath(ruta_anime_json))
     cubiertos = {}
@@ -825,7 +825,7 @@ def pendientes(ruta_anime_json, generar=False, limite=None):
         print("  Arreglalo con --backfill-ids (te propone el id y tu lo confirmas).")
 
     # Agrupar la biblioteca en franquicias, saltando las ya vistas.
-    vistos, grupos, en_otra_seccion = set(), [], []
+    vistos, grupos, hermanas = set(), [], []
     for anilist_id in sorted(biblioteca):
         if anilist_id in vistos:
             continue
@@ -840,34 +840,40 @@ def pendientes(ruta_anime_json, generar=False, limite=None):
         if ids & publicados:
             continue  # esta franquicia ya esta en la web
         raiz = raiz_de_la_franquicia(obras)
+        # Si ya hay ficha del manga o de la novela, NO se salta: se anota. Son
+        # obras hermanas, cada una con su opinion, no duplicados.
         otra = _cubierta_en_otra_seccion(obras, cubiertos)
         if otra:
-            en_otra_seccion.append((raiz, otra))
-            continue
-        grupos.append((raiz, obras, sorted(ids & set(biblioteca))))
-
-    if en_otra_seccion:
-        print()
-        print(f"YA LOS TIENES EN OTRA SECCION ({len(en_otra_seccion)}), no se generan:")
-        for raiz, (seccion, titulo) in en_otra_seccion:
-            nombre = (raiz.get("title") or {}).get("english") or (raiz.get("title") or {}).get("romaji")
-            print(f"  {nombre}  ->  ficha de {seccion}: «{titulo}»")
+            hermanas.append((raiz, otra))
+        grupos.append((raiz, obras, sorted(ids & set(biblioteca)), otra))
 
     print()
     print(f"PENDIENTES: {len(grupos)} franquicia(s) en Jellyfin que no estan en la web")
     print()
-    for raiz, obras, en_biblioteca in grupos:
+    for raiz, obras, en_biblioteca, otra in grupos:
         titulo = (raiz.get("title") or {}).get("english") or (raiz.get("title") or {}).get("romaji")
         print(f"  #{raiz['id']:<8} {titulo}")
         print(f"           franquicia: {len(obras)} obras | en tu Jellyfin: {len(en_biblioteca)}")
+        if otra:
+            print(f"           ya tienes su ficha de {otra[0]}: «{otra[1]}» -> convendria enlazarlas")
+
+    if hermanas:
+        print()
+        print(f"({len(hermanas)} de estas ya tienen ficha hermana en otra seccion; se generan igual)")
 
     if generar:
         objetivo = grupos[:limite] if limite else grupos
         print()
         print(f"Generando {len(objetivo)} borrador(es)...")
-        for raiz, _obras, _ in objetivo:
+        for raiz, _obras, _en_biblioteca, otra in objetivo:
             try:
                 ficha = construir_borrador(raiz["id"])
+                if otra:
+                    # Queda anotado en el borrador para que al promocionarlo se
+                    # vea que hay una ficha hermana que conviene enlazar.
+                    ficha["_meta"]["ficha_hermana"] = {"seccion": otra[0], "titulo": otra[1]}
+                    ficha["_meta"].setdefault("_avisos", []).append(
+                        f"ya tienes su ficha de {otra[0]}: «{otra[1]}» — convendria enlazarlas")
                 ficha, _ = realzar_con_ollama(ficha)
                 ficha, rotos, dudosos = verificar_enlaces(ficha)
                 ruta, estado = publicar_borrador(ficha)
