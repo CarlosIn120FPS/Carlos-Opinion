@@ -5,11 +5,11 @@ Whakoom no tiene API y raspar su web esta prohibido por sus condiciones. Lo que
 si hay es la exportacion manual de la coleccion (cuenta PRO), que sale como
 xlsx. Este script corre EN EL PC de Carlos, no en Pavilion: su coleccion es un
 dato personal y no tiene por que salir de casa. El fichero va en
-generador/work/ (en .gitignore).
+generador/coleccion/ (en .gitignore; OJO: work/ es el clon de git del generador y `git clean` lo vaciaria).
 
-    python3 whakoom.py work/whakoom.xlsx                 # emparejar e informar
-    python3 whakoom.py work/whakoom.xlsx --generar       # ademas, borradores de los SEGUROS
-    python3 whakoom.py work/whakoom.xlsx --columnas serie=Serie,numero=Numero
+    python3 whakoom.py coleccion/whakoom.xlsx                 # emparejar e informar
+    python3 whakoom.py coleccion/whakoom.xlsx --generar       # ademas, borradores de los SEGUROS
+    python3 whakoom.py coleccion/whakoom.xlsx --columnas serie=Serie,numero=Numero
 
 Lo que hace:
   1. Lee el xlsx sin dependencias (es un zip con XML: zipfile + ElementTree).
@@ -21,7 +21,7 @@ Lo que hace:
         SEGURO    un solo candidato cuyo titulo coincide con el de Whakoom
         DUDOSO    varios candidatos, o uno que no coincide -> lista para elegir
         SIN NADA  AniList no encuentra nada
-  5. Escribe work/whakoom-emparejado.json con todo, e imprime el resumen.
+  5. Escribe coleccion/whakoom-emparejado.json con todo, e imprime el resumen.
 
 NUNCA crea un borrador de un emparejamiento dudoso: emparejar por titulo es
 fragil (en este proyecto "Call of the Night" ya se caso con Shimoneta una
@@ -513,7 +513,7 @@ def main():
     series = emparejar(series, _titulos_publicados(args.datos), anime_publicado=_anime_publicado(args.datos))
     imprimir(series)
 
-    salida = args.salida or os.path.join(AQUI, "work", "whakoom-emparejado.json")
+    salida = args.salida or os.path.join(AQUI, "coleccion", "whakoom-emparejado.json")
     os.makedirs(os.path.dirname(salida), exist_ok=True)
     with open(salida, "w", encoding="utf-8") as f:
         json.dump(series, f, ensure_ascii=False, indent=2)

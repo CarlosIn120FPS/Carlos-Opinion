@@ -101,13 +101,14 @@ decisión suya, no un dato.
 Whakoom no tiene API y raspar su web está prohibido por sus condiciones. Lo que
 sí hay es la **exportación manual** de la colección (cuenta PRO), que sale como
 xlsx. `whakoom.py` corre **en tu PC**, no en Pavilion: tu colección es un dato
-personal y se queda en casa. El fichero va en `generador/work/` (en
-`.gitignore`).
+personal y se queda en casa. El fichero va en `generador/coleccion/` (en
+`.gitignore`; no en `work/`, que es el clon de git del generador y un
+`git clean` lo vaciaría).
 
 ```bash
-python3 whakoom.py work/whakoom.xlsx                # emparejar e informar
-python3 whakoom.py work/whakoom.xlsx --generar      # y borradores de los SEGUROS
-python3 whakoom.py work/whakoom.xlsx --columnas serie=Serie,numero=Número
+python3 whakoom.py coleccion/whakoom.xlsx                # emparejar e informar
+python3 whakoom.py coleccion/whakoom.xlsx --generar      # y borradores de los SEGUROS
+python3 whakoom.py coleccion/whakoom.xlsx --columnas serie=Serie,numero=Número
 ```
 
 Lee el xlsx sin dependencias (es un zip con XML), detecta las columnas por el

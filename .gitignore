@@ -37,3 +37,6 @@ panel/.copias/
 
 # Python
 __pycache__/
+
+# La coleccion de Whakoom (dato personal, se queda en el PC)
+generador/coleccion/
