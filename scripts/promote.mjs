@@ -95,6 +95,27 @@ for (const campo of ['title', 'japaneseTitle', 'genres']) {
 // ---------------------------------------------------------------- inserción
 const { _meta, ...ficha } = borrador;
 
+// Esto copia al JSON público TODO lo que el borrador traiga. Hoy el generador es
+// limpio —fuerza a vacío los campos de Carlos y no emite `entries`—, pero esa
+// garantía vive en generar.py y aquí no se comprueba. La regla que no se negocia
+// es que la máquina no escribe la voz de Carlos, así que se comprueba en la
+// puerta: si un borrador trae algo aquí, es un fallo del generador y hay que
+// verlo, no absorberlo en silencio.
+const CAMPOS_DE_CARLOS = [
+  'rating', 'ratingFinal', 'personalOpinion', 'personalOpinionFinal',
+  'doIRecommend', 'willReadSource',
+];
+const intrusos = CAMPOS_DE_CARLOS.filter((c) => ficha[c]);
+if (intrusos.length) {
+  morir(
+    `el borrador trae campos que sólo escribe Carlos: ${intrusos.join(', ')}.\n` +
+      `         Eso es un fallo del generador. Revísalo antes de promocionar.`,
+  );
+}
+if ('entries' in ficha) {
+  morir('el borrador trae un diario (`entries`). La máquina no escribe ahí, nunca.');
+}
+
 // App.jsx ordena con (a.id - b.id): tiene que ser número, no cadena.
 ficha.id = Math.max(0, ...datos.items.map((i) => Number(i.id) || 0)) + 1;
 ficha.category = categoria;

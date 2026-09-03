@@ -146,8 +146,14 @@ docker logs --tail 50 carlos-opinion
 cd ~/carlos-opinion && docker compose restart
 
 # volver a publicar sin cambiar nada (fuerza el hook)
-git push casa main --force-with-lease
+git commit --allow-empty -m "redesplegar" && git push casa main
 ```
+
+> Antes aquí ponía `git push casa main --force-with-lease`. Se cambió a propósito:
+> reescribir `main` en el bare **borra sin vuelta atrás**, porque un repositorio
+> bare no lleva reflog. Mientras el único cliente era este PC daba igual; en cuanto
+> haya un segundo escritor (el panel privado), un force borraría lo que se escribió
+> desde el móvil. Un commit vacío dispara el hook igual y no reescribe nada.
 
 ---
 
