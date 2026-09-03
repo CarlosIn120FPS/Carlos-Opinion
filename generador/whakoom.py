@@ -470,8 +470,11 @@ def titulo_espanol(serie):
     """El titulo de la edicion espanola tal como lo escribe Whakoom, sin lo que
     no es titulo: prefijo de pack y sufijos de edicion. Es lo que va a
     `spanishTitle`."""
-    variantes = variantes_de_busqueda(serie)
-    return variantes[1] if len(variantes) > 1 and variantes[1] != serie else serie
+    # Solo prefijo y sufijos de edicion. NO el recorte por ':' o ' - ' de
+    # variantes_de_busqueda: eso es un truco para encontrar la obra, y dejaba
+    # "Kaguya-sama: Love is War" en "Kaguya-sama".
+    sin_prefijo = re.sub(r"^(pack|estuche|caja)\s+", "", serie, flags=re.IGNORECASE)
+    return SUFIJOS_EDICION.sub("", sin_prefijo).strip(" -–:,") or serie
 
 
 def generar_seguros(series, con_ollama=False):

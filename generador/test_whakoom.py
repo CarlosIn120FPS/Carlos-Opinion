@@ -300,6 +300,9 @@ class Emparejar(unittest.TestCase):
         self.assertEqual(whakoom.titulo_espanol("Neon Genesis Evangelion - Edición Coleccionista"), "Neon Genesis Evangelion")
         self.assertEqual(whakoom.titulo_espanol("Pack Lycoris Recoil"), "Lycoris Recoil")
         self.assertEqual(whakoom.titulo_espanol("Re:ZeRo - Empezar de cero - Volumen 2"), "Re:ZeRo - Empezar de cero")
+        # Los dos puntos son parte del titulo: no es el recorte de busqueda.
+        self.assertEqual(whakoom.titulo_espanol("Kaguya-sama: Love is War"), "Kaguya-sama: Love is War")
+        self.assertEqual(whakoom.titulo_espanol("Lycoris Recoil: Ordinary Days"), "Lycoris Recoil: Ordinary Days")
         fichas = []
         original = (whakoom.generar.construir_borrador_obra, whakoom.generar.publicar_borrador)
         whakoom.generar.construir_borrador_obra = lambda aid, clave: {"title": "T", "spanishTitle": ""}
