@@ -8,18 +8,25 @@ Es la pieza 2 de `docs/VERSION-2.md` y escribe contra el contrato de
 
 ## Usarlo
 
+Está **alojado en Pavilion**, como la web:
+
+- `https://panel.carlosin120fps.duckdns.org` — cuando añadas el Proxy Host
+- `http://192.168.50.148:8099` — desde la LAN, ya funciona
+
+Escribes, y se publica solo en un par de minutos. La barra lateral dice cuánto
+queda por publicarse.
+
+El montaje, las unidades de systemd y **el paso que tienes que dar tú en Nginx
+Proxy Manager** están en [`deploy/panel/README.md`](../deploy/panel/README.md).
+
+### Modo local, como plan B
+
 ```bash
 npm run panel      # http://127.0.0.1:8099
 ```
 
-Escribe directamente en `public/data/*.json`. Cuando quieras publicarlo:
-
-```bash
-npm run deploy
-```
-
-Están separados a propósito: **el panel no hace commits a tus espaldas**. Tú
-escribes cuando te apetece; publicas cuando quieres.
+Escribe en el árbol de trabajo y no commitea nada; publicar es `npm run deploy`.
+Sirve si NPM se cae o si prefieres escribir sin publicar.
 
 ## Cómo está montado
 
@@ -97,16 +104,12 @@ repositorio está `.git/`.
 entradas, ni una sugerencia. El generador rellena datos objetivos; esto es la voz
 de Carlos y es todo el valor de la web.
 
-## Lo que falta (etapa 2)
+## Lo que falta
 
-Llevarlo a Pavilion para escribir desde el móvil. Necesita, por este orden:
+Sólo el **Proxy Host en Nginx Proxy Manager**, que lo añade Carlos por la UI —
+NPM no se toca por línea de comandos. Los pasos exactos, y la única forma de
+comprobar la Access List que sirve de algo (desde datos móviles, con
+`X-Forwarded-For` forjado), están en
+[`deploy/panel/README.md`](../deploy/panel/README.md).
 
-1. Un clon de trabajo y que el escritor commitee y empuje él (hoy escribe en el
-   árbol de trabajo y ya).
-2. Un `Proxy Host` en NPM con Access List — **lo añade Carlos por la UI**, con
-   copia previa de `database.sqlite`.
-3. Unidad de systemd con `User=carlosalexei`, `MemoryMax=96M` y escucha en la IP
-   de LAN, no en `0.0.0.0`.
-
-El diseño completo y los problemas que encontró la verificación adversarial están
-en el registro de la sesión.
+Mientras tanto el panel ya funciona desde la LAN en `http://192.168.50.148:8099`.
