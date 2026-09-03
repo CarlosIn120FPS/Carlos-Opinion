@@ -77,9 +77,13 @@ El orden importa, porque hay dependencias reales:
 1. Modelo de datos          ← HECHO: docs/esquema-ficha.md
 2. Panel privado            ← HECHO: alojado en Pavilion, con vista de borradores
 3. Generador de fichas      ← HECHO: --seccion anime|manga|lightnovel
-4. Fuentes de lo que consume← PARCIAL: Jellyfin y AniList sí; Whakoom por construir
-5. Web pública rehecha      ← PARCIAL: fichas hermanas hechas; faltan portadas y OG tags
+4. Fuentes de lo que consume← HECHO: Jellyfin, AniList y Whakoom (xlsx, calibrado)
+5. Web pública rehecha      ← HECHO: hermanas, portadas locales, OG, rediseño
 ```
+
+Todo lo de arriba se cerró el 3 de septiembre de 2026; el diario de ese día,
+con el porqué y el commit de cada cosa, está en
+[`registro-2026-09-03.md`](registro-2026-09-03.md).
 
 **Lo que falta de verdad, contrastado contra el código, está en
 [`estado-v2.md`](estado-v2.md).** Ese es el documento que hay que mirar antes de

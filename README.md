@@ -22,6 +22,16 @@ Construida con React, Vite, Tailwind CSS y Framer Motion.
 - **Animaciones** con Framer Motion, con modo elástico opcional
 - **Datos fuera del bundle**: el contenido son JSON que se cargan en tiempo de
   ejecución, así que añadir una ficha no requiere recompilar
+- **Fichas hermanas**: la misma obra en anime, manga y novela, enlazada en las
+  dos direcciones con un botón «Ver el manga →»
+- **Título en español** además del original, en la ficha, la tarjeta y el buscador
+- **Diario por episodios o volúmenes** dentro de cada ficha
+- **Portadas propias** en `public/covers/`, sin depender de CDNs ajenos
+- **Vistas previas al compartir**: cada ficha tiene su HTML con Open Graph
+  (`scripts/og.mjs`), así que un enlace por WhatsApp enseña título y portada
+- **Panel privado** (`panel/`) para escribir opiniones y publicar borradores desde
+  el móvil, y un **generador de borradores** (`generador/`) desde AniList, Jellyfin
+  y la exportación de Whakoom. Ninguno escribe una opinión: eso es de Carlos
 
 ## 🚀 Instalación y Uso
 

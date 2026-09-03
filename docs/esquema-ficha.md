@@ -139,8 +139,28 @@ Carlos y es todo el valor de la web.
 Corolario para quien programe: en `public/data/*.json` no se escribe texto de
 ejemplo. Las pruebas usan fichas sintéticas dentro del propio script de test.
 
-## Lo que viene detrás
+## Los otros campos que trajo la v2
 
-Este esquema es la pieza 1. La 2 es el panel privado (`panel-privado.md`), que
-es quien debe escribir estas entradas — hasta que exista, se añaden a mano en el
-JSON, que es exactamente la fricción que v2 elimina.
+Aparte del diario, la ficha ganó estos campos, todos opcionales y todos
+normalizados en `src/data/normalize.js` para que ningún componente tenga que
+defenderse. El orden de claves de cada sección está en
+`panel/lib/secciones.mjs`, y es el que escribe el panel.
+
+| Campo | Qué es | Quién lo escribe |
+|---|---|---|
+| `spanishTitle` | El título de la **edición española** («Un amor de tinta y espuma»). `title` sigue siendo el de AniList, que es con el que se empareja | Whakoom (columna `Series`), el generador con `--titulo-es`, o Carlos desde el panel |
+| `related` | `{ manga: 1 }`: el id de la ficha **hermana** en otra sección. Explícito, en las dos fichas, nunca adivinado por título | El panel (selector de hermanas, o «clonar a manga») |
+| `anilistIds` | Los ids de AniList de la franquicia (anime) o de la obra (manga, novela). Es lo que evita duplicados al publicar y lo que cruza la bandeja de pendientes | El generador; se rellenaron a mano en las 10 fichas de siempre |
+| `image` | Ruta **propia**, `covers/anime-8.jpg`, no una URL ajena. La procedencia está en `public/covers/origen.json` | `npm run portadas`, o el que empuja en Pavilion |
+| `hasAnime` / `hasManga` / `hasLightNovel` | Que la obra existe en ese medio. Sólo cuentan las relaciones de AniList que son **la misma historia** (adaptación, fuente, alternativa, obra madre), no spin-offs | El generador |
+
+Las hermanas que puede tener cada sección, con la bandera que dice que existen,
+las declara `src/data/niveles.js` (`ESQUEMA[sección].hermanas` y `.bandera`), y
+el mapa tiene que ser simétrico: un test lo comprueba.
+
+## Dónde se escribe todo esto
+
+El panel privado (`panel-privado.md`, `deploy/panel/README.md`) es quien escribe
+el diario, los campos de Carlos y los enlaces entre fichas, desde el PC o desde
+el móvil. Los borradores los deja el generador (`generador/README.md`) y el
+panel los publica. Ya no se edita el JSON a mano.

@@ -146,11 +146,22 @@ Salió de la verificación adversarial, y sin ello el resto sería frágil:
 - **`anilistIds` en las 10 fichas.** Sin ellos la comprobación de duplicados era
   un no-op y publicar *Rascal* o *My Dress-Up Darling* desde el panel habría
   creado una ficha repetida a un clic.
-- **513 comprobaciones automáticas**, incluida una que arranca la interfaz del
-  panel sobre un DOM mínimo. Existe porque se envió un panel que servía el JS
-  perfectamente y moría en la primera línea al abrirlo.
+- **783 comprobaciones automáticas** (eran 513 al escribir esta auditoría),
+  incluida una que arranca la interfaz del panel sobre un DOM mínimo. Existe
+  porque se envió un panel que servía el JS perfectamente y moría en la primera
+  línea al abrirlo.
 - **La bandeja de pendientes de AniList**, que es la respuesta viable a lo que
   `panel-privado.md` pedía de Crunchyroll.
+- **`spanishTitle`**, el título de la edición española, pedido por Carlos al ver
+  que «The Summer You Were There» no se parece a «Un amor de tinta y espuma».
+- **El rediseño de la web** sin tocar el carácter de los tres modales: cabecera
+  compacta, fondo en modo claro, tarjetas legibles, modales en móvil, tema a la
+  vista. Con capturas reales antes y después (`scripts/captura.mjs`).
+- **Las páginas por ficha con Open Graph** y el hold del kernel de Pavilion,
+  contados en `deploy/README.md`.
+
+El diario de la jornada en que se cerró todo esto, con incidentes incluidos,
+está en [`registro-2026-09-03.md`](registro-2026-09-03.md).
 
 ---
 

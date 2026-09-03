@@ -170,8 +170,57 @@ git commit --allow-empty -m "redesplegar" && git push casa main
 
 ---
 
+## Las páginas por ficha (Open Graph)
+
+`npm run build` es `vite build` **y después** `scripts/og.mjs`, que deja en
+`dist/` una copia de `index.html` por sección (`anime.html`) y por ficha
+(`anime/2.html`) con sus etiquetas Open Graph: título, descripción, portada y
+URL absolutas. Así WhatsApp, Telegram o Discord, que no ejecutan JavaScript,
+enseñan la ficha al compartir un enlace. Para el navegador es la misma app.
+
+Para que nginx las sirva, `nginx.conf` lleva `try_files $uri $uri.html $uri/
+/index.html`. **Ese fichero se copia a mano a Pavilion** (`~/carlos-opinion/nginx.conf`)
+y se reinicia el contenedor: el hook sólo publica `dist/`. Si tras un cambio en
+`nginx.conf` compartir un enlace sigue enseñando el título genérico, es eso.
+
+El dominio absoluto sale de `CO_SITE_URL` o, por defecto, de
+`https://opinion.carlosin120fps.duckdns.org`.
+
+## El panel
+
+Vive aparte: `deploy/panel/README.md`. Lo que más se olvida: **un cambio en
+`panel/` no llega al panel con `npm run deploy`**; hay que hacer rebase en
+`panel-work` y reiniciar el escritor. Está escrito allí con el comando exacto.
+
+## Pavilion arranca con el kernel 6.12.96 a propósito
+
+El 3 de septiembre de 2026 Pavilion se actualizó al kernel 6.12.105 y su
+adaptador de red USB (ASIX AX88179B, colgado de una controladora USB3 Renesas
+sin firmware) dejó de recibir tramas de más de ~1500 bytes con la MTU a 9000.
+Síntoma: cualquier subida grande por cable (`git push casa`, `scp`) se cortaba
+con «Connection reset by peer», mientras que la web, el panel y los comandos
+cortos iban bien. Strix, con el mismo adaptador y kernel pero controladora
+Intel, no lo sufre.
+
+Decisión de Carlos: arrancar siempre en 6.12.96. `GRUB_DEFAULT` apunta a esa
+entrada por id (copia del original en `/etc/default/grub.bak-20260903`) y
+`linux-image-amd64` y `linux-headers-amd64` están retenidos con `apt-mark hold`:
+todo lo demás se sigue actualizando. Antes de probar un kernel nuevo:
+
+```bash
+ping -f -l 2000 192.168.50.148        # desde Windows; si no responde, ese kernel tampoco vale
+```
+
+Parche de emergencia si reaparece: `sudo ip link set enx9c69d37d15ce mtu 1500`
+(no persiste; el perfil de NetworkManager sigue a 9000). Y ojo: OpenSSH 10
+penaliza por IP las conexiones que mueren, así que tras varios cortes seguidos
+sshd rechaza todo lo que venga del PC durante unos minutos. Se entra por Strix
+(`ssh -J strix pavilion`) o por la WiFi de Pavilion (192.168.50.28).
+
 ## GitHub Pages
 
 `base` vale `/` por defecto. Si alguna vez quieres volver a publicar en Pages:
-`npm run build:pages` (compila con `base=/Carlos-Opinion/`). Aviso: en Pages no hay
-`try_files`, así que los enlaces directos a `/Carlos-Opinion/anime` dan 404.
+`npm run build:pages` (compila con `base=/Carlos-Opinion/` y genera las páginas
+por ficha con esa base). Pages sirve `anime/2.html` para `/anime/2`, así que
+los enlaces directos a una ficha funcionan; `/Carlos-Opinion/anime` a secas se
+sirve desde `anime.html`.
