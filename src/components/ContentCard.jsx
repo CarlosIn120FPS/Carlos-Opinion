@@ -1,8 +1,13 @@
 import { motion } from 'framer-motion';
-import CoverImage from './CoverImage';
+import CoverImage, { resolveSrc } from './CoverImage';
 import { normalizeEntries } from '../lib/entries';
 import { esquemaDe } from '../data/niveles';
 import { itemRating, showRating } from '../lib/rating';
+
+// ¿Todas las portadas a la misma proporción (2:3, con fondo desenfocado para
+// las apaisadas) o cada una a su altura natural, en cascada? Es cuestión de
+// gusto y se deja a un interruptor: `true` para la rejilla uniforme.
+const UNIFORME = false;
 
 // Antes se llamaba AnimeCard, pero renderiza igual animes, mangas y novelas.
 // El `layoutId` lleva el tipo delante: los ids empiezan en 1 en cada dataset, así
@@ -41,13 +46,31 @@ const ContentCard = ({ item, typeId, onSelect, isElastic = false }) => {
       aria-label={`Ver detalles de ${item.title}`}
       className="relative cursor-pointer group rounded-xl focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-[#0f172a]"
     >
-      <div className="bg-white/10 dark:bg-gray-800/60 backdrop-blur-md rounded-xl overflow-hidden border border-gray-200 dark:border-gray-700 shadow-xl hover:shadow-2xl hover:shadow-purple-500/20 transition-all duration-300">
-        {/* Image Container */}
-        <div className="relative overflow-hidden w-full">
+      <div className="bg-white/70 dark:bg-gray-800/60 backdrop-blur-md rounded-xl overflow-hidden border border-gray-200 dark:border-gray-700 shadow-xl hover:shadow-2xl hover:shadow-purple-500/20 transition-all duration-300">
+        {/* La portada a su altura natural: unas son carteles verticales y otras
+            banners apaisados, y la rejilla en cascada lo asume. Se probó una
+            caja uniforme 2:3 (UNIFORME, abajo): a los banners les salían franjas
+            desenfocadas enormes o se les iba el logo al recortar. */}
+        <div className={`relative overflow-hidden w-full ${UNIFORME ? 'aspect-[2/3] bg-gray-200 dark:bg-gray-900' : ''}`}>
+          {UNIFORME && item.image && (
+            <img
+              src={resolveSrc(item.image)}
+              alt=""
+              aria-hidden="true"
+              loading="lazy"
+              decoding="async"
+              className="absolute inset-0 w-full h-full object-cover scale-125 blur-xl opacity-70 dark:opacity-60"
+            />
+          )}
           <CoverImage
             src={item.image}
             alt={item.title}
-            className="w-full h-auto block group-hover:scale-110 transition-transform duration-300"
+            className={
+              UNIFORME
+                ? 'absolute inset-0 w-full h-full object-contain object-center group-hover:scale-105 transition-transform duration-300'
+                : 'w-full h-auto block group-hover:scale-110 transition-transform duration-300'
+            }
+            wrapperClassName={UNIFORME ? 'absolute inset-0' : ''}
           />
           <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
 
@@ -70,22 +93,40 @@ const ContentCard = ({ item, typeId, onSelect, isElastic = false }) => {
           )}
         </div>
 
-        {/* Content */}
+        {/* Lo justo para reconocerla y decidir si abrirla. La sinopsis entera y
+            todos los géneros ya están dentro: en la tarjeta convertían la rejilla
+            en una columna de párrafos. */}
         <div className="p-4">
-          <h3 className="text-xl font-bold text-gray-800 dark:text-gray-100 mb-2">{item.title}</h3>
-          <p className="text-gray-600 dark:text-gray-400 text-sm mb-3">{item.description}</p>
+          <h3
+            className="text-lg font-bold leading-snug text-gray-800 dark:text-gray-100 mb-1.5 line-clamp-2"
+            title={item.title}
+          >
+            {item.title}
+          </h3>
+          {item.description && (
+            <p className="text-gray-600 dark:text-gray-400 text-sm mb-3 line-clamp-2">{item.description}</p>
+          )}
 
-          {/* Genre Tags */}
-          <div className="flex flex-wrap gap-2">
-            {item.genres.map((genre) => (
-              <span
-                key={genre}
-                className="px-2 py-1 text-xs rounded-full bg-gradient-to-r from-purple-500/30 to-blue-500/30 border border-purple-400/30 text-purple-600 dark:text-purple-200"
-              >
-                {genre}
-              </span>
-            ))}
-          </div>
+          {item.genres.length > 0 && (
+            <div className="flex flex-wrap gap-1.5">
+              {item.genres.slice(0, 3).map((genre) => (
+                <span
+                  key={genre}
+                  className="px-2 py-0.5 text-xs rounded-full bg-gradient-to-r from-purple-500/30 to-blue-500/30 border border-purple-400/30 text-purple-700 dark:text-purple-200"
+                >
+                  {genre}
+                </span>
+              ))}
+              {item.genres.length > 3 && (
+                <span
+                  className="px-2 py-0.5 text-xs rounded-full text-purple-500 dark:text-purple-300/80"
+                  title={item.genres.slice(3).join(', ')}
+                >
+                  +{item.genres.length - 3}
+                </span>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </motion.div>

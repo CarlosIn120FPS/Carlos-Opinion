@@ -6,7 +6,7 @@ import { useEffect, useState } from 'react';
 // Una portada puede ser una URL externa o un fichero propio en public/ (p.ej.
 // "covers/anime-8.jpg"). Las relativas necesitan el prefijo de `base`, o darian
 // 404 al compilar con `npm run build:pages`, que sirve desde /Carlos-Opinion/.
-const resolveSrc = (src) => {
+export const resolveSrc = (src) => {
   if (!src) return src;
   if (/^(https?:)?\/\//.test(src) || src.startsWith('data:')) return src;
   return `${import.meta.env.BASE_URL}${src.replace(/^\//, '')}`;
