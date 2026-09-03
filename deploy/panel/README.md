@@ -92,6 +92,22 @@ curl -sI -H 'X-Forwarded-For: 192.168.50.10' \
 Si el segundo no da 401, la regla por IP se puede falsificar con una cabecera:
 quita «Satisfy Any» y deja sólo usuario y contraseña.
 
+## Cuando cambia el CÓDIGO del panel
+
+Publicar (`npm run deploy`) actualiza la web, pero **no** el panel: el escritor
+es un proceso de node que ya tiene cargado `panel/servidor.mjs`, y su clon
+(`panel-work`) sólo se pone al día cuando alguien lo usa. Tras un cambio en
+`panel/` hay que hacer las dos cosas a mano:
+
+```bash
+ssh pavilion 'cd ~/carlos-opinion/panel-work && git fetch origin main && git rebase origin/main \
+  && sudo systemctl restart carlos-opinion-panel && systemctl is-active carlos-opinion-panel'
+```
+
+Si se olvida, el panel sigue funcionando con el código anterior y una ruta
+nueva contesta `{"error":"ruta desconocida"}` — que es justo lo que pasó la
+primera vez.
+
 ## Comprobar que está vivo
 
 ```bash
