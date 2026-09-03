@@ -48,17 +48,22 @@ Por orden de lo que sostiene a lo demás:
    El esquema resultante está en `esquema-ficha.md`; se decidió lista **plana** con
    localizadores, y los campos de opinión de siempre se quedaron intactos.
 
-2. **Panel privado** → `panel-privado.md`
+2. **Panel privado** → `panel-privado.md` — **HECHO y ALOJADO (2026-09-03)**
+   Corre en Pavilion (`panel/README.md`, `deploy/panel/README.md`). Además de los
+   campos, enseña los borradores del generador y los publica.
    Su herramienta de escritura. Barra lateral por secciones, pinchas un título y
    salen solo los campos que te tocan. Es lo que convierte "rellenar un JSON" en
    "escribir dos frases".
 
-3. **Generador de fichas** → ya construido, `generador/README.md`
-   Trae los datos objetivos para que él no transcriba nada. Hoy cubre anime; le
-   faltan manga y novelas.
+3. **Generador de fichas** → `generador/README.md` — **COMPLETO (2026-09-03)**
+   Trae los datos objetivos para que él no transcriba nada. Cubre las tres
+   secciones: `--seccion anime|manga|lightnovel`.
 
-4. **Fuentes de lo que consume** → Jellyfin (hecho), Crunchyroll y Whakoom (por
-   investigar). Que la web sepa qué está viendo y leyendo sin que él lo teclee.
+4. **Fuentes de lo que consume** → Jellyfin (hecho). **Crunchyroll: NO VIABLE**,
+   sus condiciones prohíben el acceso automatizado; la vía que sí sirve es usar
+   AniList como buzón y leerlo desde el navegador del panel (aparcado: Carlos
+   tiene cuenta pero no la usa). **Whakoom: sin API y raspar prohibido**; sólo
+   por exportación manual, que él tiene por ser PRO.
 
 5. **La web pública, rehecha** → las mejoras del análisis en
    `integracion-jellyfin.md`: buscador que busque de verdad, navegación visible en
@@ -70,9 +75,9 @@ El orden importa, porque hay dependencias reales:
 
 ```
 1. Modelo de datos          ← HECHO: docs/esquema-ficha.md
-2. Panel privado            ← siguiente. Necesita el modelo, y ya lo tiene
-3. Fuentes (manga, novelas) ← necesita saber qué campos rellenar
-4. Web pública rehecha      ← puede ir en paralelo, no bloquea a nadie
+2. Panel privado            ← HECHO: alojado en Pavilion, con vista de borradores
+3. Fuentes (manga, novelas) ← HECHO: generador con --seccion
+4. Web pública rehecha      ← HECHO: buscador, notas, orden, navegación
 ```
 
 La pieza 5 se puede empezar cuando sea: no depende del resto y da resultado visible

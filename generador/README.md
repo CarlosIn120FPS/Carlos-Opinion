@@ -1,6 +1,7 @@
 # Generador de borradores de ficha
 
-Genera el esqueleto de una ficha de anime a partir de fuentes públicas, para no
+Genera el esqueleto de una ficha de **anime, manga o novela ligera** a partir de
+fuentes públicas, para no
 tener que transcribir a mano títulos japoneses, géneros, episodios y las listas de
 openings y endings.
 
@@ -38,6 +39,62 @@ python3 generar.py --calibrar ../public/data/anime.json --solo 8
 ```
 
 Vive en Pavilion, en `~/carlos-opinion/generador/`.
+
+## Manga y novelas ligeras
+
+```bash
+# el título es ambiguo a propósito: lista los candidatos y para
+./generar.py --seccion lightnovel --titulo "Mushoku Tensei"
+
+# con el id ya elegido
+./generar.py --seccion manga      --anilist-id 105778 --sin-ollama
+./generar.py --seccion lightnovel --anilist-id 85470  --a-borradores
+
+# y se promociona igual que el anime, diciendo la sección
+node scripts/promote.mjs 105778 --seccion manga --categoria "Leyendo"
+```
+
+Van por otro camino que el anime, y no por capricho:
+
+- **Una obra es una obra, no una franquicia.** En anime la unidad es la
+  franquicia entera porque las temporadas se numeran solas. En manga, seguir el
+  grafo de relaciones rompe las dos fichas reales: la novela de Mushoku Tensei
+  (85470, 26 volúmenes, que es justo lo que Carlos escribió) arrastra por
+  `PARENT` el *Dasoku-hen* de 4 volúmenes y el *Recollection* de 1.
+- **No hay respaldo.** animethemes.moe indexa anime y sus temas musicales; no
+  conoce ids de manga. Si AniList no responde, esto falla en vez de inventarse la
+  ficha con la mitad de los campos.
+- **Sin openings ni endings**, y por tanto sin verificación de enlaces: no hay
+  enlaces que verificar.
+- **`chapters` y `volumes` son TEXTO**, no números: `"24 (finalizada)"`,
+  `"18+ (en publicación)"`. La web los interpola crudos (`MangaModal.jsx` pinta
+  `{item.chapters}`), y un número pelado diría *232* sin decir si se acabó, que
+  es lo que de verdad quieres saber.
+- **`willReadSource` no se emite.** Sólo existe en anime: lo tienen las 8 fichas
+  de anime y 0 de manga y novelas. Los campos de Carlos por sección espejan
+  `panel/lib/secciones.mjs`.
+
+### La búsqueda por título PARA si hay varios candidatos
+
+Coger el primero a ciegas genera la ficha equivocada sin avisar. Comprobado:
+buscar «Mushoku Tensei» devuelve primero el spin-off *Dasoku-hen*, no la obra
+que Carlos tiene escrita. Con más de un resultado se listan y se elige a mano.
+
+### Qué tal acierta, calibrado contra las dos fichas escritas a mano
+
+| Campo | Chainsaw Man (manga) | Mushoku Tensei (novela) |
+|---|---|---|
+| `title` | exacto | exacto |
+| `author` | exacto | exacto |
+| `hasAnime` / `hasManga` | exacto | exacto |
+| `volumes` | AniList dice 24, Carlos escribió «18+» | «26 (finalizada)» vs «26 (Finalizada)» |
+| `chapters` | AniList cuenta 232 seguidos; Carlos separa Parte 1 y 2 | — |
+| `illustrator` | — | *Sirotaka* vs *Shirotaka* (romanización) |
+| `genres` | 6, los 4 suyos entre ellos | 6, los 5 suyos entre ellos |
+
+Las diferencias reales son de criterio, no errores, y **todas salen marcadas en
+`_revisar`**: cómo contar los capítulos de una obra partida en dos partes es una
+decisión suya, no un dato.
 
 ## Una ficha es una franquicia
 

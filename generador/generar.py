@@ -128,13 +128,44 @@ query ($id: Int) {
 """
 
 CONSULTA_BUSQUEDA = """
-query ($busqueda: String) {
+query ($busqueda: String, $tipo: MediaType) {
   Page(page: 1, perPage: 5) {
-    media(search: $busqueda, type: ANIME, sort: SEARCH_MATCH) {
+    media(search: $busqueda, type: $tipo, sort: SEARCH_MATCH) {
       id
       title { romaji english native }
       format
       seasonYear
+    }
+  }
+}
+"""
+
+# Manga y novelas van por otra consulta a proposito: piden chapters/volumes y el
+# staff (autor e ilustrador), y NO piden episodes ni seasonYear, que no existen.
+# Tampoco recorren la franquicia: en manga una obra es una obra, y el grafo de
+# relaciones arrastraria los spin-off. Comprobado con Mushoku Tensei (85470), que
+# por PARENT trae Dasoku-hen y Recollection y estropearia los 26 volumenes que
+# Carlos escribio a mano.
+CONSULTA_OBRA = """
+query ($id: Int) {
+  Media(id: $id, type: MANGA) {
+    id
+    title { romaji english native }
+    format
+    status
+    chapters
+    volumes
+    startDate { year }
+    genres
+    tags { name rank }
+    description(asHtml: false)
+    coverImage { extraLarge large }
+    staff { edges { role node { name { full } } } }
+    relations {
+      edges {
+        relationType(version: 2)
+        node { id type format title { romaji } }
+      }
     }
   }
 }
@@ -190,8 +221,8 @@ def anilist(consulta, variables):
     return r["data"]
 
 
-def buscar_en_anilist(titulo):
-    datos = anilist(CONSULTA_BUSQUEDA, {"busqueda": titulo})
+def buscar_en_anilist(titulo, tipo="ANIME"):
+    datos = anilist(CONSULTA_BUSQUEDA, {"busqueda": titulo, "tipo": tipo})
     return datos["Page"]["media"]
 
 
@@ -726,11 +757,162 @@ def realzar_con_ollama(ficha):
 # Construccion del borrador
 # --------------------------------------------------------------------------
 
+# Los campos que sólo escribe Carlos, POR SECCION. Espeja panel/lib/secciones.mjs
+# y no es una lista unica a proposito: `willReadSource` solo existe en anime
+# (comprobado: 8 de 8 fichas de anime lo tienen, 0 de manga y 0 de novelas).
+# Emitirlo en manga inventaria un campo que ningun modal pinta.
 CAMPOS_DE_CARLOS = [
     "category", "rating", "ratingFinal",
     "personalOpinion", "personalOpinionFinal",
     "doIRecommend", "willReadSource",
 ]
+
+SECCIONES = {
+    "anime": {
+        "tipo": "ANIME",
+        "formatos": None,
+        "carpeta": "anime",
+        "campos": CAMPOS_DE_CARLOS,
+    },
+    "manga": {
+        "tipo": "MANGA",
+        "formatos": FORMATOS_MANGA,
+        "carpeta": "manga",
+        "campos": ["category", "rating", "ratingFinal", "personalOpinion",
+                   "personalOpinionFinal", "doIRecommend"],
+    },
+    "lightnovel": {
+        "tipo": "MANGA",
+        "formatos": FORMATOS_NOVELA,
+        "carpeta": "lightnovel",
+        "campos": ["category", "rating", "ratingFinal", "personalOpinion",
+                   "personalOpinionFinal", "doIRecommend"],
+    },
+}
+
+
+def media_obra(anilist_id, sin_cache=False):
+    """Una obra de manga o novela, sin recorrer relaciones."""
+    if not sin_cache:
+        cacheada = _cache_leer("obra", str(anilist_id))
+        if cacheada:
+            return cacheada
+    # anilist() ya devuelve el `data` desenvuelto (ver media_por_id).
+    media = anilist(CONSULTA_OBRA, {"id": anilist_id}).get("Media")
+    if not media:
+        raise ErrorFuente(f"AniList no devuelve la obra {anilist_id}")
+    _cache_escribir("obra", str(anilist_id), media)
+    return media
+
+
+def describir_publicacion(media):
+    """chapters y volumes como TEXTO, no como numero.
+
+    La web los interpola crudos (MangaModal.jsx pinta `{item.chapters}`), y lo
+    que Carlos escribio a mano es prosa: "18+", "26 (Finalizada)". Un numero
+    pelado diria 232 sin decir si se acabo, que es justo lo que quieres saber.
+    """
+    terminada = (media.get("status") or "") == "FINISHED"
+    def texto(n):
+        if not n:
+            return ""
+        return f"{n} (finalizada)" if terminada else f"{n}+ (en publicación)"
+    return texto(media.get("chapters")), texto(media.get("volumes"))
+
+
+# AniList no tiene un enum para el papel del staff: `role` es texto libre. Estas
+# reglas estan calibradas contra los dos unicos casos reales que hay escritos a
+# mano (Chainsaw Man y Mushoku Tensei), asi que author/illustrator salen SIEMPRE
+# marcados para revisar.
+def autoria(media):
+    autor = ilustrador = ""
+    for arista in (media.get("staff") or {}).get("edges", []):
+        papel = (arista.get("role") or "").lower()
+        nombre = ((arista.get("node") or {}).get("name") or {}).get("full") or ""
+        if not nombre:
+            continue
+        if not autor and ("story" in papel or "original" in papel):
+            autor = nombre
+        if not ilustrador and ("art" in papel or "illustration" in papel):
+            ilustrador = nombre
+    # "Story & Art" es una sola persona haciendo las dos cosas.
+    return autor, ilustrador
+
+
+def relacionada_con(media, tipo, formatos=None):
+    for arista in (media.get("relations") or {}).get("edges", []):
+        nodo = arista.get("node") or {}
+        if nodo.get("type") != tipo:
+            continue
+        if formatos is None or nodo.get("format") in formatos:
+            return True
+    return False
+
+
+def construir_borrador_obra(anilist_id, clave):
+    """Borrador de manga o novela ligera.
+
+    No llama a franquicia(), ni a describir_alcance(), ni a recopilar_temas():
+    nada de eso aplica. Un manga no tiene temporadas ni openings, y animethemes
+    —el respaldo de anime— no conoce ids de manga, asi que aqui no hay respaldo:
+    si AniList no responde, se propaga el error en vez de inventarse la ficha.
+    """
+    s = SECCIONES[clave]
+    media = media_obra(anilist_id)
+
+    formato = media.get("format")
+    if s["formatos"] and formato not in s["formatos"]:
+        raise ErrorFuente(
+            f"la obra {anilist_id} es {formato}, y --seccion {clave} espera "
+            f"{'/'.join(sorted(s['formatos']))}. ¿Te has equivocado de sección?")
+
+    capitulos, volumenes = describir_publicacion(media)
+    autor, ilustrador = autoria(media)
+
+    ficha = {
+        "title": (media.get("title") or {}).get("english") or (media.get("title") or {}).get("romaji"),
+        "japaneseTitle": titulo_japones(media),
+        "image": ((media.get("coverImage") or {}).get("extraLarge")
+                  or (media.get("coverImage") or {}).get("large") or ""),
+        "description": "",
+        "genres": mapear_generos([media]),
+        "fullSynopsis": limpiar_descripcion(media.get("description")),
+    }
+
+    if clave == "manga":
+        ficha["chapters"] = capitulos
+        ficha["volumes"] = volumenes
+        ficha["author"] = autor
+        ficha["hasAnime"] = relacionada_con(media, "ANIME")
+    else:
+        ficha["volumes"] = volumenes
+        ficha["author"] = autor
+        ficha["illustrator"] = ilustrador
+        ficha["hasAnime"] = relacionada_con(media, "ANIME")
+        ficha["hasManga"] = relacionada_con(media, "MANGA", FORMATOS_MANGA)
+
+    # Vacios a proposito, igual que en anime: platforms y languages son prosa con
+    # criterio, y physicalStores son enlaces de compra que ninguna fuente da.
+    ficha["platforms"] = []
+    ficha["languages"] = []
+    ficha["physicalStores"] = []
+
+    for c in s["campos"]:
+        ficha[c] = ""
+
+    revisar = ["fullSynopsis", "genres", "author"]
+    revisar += ["chapters", "volumes"] if clave == "manga" else ["volumes", "illustrator"]
+    ficha["_meta"] = {
+        "fuente": "anilist",
+        "seccion": clave,
+        "anilistIds": [media["id"]],
+        "_revisar": sorted(set(revisar)),
+        "_avisos": [
+            "author e illustrator salen de una heuristica sobre texto libre "
+            "(AniList no tiene enum de papel): compruebalos.",
+        ],
+    }
+    return ficha
 
 
 def construir_borrador(anilist_id, con_temas=True, respaldo=None):
@@ -1041,7 +1223,7 @@ def _git(*args, cwd=WORK, permitir_fallo=False):
     return r.stdout.strip()
 
 
-def publicar_borrador(ficha):
+def publicar_borrador(ficha, clave="anime"):
     if not os.path.isdir(os.path.join(WORK, ".git")):
         os.makedirs(os.path.dirname(WORK), exist_ok=True)
         subprocess.run(["git", "clone", "--quiet", REPO_BARE, WORK], check=True)
@@ -1059,7 +1241,7 @@ def publicar_borrador(ficha):
         _git("checkout", f"origin/{RAMA_BORRADORES}", "--", "drafts", permitir_fallo=True)
 
     ids = ficha["_meta"]["anilistIds"]
-    destino = os.path.join(WORK, "drafts", "anime", f"{ids[0]}.json")
+    destino = os.path.join(WORK, "drafts", SECCIONES[clave]["carpeta"], f"{ids[0]}.json")
     os.makedirs(os.path.dirname(destino), exist_ok=True)
     with open(destino, "w", encoding="utf-8") as f:
         json.dump(ficha, f, ensure_ascii=False, indent=2)
@@ -1079,16 +1261,20 @@ def publicar_borrador(ficha):
 def _escribir_indice():
     """PENDIENTES.md dentro de la propia rama: el aviso viaja con los datos.
     Un fichero suelto en el home de Pavilion es un buzon que nadie visita."""
-    carpeta = os.path.join(WORK, "drafts", "anime")
     filas = []
-    for nombre in sorted(os.listdir(carpeta)) if os.path.isdir(carpeta) else []:
-        if not nombre.endswith(".json"):
-            continue
-        with open(os.path.join(carpeta, nombre), encoding="utf-8") as f:
-            b = json.load(f)
-        avisos = b.get("_meta", {}).get("_avisos") or []
-        filas.append(f"| `{nombre[:-5]}` | {b.get('title', '?')} | {b.get('episodes', '')} | "
-                     f"{'⚠️ ' + str(len(avisos)) if avisos else '—'} |")
+    for clave, s_ in SECCIONES.items():
+        carpeta = os.path.join(WORK, "drafts", s_["carpeta"])
+        for nombre in sorted(os.listdir(carpeta)) if os.path.isdir(carpeta) else []:
+            if not nombre.endswith(".json"):
+                continue
+            with open(os.path.join(carpeta, nombre), encoding="utf-8") as f:
+                b = json.load(f)
+            avisos = b.get("_meta", {}).get("_avisos") or []
+            # El "alcance" de cada seccion es lo suyo: episodios en anime,
+            # capitulos o volumenes en lo que se lee.
+            alcance = b.get("episodes") or b.get("chapters") or b.get("volumes") or ""
+            filas.append(f"| `{nombre[:-5]}` | {clave} | {b.get('title', '?')} | {alcance} | "
+                         f"{'⚠️ ' + str(len(avisos)) if avisos else '—'} |")
 
     texto = [
         "# Borradores pendientes",
@@ -1100,11 +1286,11 @@ def _escribir_indice():
         "",
         "```bash",
         "git fetch casa",
-        "node scripts/promote.mjs <id> --categoria \"Viendo\"",
+        "node scripts/promote.mjs <id> --seccion <seccion> --categoria \"Viendo\"",
         "```",
         "",
-        "| id AniList | Titulo | Alcance | Avisos |",
-        "|---|---|---|---|",
+        "| id AniList | Seccion | Titulo | Alcance | Avisos |",
+        "|---|---|---|---|---|",
         *filas,
         "",
         f"Total: {len(filas)} borrador{'es' if len(filas) != 1 else ''}.",
@@ -1193,6 +1379,10 @@ def main():
     p.add_argument("--limite", type=int, help="con --generar, cuántos como mucho")
     p.add_argument("--backfill-ids", metavar="RUTA",
                    help="proponer los anilistIds de las fichas que aún no los declaran")
+    # Por defecto anime, para no romper nada de lo que ya funciona: la pasada
+    # nocturna (esperar-y-generar.sh) llama a este script sin --seccion.
+    p.add_argument("--seccion", choices=list(SECCIONES), default="anime",
+                   help="qué se está generando (por defecto anime)")
     args = p.parse_args()
 
     if args.calibrar:
@@ -1207,32 +1397,59 @@ def main():
         pendientes(args.pendientes, generar=args.generar, limite=args.limite)
         return
 
+    clave = args.seccion
+    tipo = SECCIONES[clave]["tipo"]
+
     anilist_id = args.anilist_id
     if not anilist_id:
         if not args.titulo:
             p.error("hace falta --titulo, --anilist-id o --calibrar")
-        candidatos = buscar_en_anilist(args.titulo)
+        candidatos = buscar_en_anilist(args.titulo, tipo)
         if not candidatos:
-            print(f"AniList no encuentra nada con «{args.titulo}»", file=sys.stderr)
+            print(f"AniList no encuentra ningún {tipo} con «{args.titulo}»", file=sys.stderr)
             sys.exit(1)
-        anilist_id = candidatos[0]["id"]
-        print(f"# AniList #{anilist_id}: {candidatos[0]['title'].get('romaji')}", file=sys.stderr)
 
-    ficha = construir_borrador(anilist_id, con_temas=not args.sin_temas)
+        # Coger el primero a ciegas genera la ficha EQUIVOCADA sin avisar.
+        # Comprobado: buscar "Mushoku Tensei" en NOVEL devuelve primero
+        # "Mushoku Tensei: Dasoku-hen", que es un spin-off de 4 volumenes, no la
+        # obra de 26 que Carlos tiene escrita. Con varios candidatos se para y se
+        # elige a mano; generar un borrador equivocado cuesta mas que preguntar.
+        if len(candidatos) > 1:
+            print(f"AniList devuelve {len(candidatos)} resultados para «{args.titulo}». "
+                  f"Elige uno con --anilist-id:\n", file=sys.stderr)
+            for c in candidatos:
+                t = c.get("title") or {}
+                print(f"  --anilist-id {c['id']:<8} {t.get('english') or t.get('romaji')}"
+                      f"  [{c.get('format')}"
+                      + (f", {c['seasonYear']}]" if c.get("seasonYear") else "]"),
+                      file=sys.stderr)
+            sys.exit(1)
+
+        anilist_id = candidatos[0]["id"]
+        print(f"# AniList #{anilist_id}: {candidatos[0]['title'].get('romaji')} "
+              f"[{candidatos[0].get('format')}]", file=sys.stderr)
+
+    if clave == "anime":
+        ficha = construir_borrador(anilist_id, con_temas=not args.sin_temas)
+    else:
+        # Manga y novelas: una obra es una obra, sin franquicia ni temas.
+        ficha = construir_borrador_obra(anilist_id, clave)
 
     if not args.sin_ollama:
         ficha, estado = realzar_con_ollama(ficha)
         print(f"# Ollama: {estado}", file=sys.stderr)
 
-    if not args.sin_verificar:
+    if not args.sin_verificar and clave == "anime":
         ficha, rotos, dudosos = verificar_enlaces(ficha)
         print(f"# Enlaces: {rotos} rotos, {dudosos} sin comprobar", file=sys.stderr)
 
     if args.a_borradores:
-        ruta, estado = publicar_borrador(ficha)
+        ruta, estado = publicar_borrador(ficha, clave)
+        carpeta = SECCIONES[clave]["carpeta"]
         print(f"# {estado}" + (f": {ruta}" if ruta else ""), file=sys.stderr)
         print(f"# Revisalo con: git fetch casa && git show "
-              f"casa/borradores:drafts/anime/{ficha['_meta']['anilistIds'][0]}.json", file=sys.stderr)
+              f"casa/borradores:drafts/{carpeta}/{ficha['_meta']['anilistIds'][0]}.json",
+              file=sys.stderr)
     else:
         print(json.dumps(ficha, ensure_ascii=False, indent=2))
 
