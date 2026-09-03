@@ -145,8 +145,11 @@ async function estatico(res, ruta) {
       // El token viaja dentro de la página: si has llegado hasta aquí es que ya
       // pasaste la Access List de NPM. No es una segunda contraseña, es lo que
       // impide que otra web haga peticiones a ésta desde tu navegador.
+      // replaceAll y no replace: con una cadena, replace sustituye SÓLO la
+      // primera aparición. Un comentario que nombrase el marcador se llevaría la
+      // sustitución y el <meta> se quedaría sin token — que es justo lo que pasó.
       const html = await readFile(destino, 'utf8');
-      return enviar(res, 200, html.replace('__TOKEN__', TOKEN), TIPOS['.html']);
+      return enviar(res, 200, html.replaceAll('__TOKEN__', TOKEN), TIPOS['.html']);
     }
     const cuerpo = await readFile(destino);
     enviar(res, 200, cuerpo, TIPOS[extname(destino)] ?? 'application/octet-stream');
