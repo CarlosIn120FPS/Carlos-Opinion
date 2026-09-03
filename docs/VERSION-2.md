@@ -27,7 +27,7 @@ No es tener más funciones. Es que **cambia lo que la web es**.
 | Qué cuenta | Un veredicto | Cómo fue cambiando de opinión |
 | Cómo se rellena | A mano, campo por campo | La máquina trae los datos; él solo opina |
 | Dónde escribes | Editando un JSON | Un panel propio, desde cualquier sitio |
-| De dónde sale el contenido | De su memoria | De Jellyfin, Crunchyroll y Whakoom |
+| De dónde sale el contenido | De su memoria | De AniList, Jellyfin y Whakoom |
 
 La prueba de que v1 se queda corta está en sus propios datos: **`personalOpinionFinal`
 está vacío en 8 de 8 fichas**. No es que no tenga opinión. Es que el único hueco que
@@ -76,12 +76,14 @@ El orden importa, porque hay dependencias reales:
 ```
 1. Modelo de datos          ← HECHO: docs/esquema-ficha.md
 2. Panel privado            ← HECHO: alojado en Pavilion, con vista de borradores
-3. Fuentes (manga, novelas) ← HECHO: generador con --seccion
-4. Web pública rehecha      ← HECHO: buscador, notas, orden, navegación
+3. Generador de fichas      ← HECHO: --seccion anime|manga|lightnovel
+4. Fuentes de lo que consume← PARCIAL: Jellyfin y AniList sí; Whakoom por construir
+5. Web pública rehecha      ← PARCIAL: faltan fichas hermanas, portadas y OG tags
 ```
 
-La pieza 5 se puede empezar cuando sea: no depende del resto y da resultado visible
-enseguida. Buena candidata para el primer rato, mientras se decide el esquema.
+**Lo que falta de verdad, contrastado contra el código, está en
+[`estado-v2.md`](estado-v2.md).** Ese es el documento que hay que mirar antes de
+decidir qué se hace ahora; éste dice para qué.
 
 ## Lo que NO cambia en v2
 
