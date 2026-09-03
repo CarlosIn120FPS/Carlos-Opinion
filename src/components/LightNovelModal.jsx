@@ -7,7 +7,10 @@ import { hermanas } from '../lib/related';
 import { useModalChrome } from '../hooks/useModalChrome';
 import { ratingEntries, opinionEntries } from '../lib/opinionFields';
 
-const PAPER_TEXTURE = "url('https://www.transparenttextures.com/patterns/cream-paper.png')";
+// La textura de papel se sirve desde aquí, no desde transparenttextures.com:
+// era la última petición a un tercero que quedaba en la web (las portadas ya
+// se trajeron a public/covers/), y si ese CDN cae el libro se queda sin papel.
+const PAPER_TEXTURE = `url('${import.meta.env.BASE_URL}texturas/papel-crema.png')`;
 const COLUMN_GAP_PX = 64; // 4rem
 
 const RATING_LABELS = {
@@ -173,15 +176,19 @@ const LightNovelModal = ({ item, onClose, onOpenRelated }) => {
                   <CoverImage
                     src={item.image}
                     alt={item.title}
-                    className="w-48 md:w-64 h-auto border border-stone-200 dark:border-stone-700"
-                    wrapperClassName="w-48 md:w-64 border border-stone-200 dark:border-stone-700"
+                    className="w-40 md:w-64 h-auto border border-stone-200 dark:border-stone-700"
+                    wrapperClassName="w-40 md:w-64 border border-stone-200 dark:border-stone-700"
                   />
                 </div>
               </div>
             </div>
 
             {/* --- INFO TÉCNICA --- */}
-            <div className="break-inside-avoid mb-8 space-y-4">
+            {/* En móvil este bloque NO se protege de partirse: como no cabía
+                entero debajo de la portada, saltaba de página y la primera
+                quedaba medio vacía (portada arriba, nada abajo, "Pág 1 de 4").
+                En escritorio, con dos columnas, sí se mantiene junto. */}
+            <div className="md:break-inside-avoid mb-8 space-y-4">
               <div className="flex flex-wrap gap-2 justify-center mb-4">
                 {item.genres.map((genre) => (
                   <span

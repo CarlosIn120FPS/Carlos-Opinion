@@ -18,6 +18,9 @@ const OPINION_LABELS = {
   single: 'Opinión Personal',
 };
 
+// Una fila «etiqueta: valor». Apilada en móvil, en línea desde sm.
+const FILA = 'flex flex-col sm:flex-row sm:items-center gap-0.5 sm:gap-2';
+
 const AnimeModal = ({ item, onClose, onOpenRelated }) => {
   useModalChrome(onClose);
 
@@ -59,22 +62,26 @@ const AnimeModal = ({ item, onClose, onOpenRelated }) => {
           </svg>
         </button>
 
-        <div className="p-8">
+        {/* En un móvil, 32 px de relleno por lado dejaban 260 px de texto; y las
+            filas «etiqueta: valor» en una sola línea partían la etiqueta en
+            tres renglones al lado de un valor largo. En pantallas estrechas la
+            etiqueta va encima del valor (FILA), y la portada, centrada. */}
+        <div className="p-5 md:p-8">
           {/* Header Section */}
-          <div className="flex flex-col md:flex-row gap-6 mb-6">
+          <div className="flex flex-col md:flex-row gap-5 md:gap-6 mb-6">
             {/* Image */}
-            <div className="flex-shrink-0">
+            <div className="flex-shrink-0 flex justify-center md:block">
               <CoverImage
                 src={item.image}
                 alt={item.title}
-                className="w-64 h-auto rounded-xl shadow-lg"
-                wrapperClassName="w-64 rounded-xl"
+                className="w-full max-w-xs md:w-64 h-auto rounded-xl shadow-lg"
+                wrapperClassName="w-full max-w-xs md:w-64 rounded-xl"
               />
             </div>
 
             {/* Basic Info */}
-            <div className="flex-1">
-              <h2 className="text-4xl font-bold mb-3 bg-gradient-to-r from-purple-400 to-blue-400 bg-clip-text text-transparent">
+            <div className="flex-1 min-w-0">
+              <h2 className="text-3xl md:text-4xl font-bold mb-3 bg-gradient-to-r from-purple-400 to-blue-400 bg-clip-text text-transparent">
                 {item.title}
               </h2>
 
@@ -89,13 +96,13 @@ const AnimeModal = ({ item, onClose, onOpenRelated }) => {
                 ))}
               </div>
 
-              <div className="space-y-3 text-gray-200">
-                <div className="flex items-center gap-2">
+              <div className="space-y-2.5 md:space-y-3 text-gray-200">
+                <div className={FILA}>
                   <span className="text-purple-300 font-semibold">Título en Japonés:</span>
                   <span>{item.japaneseTitle}</span>
                 </div>
 
-                <div className="flex items-center gap-2">
+                <div className={FILA}>
                   <span className="text-purple-300 font-semibold">Episodios:</span>
                   <span>{item.episodes}</span>
                 </div>
@@ -104,7 +111,7 @@ const AnimeModal = ({ item, onClose, onOpenRelated }) => {
                     ni cuando la ficha existía. Ahora son tres estados y, si hay
                     ficha al otro lado, se va a ella. */}
                 {hermanas(item, 'anime').map((h) => (
-                  <div key={h.seccion} className="flex items-center gap-2">
+                  <div key={h.seccion} className={FILA}>
                     <span className="text-purple-300 font-semibold">{h.pregunta}</span>
                     {h.estado === 'ficha' ? (
                       <button
@@ -125,21 +132,21 @@ const AnimeModal = ({ item, onClose, onOpenRelated }) => {
                 {/* Con guarda: sin ella, una ficha a medias enseña la etiqueta
                     seguida de nada — hoy pasa en la de Alya. */}
                 {item.willReadSource && (
-                  <div className="flex items-center gap-2">
+                  <div className={FILA}>
                     <span className="text-purple-300 font-semibold">Voy a leer alguno de ellos?</span>
                     <span>{item.willReadSource}</span>
                   </div>
                 )}
 
                 {item.doIRecommend && (
-                  <div className="flex items-center gap-2">
+                  <div className={FILA}>
                     <span className="text-purple-300 font-semibold">Lo recomiendo?</span>
                     <span>{item.doIRecommend}</span>
                   </div>
                 )}
 
                 {ratings.map((entry) => (
-                  <div key={entry.key} className="flex items-center gap-2">
+                  <div key={entry.key} className={FILA}>
                     <span className="text-purple-300 font-semibold">{entry.label}</span>
                     <span className="text-yellow-400">{entry.value}</span>
                   </div>
@@ -157,7 +164,7 @@ const AnimeModal = ({ item, onClose, onOpenRelated }) => {
             { title: 'Endings', tracks: item.endings, empty: 'No hay endings disponibles.' },
           ].map((section) => (
             <div key={section.title} className="mb-6">
-              <h3 className="text-2xl font-bold text-purple-300 mb-3">{section.title}</h3>
+              <h3 className="text-xl md:text-2xl font-bold text-purple-300 mb-3">{section.title}</h3>
               <div className="flex flex-wrap gap-3">
                 {section.tracks.length > 0 ? (
                   // Un tema sin url se pinta como texto, no como enlace: si no,
@@ -191,13 +198,13 @@ const AnimeModal = ({ item, onClose, onOpenRelated }) => {
 
           {/* Synopsis */}
           <div className="mb-6">
-            <h3 className="text-2xl font-bold text-purple-300 mb-3">Sinopsis</h3>
+            <h3 className="text-xl md:text-2xl font-bold text-purple-300 mb-3">Sinopsis</h3>
             <p className="text-gray-300 leading-relaxed">{item.fullSynopsis}</p>
           </div>
 
           {/* Platforms */}
           <div className="mb-6">
-            <h3 className="text-2xl font-bold text-purple-300 mb-3">Plataformas</h3>
+            <h3 className="text-xl md:text-2xl font-bold text-purple-300 mb-3">Plataformas</h3>
             <div className="flex flex-wrap gap-3">
               {item.platforms.map((platform) => (
                 <span key={platform} className="px-4 py-2 rounded-lg bg-white/10 border border-purple-400/30 text-white">
@@ -209,7 +216,7 @@ const AnimeModal = ({ item, onClose, onOpenRelated }) => {
 
           {/* Languages */}
           <div className="mb-6">
-            <h3 className="text-2xl font-bold text-purple-300 mb-3">Idiomas Disponibles</h3>
+            <h3 className="text-xl md:text-2xl font-bold text-purple-300 mb-3">Idiomas Disponibles</h3>
             <div className="flex flex-wrap gap-3">
               {item.languages.map((language) => (
                 <span key={language} className="px-4 py-2 rounded-lg bg-white/10 border border-blue-400/30 text-white">
@@ -226,7 +233,7 @@ const AnimeModal = ({ item, onClose, onOpenRelated }) => {
                 key={entry.key}
                 className="bg-gradient-to-br from-purple-500/10 to-blue-500/10 rounded-xl p-6 border border-purple-400/30"
               >
-                <h3 className="text-2xl font-bold text-purple-300 mb-3">{entry.label}</h3>
+                <h3 className="text-xl md:text-2xl font-bold text-purple-300 mb-3">{entry.label}</h3>
                 <p className="text-gray-300 leading-relaxed italic">&quot;{entry.value}&quot;</p>
               </div>
             ))}

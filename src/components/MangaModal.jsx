@@ -79,13 +79,16 @@ const MangaModal = ({ item, onClose, onOpenRelated }) => {
             <div className="absolute top-0 left-0 bg-black dark:bg-gray-700 text-white px-3 py-1 font-bold text-sm z-10 border-r-2 border-b-2 border-black dark:border-gray-600">
               CAP. 1
             </div>
+            {/* En móvil el tope de 400 px con object-cover recortaba el pie de
+                la portada (un tomo a 300 px de ancho mide 450 de alto). El tope
+                sólo aplica desde md, donde la viñeta va en columna. */}
             <CoverImage
               src={item.image}
               alt={item.title}
-              className="w-full max-h-[400px] object-cover border-2 border-black dark:border-gray-600 filter grayscale-[20%] contrast-125"
+              className="w-full md:max-h-[400px] md:object-cover border-2 border-black dark:border-gray-600 filter grayscale-[20%] contrast-125"
               wrapperClassName="w-full border-2 border-black dark:border-gray-600"
             />
-            <h2 className="text-3xl font-black mt-4 text-center uppercase tracking-tighter" style={{ WebkitTextStroke: '1px black' }}>
+            <h2 className="text-2xl md:text-3xl font-black mt-4 text-center uppercase tracking-tighter" style={{ WebkitTextStroke: '1px black' }}>
               {item.title}
             </h2>
             <p className="text-gray-600 dark:text-gray-400 font-bold italic">{item.japaneseTitle}</p>
