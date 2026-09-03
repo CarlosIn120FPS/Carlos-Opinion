@@ -137,12 +137,23 @@ const ANILIST = {
   },
 };
 
+// Una ficha de manga publicada, para que el selector de hermanas tenga algo que
+// ofrecer. Sintética: en manga.json real no se escribe texto de prueba.
+const MANGA = { categories: ['Leído'], items: [{ id: 41, title: 'MANGA HERMANO', hasAnime: true }] };
+
 const llamadas = [];
 globalThis.fetch = async (ruta, opciones = {}) => {
-  llamadas.push({ ruta, metodo: opciones.method ?? 'GET', cabeceras: opciones.headers ?? {} });
+  llamadas.push({ ruta, metodo: opciones.method ?? 'GET', cabeceras: opciones.headers ?? {}, cuerpo: opciones.body });
   if (String(ruta).includes('graphql.anilist.co')) {
     return { ok: true, status: 200, json: async () => ANILIST };
   }
+  if (ruta === '/api/anime/hermana') {
+    const { id, seccion, hermanaId } = JSON.parse(opciones.body);
+    const ficha = { ...ANIME.items.find((i) => String(i.id) === String(id)) };
+    if (hermanaId) ficha.related = { [seccion]: Number(hermanaId) };
+    return { ok: true, json: async () => ({ ok: true, ficha }) };
+  }
+  if (ruta === '/api/manga') return { ok: true, json: async () => MANGA };
   const mDetalle = ruta.match(/^\/api\/borradores\/anime\/(\d+)$/);
   if (mDetalle) return { ok: true, json: async () => DETALLE[mDetalle[1]] };
   const cuerpo =
@@ -255,6 +266,32 @@ if (conDiario) {
   check('enseña la nota de la entrada', plano.includes('8/10'), plano);
   const inputs = detalle.buscarTodos('input');
   check('el formulario de nueva entrada tiene sus niveles', inputs.length >= 3, `${inputs.length}`);
+
+  // --- fichas hermanas: se eligen de una lista, nunca se adivinan --------------
+  await new Promise((r) => setImmediate(r));
+  await new Promise((r) => setImmediate(r));
+  const hermanas = detalle.querySelector('#hermanas');
+  check('pinta el bloque de fichas hermanas', Boolean(hermanas) && plano.includes('otra sección'));
+  const selectores = hermanas?.buscarTodos('select') ?? [];
+  // Anime declara dos hermanas: manga y novela ligera.
+  igual('un selector por sección hermana', selectores.length, 2);
+  const opcionesManga = selectores[0]?.children.map((o) => o.textContent) ?? [];
+  igual('el de manga ofrece las fichas publicadas de manga, y «sin ficha»',
+    opcionesManga, ['— sin ficha —', 'MANGA HERMANO']);
+  check('pide las fichas de manga al servidor para poblarlo',
+    llamadas.some((l) => l.ruta === '/api/manga'));
+
+  if (selectores[0]) {
+    selectores[0].value = '41';
+    await selectores[0].onchange();
+    await new Promise((r) => setImmediate(r));
+    const enviada = llamadas.find((l) => l.ruta === '/api/anime/hermana');
+    check('al elegir, manda el enlace a la ruta de hermanas', Boolean(enviada));
+    igual('con la ficha, la sección y el id elegido',
+      enviada && JSON.parse(enviada.cuerpo), { id: ANIME.items[0].id, seccion: 'manga', hermanaId: '41' });
+    igual('y actualiza la ficha en memoria con lo que devolvió el servidor',
+      ANIME.items[0].related, { manga: 41 });
+  }
 }
 
 // --- los borradores: la mitad del panel que faltaba --------------------------

@@ -9,7 +9,8 @@
 //
 // El ORDEN de claves está copiado del orden REAL de cada JSON (comprobado: las
 // diez fichas de una sección comparten orden). Sirve para que el diff de git siga
-// siendo legible y para que reescribir una ficha no la reordene entera.
+// siendo legible y para que reescribir una ficha no la reordene entera. `related`
+// (las fichas hermanas) va pegado a las banderas hasX porque habla de lo mismo.
 //
 // Puro: sin fs, sin http. Se puede probar desde node sin levantar nada.
 
@@ -33,7 +34,7 @@ export const SECCIONES = {
     ],
     orden: [
       'id', 'title', 'japaneseTitle', 'category', 'image', 'description', 'genres',
-      'fullSynopsis', 'episodes', 'hasManga', 'hasLightNovel', 'willReadSource',
+      'fullSynopsis', 'episodes', 'hasManga', 'hasLightNovel', 'related', 'willReadSource',
       'doIRecommend', 'platforms', 'languages', 'rating', 'ratingFinal',
       'personalOpinion', 'personalOpinionFinal', 'openings', 'endings', 'entries',
       'anilistIds',
@@ -54,7 +55,7 @@ export const SECCIONES = {
     ],
     orden: [
       'id', 'title', 'japaneseTitle', 'category', 'image', 'description', 'genres',
-      'fullSynopsis', 'chapters', 'volumes', 'author', 'hasAnime', 'doIRecommend',
+      'fullSynopsis', 'chapters', 'volumes', 'author', 'hasAnime', 'related', 'doIRecommend',
       'platforms', 'languages', 'rating', 'ratingFinal', 'personalOpinion',
       'personalOpinionFinal', 'physicalStores', 'entries', 'anilistIds',
     ],
@@ -74,7 +75,7 @@ export const SECCIONES = {
     ],
     orden: [
       'id', 'title', 'japaneseTitle', 'category', 'image', 'description', 'genres',
-      'fullSynopsis', 'volumes', 'author', 'illustrator', 'hasAnime', 'hasManga',
+      'fullSynopsis', 'volumes', 'author', 'illustrator', 'hasAnime', 'hasManga', 'related',
       'doIRecommend', 'languages', 'rating', 'ratingFinal', 'personalOpinion',
       'personalOpinionFinal', 'physicalStores', 'entries', 'anilistIds',
     ],

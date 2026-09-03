@@ -205,7 +205,7 @@ const LightNovelModal = ({ item, onClose, onOpenRelated }) => {
               </p>
               {hermanas(item, 'lightnovel').map((h) => (
                 <p key={h.seccion}>
-                  <strong className="text-stone-900 dark:text-stone-100">{h.pregunta}</strong>{' '}
+                  <strong className="text-stone-900 dark:text-stone-100">{h.pregunta}:</strong>{' '}
                   {h.estado === 'ficha' ? (
                     <button
                       type="button"

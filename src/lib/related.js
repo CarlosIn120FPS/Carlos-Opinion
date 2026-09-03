@@ -8,22 +8,12 @@
 // Ahora son TRES estados, y el enlace es EXPLÍCITO. Nunca se adivina por título:
 // eso ya se probó y emparejó «Call of the Night» con Shimoneta.
 //
+// Qué secciones son hermanas de cuál, y con qué bandera (`hasManga`) se dice que
+// la obra existe allí, lo declara ESQUEMA: es lo mismo que lee el panel.
+//
 // Puro: sin React ni import.meta.
 
 import { ESQUEMA } from '../data/niveles';
-
-// Qué hermanas puede tener cada sección, y de qué campo sale el «sí la hay».
-const HERMANAS = {
-  anime: [
-    { seccion: 'manga', bandera: 'hasManga' },
-    { seccion: 'lightnovel', bandera: 'hasLightNovel' },
-  ],
-  manga: [{ seccion: 'anime', bandera: 'hasAnime' }],
-  lightnovel: [
-    { seccion: 'anime', bandera: 'hasAnime' },
-    { seccion: 'manga', bandera: 'hasManga' },
-  ],
-};
 
 /**
  * Devuelve una entrada por cada hermana posible de la sección, con su estado:
@@ -36,20 +26,22 @@ const HERMANAS = {
  * ficha al otro lado.
  */
 export function hermanas(item, typeId) {
-  return (HERMANAS[typeId] ?? []).map(({ seccion, bandera }) => {
-    const esquema = ESQUEMA[seccion];
+  return (ESQUEMA[typeId]?.hermanas ?? []).map((seccion) => {
+    const { nombre, genero, bandera } = ESQUEMA[seccion];
     const id = item?.related?.[seccion];
     const tieneId = id !== undefined && id !== null && id !== '';
+    // «Ver el manga» / «Ver la novela ligera»; «no lo he reseñado» / «no la he».
+    const articulo = genero === 'f' ? 'la' : 'el';
+    const pronombre = genero === 'f' ? 'la' : 'lo';
     return {
       seccion,
-      nombre: esquema.nombre,
-      slug: esquema.slug,
-      pregunta: `¿Tiene ${esquema.nombre}?`,
+      nombre,
+      pregunta: `¿Tiene ${nombre}?`,
       id: tieneId ? id : null,
       estado: tieneId ? 'ficha' : (item?.[bandera] ? 'existe' : 'no'),
       etiqueta: tieneId
-        ? `Ver ${esquema.nombre === 'anime' ? 'el' : esquema.nombre === 'manga' ? 'el' : 'la'} ${esquema.nombre} →`
-        : (item?.[bandera] ? 'Sí, pero aún no lo he reseñado' : 'No'),
+        ? `Ver ${articulo} ${nombre} →`
+        : (item?.[bandera] ? `Sí, pero aún no ${pronombre} he reseñado` : 'No'),
     };
   });
 }

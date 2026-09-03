@@ -8,42 +8,38 @@
 
 ## Resumen
 
-**Hecho: 21 de 27** de las cosas concretas que piden los cinco documentos.
-Lo que falta son **6 piezas de la web pública y del panel**, ninguna bloquea a
-otra, y una es más importante que las demás.
+**Hecho: 22 de 27** de las cosas concretas que piden los cinco documentos
+(las fichas hermanas se cerraron la tarde de la auditoría). Lo que falta son
+**5 piezas de la web pública y del panel**, y ninguna bloquea a otra.
 
 | Documento | Hecho | Falta |
 |---|---|---|
 | `esquema-ficha.md` | 8 / 8 | — |
 | `rediseno-fichas.md` | 5 / 6 | Whakoom (investigado, no construido) |
 | `panel-privado.md` | 7 / 9 | `_revisar` tras publicar · "clonar a manga" |
-| `integracion-jellyfin.md` | 7 / 10 | portadas locales · fichas hermanas · OG tags |
+| `integracion-jellyfin.md` | 8 / 10 | portadas locales · OG tags |
 | `VERSION-2.md` | 5 / 5 piezas | — |
 
 ---
 
 ## Lo que falta, por orden de lo que yo haría
 
-### 1. Enlazar las fichas hermanas (`related`)
+### 1. Enlazar las fichas hermanas (`related`) — HECHO (2026-09-03)
 
-`integracion-jellyfin.md` §3.7. **Es la única propuesta que salió en las cuatro
-tandas del análisis**, y sigue sin existir:
+`integracion-jellyfin.md` §3.7. Era la única propuesta que salió en las cuatro
+tandas del análisis. Ahora:
 
-```bash
-grep -rn "related" src/ public/data/ panel/    # 0 resultados
-```
+- `related: { manga: 1 }` es un enlace **explícito** en las dos fichas; nunca se
+  adivina por título (`src/lib/related.js`, tres estados: no / existe / ficha).
+- El modal pinta un botón «Ver el manga →» sólo cuando hay ficha al otro lado.
+- El panel tiene un selector por sección hermana con las fichas publicadas de
+  esa sección; `POST /api/:seccion/hermana` escribe **los dos ficheros en un
+  commit** (`panel/lib/hermanas.mjs`), y al cambiar de hermana la anterior
+  pierde su enlace.
 
-Hoy el modal afirma *"Tiene manga: Sí"* y no lleva a ninguna parte, ni siquiera
-cuando la ficha del manga existe — que ahora existe de verdad, porque Chainsaw
-Man está en manga y su anime está entre los borradores. Y `willReadSource` es
-literalmente Carlos prometiendo *"estoy leyéndome el manga"* sin ningún sitio
-adonde ir.
-
-De paso arregla que `item.hasManga ? 'Sí' : 'No'` pinte "No" tanto si es falso
-como si el campo falta: con tres estados deja de mentir por omisión.
-
-**Por qué es la primera:** ahora hay más de una sección con contenido real. Antes
-enlazar no llevaba a ningún sitio; hoy sí.
+Aún no hay ningún `related` en los datos reales: Chainsaw Man está en manga y su
+anime sigue en borradores. Cuando Carlos publique ese borrador, lo enlaza desde
+el panel.
 
 ### 2. Las portadas siguen colgando de terceros
 

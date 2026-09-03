@@ -139,6 +139,9 @@ async function abrirSeccion(clave) {
   estado.enBorradores = false;
   estado.enPendientes = false;
   estado.datos = await api(`/api/${clave}`);
+  // Lo que se cacheó de las otras secciones para elegir hermanas puede haber
+  // cambiado (se publicó un borrador): se vuelve a pedir cuando haga falta.
+  for (const k of Object.keys(otras)) delete otras[k];
   marcarSeccion(clave);
   $('#detalle').replaceChildren(el('p', { className: 'vacio', textContent: 'Elige una ficha de la izquierda.' }));
   pintarLista();
@@ -458,11 +461,75 @@ function pintarDetalle() {
     el('div', { className: 'jp', textContent: item.japaneseTitle ?? '' }),
     el('h3', { textContent: 'Lo que escribes tú' }),
     ...seccionActual().campos.map((campo) => pintarCampo(item, campo)),
+    el('h3', { textContent: 'La misma obra en otra sección' }),
+    el('div', { id: 'hermanas' }),
     el('h3', { textContent: ESQUEMA[estado.clave].diaryTitle }),
     pintarNueva(),
     el('div', { id: 'diario' }),
   );
+  pintarHermanas(item);
   pintarDiario();
+}
+
+// ------------------------------------------------------------ fichas hermanas
+// El enlace `related` es EXPLÍCITO: se elige la ficha de la otra sección de una
+// lista, nunca se adivina por título. El servidor lo escribe en las dos fichas.
+const otras = {}; // las fichas publicadas de cada sección, para elegir
+
+async function fichasDe(clave) {
+  if (clave === estado.clave) return estado.datos.items;
+  if (!otras[clave]) otras[clave] = (await api(`/api/${clave}`)).items ?? [];
+  return otras[clave];
+}
+
+async function pintarHermanas(item) {
+  const caja = $('#hermanas');
+  if (!caja) return;
+  const cajas = [];
+  for (const hermana of ESQUEMA[estado.clave].hermanas) {
+    const marca = el('span', { className: 'guardado' });
+    const control = el('select');
+    control.append(el('option', { value: '', textContent: '— sin ficha —' }));
+    const actual = item.related?.[hermana];
+    let candidatas = [];
+    try {
+      candidatas = await fichasDe(hermana);
+    } catch (e) {
+      avisar(`No se pudo leer ${ESQUEMA[hermana].nombre}: ${e.message}`);
+    }
+    for (const f of candidatas) {
+      control.append(el('option', {
+        value: String(f.id), textContent: f.title, selected: String(f.id) === String(actual ?? ''),
+      }));
+    }
+    control.onchange = async () => {
+      try {
+        const { ficha } = await api(`/api/${estado.clave}/hermana`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: item.id, seccion: hermana, hermanaId: control.value }),
+        });
+        // La ficha vuelve entera; `related` puede haber desaparecido.
+        const mia = fichaActual();
+        for (const k of Object.keys(mia)) if (!(k in ficha)) delete mia[k];
+        Object.assign(mia, ficha);
+        // La otra sección ha cambiado en disco: se vuelve a pedir la próxima vez.
+        delete otras[hermana];
+        marca.textContent = 'guardado';
+        setTimeout(() => { marca.textContent = ''; }, 1800);
+        refrescarEstado();
+      } catch (e) {
+        avisar(`No se guardó el enlace: ${e.message}`);
+        control.value = String(fichaActual().related?.[hermana] ?? '');
+      }
+    };
+    cajas.push(el('div', { className: 'campo' }, [
+      el('label', {}, [`¿Tiene ${ESQUEMA[hermana].nombre}? Su ficha:`, marca]),
+      control,
+    ]));
+  }
+  // Si mientras se cargaba se abrió otra ficha, no pisar lo que ya haya.
+  if ($('#hermanas') === caja) caja.replaceChildren(...cajas);
 }
 
 // Sólo los campos que le tocan a él: los declara panel/lib/secciones.mjs y el

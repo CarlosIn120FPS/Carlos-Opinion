@@ -16,6 +16,7 @@ import { fileURLToPath } from 'node:url';
 import { aplicar, serializar, ErrorPanel } from '../panel/lib/aplicar.mjs';
 import { SECCIONES, seccion, ordenar, clavesDeCarlos, CLAVES } from '../panel/lib/secciones.mjs';
 import { promover, loQueFalta } from '../panel/lib/promover.mjs';
+import { enlazar } from '../panel/lib/hermanas.mjs';
 
 const RAIZ = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -263,6 +264,75 @@ debeFallar('rechaza una operación desconocida',
     400, 'desconocida');
   check('pero las suyas sí',
     promover(datosManga2, completo(), { categoria: 'Leyendo', clave: 'manga' }).ficha.category === 'Leyendo');
+}
+
+// ============================================ 9. fichas hermanas: enlazar
+// El enlace vive en LAS DOS fichas. Se prueba con datos sintéticos: en los
+// reales aún no hay ningún par publicado en dos secciones a la vez.
+{
+  const anime = { categories: ['Visto'], items: [
+    { id: 2, title: 'A2', category: 'Visto', hasManga: false, hasLightNovel: false, rating: '8/10' },
+    { id: 3, title: 'A3', category: 'Visto', hasManga: true, hasLightNovel: false },
+  ] };
+  const manga = { categories: ['Leído'], items: [
+    { id: 1, title: 'M1', category: 'Leído', hasAnime: true },
+    { id: 5, title: 'M5', category: 'Leído', hasAnime: false },
+  ] };
+  const antes = serializar(anime) + serializar(manga);
+
+  const uno = enlazar({ anime, manga }, { clave: 'anime', id: 2, hermana: 'manga', hermanaId: '1' });
+  igual('enlazar escribe el lado del anime', uno.datos.anime.items[0].related, { manga: 1 });
+  igual('y el lado del manga: el enlace es de ida y vuelta', uno.datos.manga.items[0].related, { anime: 2 });
+  check('guarda el id REAL (número), no la cadena que llegó del <select>',
+    uno.datos.anime.items[0].related?.manga === 1 && uno.datos.manga.items[0].related?.anime === 2);
+  check('y pone la bandera a true en los dos lados',
+    uno.datos.anime.items[0].hasManga === true && uno.datos.manga.items[0].hasAnime === true);
+  check('enlazar NO muta la entrada', serializar(anime) + serializar(manga) === antes);
+  igual('devuelve la ficha de este lado', uno.ficha.id, 2);
+  igual('related va donde lo declara el orden, pegado a las banderas',
+    Object.keys(uno.ficha).slice(0, 7), ['id', 'title', 'category', 'hasManga', 'hasLightNovel', 'related', 'rating']);
+  check('no toca las fichas que no pinta nada',
+    uno.datos.anime.items[1] === anime.items[1] && uno.datos.manga.items[1] === manga.items[1]);
+
+  // Cambiar de hermana: la vieja pierde el enlace, la nueva lo gana.
+  const dos = enlazar(uno.datos, { clave: 'anime', id: 2, hermana: 'manga', hermanaId: 5 });
+  igual('al cambiar, el anime apunta a la nueva', dos.datos.anime.items[0].related, { manga: 5 });
+  check('la hermana vieja pierde su enlace y no deja un related vacío',
+    !('related' in dos.datos.manga.items[0]), JSON.stringify(dos.datos.manga.items[0]));
+  igual('la nueva lo gana', dos.datos.manga.items[1].related, { anime: 2 });
+
+  // Una tercera ficha que quiere la misma hermana: nunca dos fichas para una obra.
+  const tres = enlazar(dos.datos, { clave: 'anime', id: 3, hermana: 'manga', hermanaId: 5 });
+  igual('la hermana ahora apunta a la tercera', tres.datos.manga.items[1].related, { anime: 3 });
+  check('y la anterior dueña del enlace lo pierde', !('related' in tres.datos.anime.items[0]),
+    JSON.stringify(tres.datos.anime.items[0]));
+
+  // Desenlazar: los dos lados limpios.
+  const cero = enlazar(tres.datos, { clave: 'anime', id: 3, hermana: 'manga', hermanaId: '' });
+  check('desenlazar quita el related de este lado', !('related' in cero.datos.anime.items[1]));
+  check('y del otro', !('related' in cero.datos.manga.items[1]));
+  check('pero la bandera se queda: la obra sigue existiendo', cero.datos.anime.items[1].hasManga === true);
+
+  // Enlazar dos veces con la misma es idempotente.
+  const otra = enlazar(uno.datos, { clave: 'anime', id: 2, hermana: 'manga', hermanaId: '1' });
+  check('repetir el mismo enlace no cambia nada',
+    serializar(otra.datos.anime) === serializar(uno.datos.anime) && serializar(otra.datos.manga) === serializar(uno.datos.manga));
+
+  // Desde el otro lado funciona igual.
+  const desdeManga = enlazar({ anime, manga }, { clave: 'manga', id: 5, hermana: 'anime', hermanaId: 3 });
+  igual('desde manga: manga apunta al anime', desdeManga.datos.manga.items[1].related, { anime: 3 });
+  igual('y el anime al manga', desdeManga.datos.anime.items[1].related, { manga: 5 });
+
+  // Lo que se rechaza.
+  debeFallar('una hermana que la sección no declara (manga no tiene novela) es 400',
+    () => enlazar({ manga, lightnovel: { items: [] } }, { clave: 'manga', id: 1, hermana: 'lightnovel', hermanaId: 1 }),
+    400, 'no es una sección hermana');
+  debeFallar('una hermana que no existe es 404',
+    () => enlazar({ anime, manga }, { clave: 'anime', id: 2, hermana: 'manga', hermanaId: 999 }),
+    404, 'en manga');
+  debeFallar('una ficha propia que no existe es 404',
+    () => enlazar({ anime, manga }, { clave: 'anime', id: 999, hermana: 'manga', hermanaId: 1 }),
+    404, 'en anime');
 }
 
 // -------------------------------------------------------------------- resultado

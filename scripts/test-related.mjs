@@ -52,6 +52,20 @@ igual('sin related ni bandera: no existe',
   igual('con id: ficha, aunque la bandera diga que no', h.estado, 'ficha');
   igual('el id se propaga', h.id, 1);
   check('la etiqueta invita a ir', h.etiqueta.includes('→'));
+  check('no expone el trozo de URL: eso es de contentTypes.js', !('slug' in h));
+}
+
+// ------------------------------------------------- el género, en la voz de Carlos
+{
+  const novela = hermanas({ hasLightNovel: true, related: {} }, 'anime').find((h) => h.seccion === 'lightnovel');
+  igual('novela ligera es femenino: «no LA he reseñado»', novela.etiqueta, 'Sí, pero aún no la he reseñado');
+  const manga = hermanas({ hasManga: true, related: {} }, 'anime').find((h) => h.seccion === 'manga');
+  igual('manga es masculino: «no LO he reseñado»', manga.etiqueta, 'Sí, pero aún no lo he reseñado');
+  igual('«Ver LA novela ligera»',
+    hermanas({ related: { lightnovel: 2 } }, 'anime').find((h) => h.seccion === 'lightnovel').etiqueta,
+    'Ver la novela ligera →');
+  igual('«Ver EL anime»',
+    hermanas({ related: { anime: 2 } }, 'manga')[0].etiqueta, 'Ver el anime →');
 }
 
 // ------------------------------------------------ qué hermanas ofrece cada sección

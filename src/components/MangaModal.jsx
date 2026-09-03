@@ -115,7 +115,7 @@ const MangaModal = ({ item, onClose, onOpenRelated }) => {
                 </p>
                 {hermanas(item, 'manga').map((h) => (
                   <p key={h.seccion}>
-                    <span className="font-black text-blue-600 dark:text-blue-400">{h.pregunta}</span>{' '}
+                    <span className="font-black text-blue-600 dark:text-blue-400">{h.pregunta}:</span>{' '}
                     {h.estado === 'ficha' ? (
                       <button
                         type="button"

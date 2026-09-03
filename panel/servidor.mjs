@@ -24,6 +24,7 @@ import { aplicar, serializar, ErrorPanel } from './lib/aplicar.mjs';
 import { SECCIONES, CLAVES, seccion } from './lib/secciones.mjs';
 import { repoGit } from './lib/repo.mjs';
 import { promover, loQueFalta } from './lib/promover.mjs';
+import { enlazar } from './lib/hermanas.mjs';
 
 const RAIZ = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const WEB = resolve(RAIZ, 'panel/web');
@@ -282,7 +283,7 @@ const servidor = createServer(async (req, res) => {
     // Una sección que no existe es un 404 con su motivo, no un 500 sin explicar:
     // `seccion()` lanza un Error normal a propósito (es un fallo de programación,
     // no del cliente), así que aquí se comprueba antes de llamarla.
-    const mRuta = ruta.match(/^\/api\/([a-z]+)(\/op)?$/);
+    const mRuta = ruta.match(/^\/api\/([a-z]+)(\/op|\/hermana)?$/);
     if (mRuta && !CLAVES.includes(mRuta[1])) {
       return json(res, 404, {
         error: `sección "${mRuta[1]}" desconocida. Válidas: ${CLAVES.join(', ')}.`,
@@ -317,6 +318,37 @@ const servidor = createServer(async (req, res) => {
         // fuese aquí, escribir dos frases costaría el minuto que tarda el build.
         if (repo) {
           await repo.commitear(`Panel: ${op.op} en «${ficha.title}»`, [seccion(clave).fichero]);
+        }
+        return ficha;
+      });
+      return json(res, 200, { ok: true, ficha: resultado, pendiente: Boolean(repo) });
+    }
+
+    // Fichas hermanas: { id, seccion, hermanaId } enlaza (o desenlaza, con
+    // hermanaId vacío) la ficha `id` de esta sección con una de `seccion`.
+    // Escribe DOS ficheros en un solo commit: el enlace vive en las dos fichas.
+    // En modo servidor, si el proceso muriese entre las dos escrituras, sanear()
+    // descarta el medio cambio al arrancar. En local no hay red: quedaría un
+    // fichero escrito y otro no, y se ve en `git diff` — es el precio de que el
+    // modo local no haga commits a espaldas de nadie.
+    const mHermana = ruta.match(/^\/api\/([a-z]+)\/hermana$/);
+    if (mHermana && req.method === 'POST') {
+      const clave = mHermana[1];
+      const { id, seccion: hermana, hermanaId } = await cuerpoDe(req);
+      if (!CLAVES.includes(hermana)) {
+        return json(res, 400, { error: `sección hermana "${hermana}" desconocida. Válidas: ${CLAVES.join(', ')}.` });
+      }
+      const resultado = await enSerie(async () => {
+        if (repo) await repo.sincronizar();
+        const todos = { [clave]: await leerSeccion(clave), [hermana]: await leerSeccion(hermana) };
+        const { datos, ficha } = enlazar(todos, { clave, id, hermana, hermanaId });
+        for (const c of Object.keys(datos)) await guardarSeccion(c, datos[c]);
+        if (repo) {
+          const verbo = hermanaId === '' || hermanaId == null ? 'desenlazar' : 'enlazar';
+          await repo.commitear(
+            `Panel: ${verbo} «${ficha.title}» con ${seccion(hermana).etiqueta.toLowerCase()}`,
+            Object.keys(datos).map((c) => seccion(c).fichero),
+          );
         }
         return ficha;
       });

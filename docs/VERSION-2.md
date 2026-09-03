@@ -78,7 +78,7 @@ El orden importa, porque hay dependencias reales:
 2. Panel privado            ← HECHO: alojado en Pavilion, con vista de borradores
 3. Generador de fichas      ← HECHO: --seccion anime|manga|lightnovel
 4. Fuentes de lo que consume← PARCIAL: Jellyfin y AniList sí; Whakoom por construir
-5. Web pública rehecha      ← PARCIAL: faltan fichas hermanas, portadas y OG tags
+5. Web pública rehecha      ← PARCIAL: fichas hermanas hechas; faltan portadas y OG tags
 ```
 
 **Lo que falta de verdad, contrastado contra el código, está en
