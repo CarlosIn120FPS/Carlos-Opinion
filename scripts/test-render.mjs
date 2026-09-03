@@ -242,6 +242,35 @@ const texto = (html) =>
   }
 }
 
+// ------------------------------------------------- la tarjeta: nota y contador
+{
+  const Card = await compilar('src/components/ContentCard.jsx', 'ContentCard.mjs');
+  const base = {
+    id: 1, title: 'FICHA DE PRUEBA', description: '—',
+    image: 'https://example.invalid/p.jpg', genres: ['Prueba'],
+  };
+  const pintarCard = (item) =>
+    renderToStaticMarkup(createElement(Card, { item, typeId: 'anime', onSelect() {} }));
+
+  // Con nota final, manda la final.
+  const conNota = texto(pintarCard({ ...base, rating: '8.5/10', ratingFinal: '10/10', entries: [] }));
+  check('tarjeta: enseña la nota', conNota.includes('10'), conNota);
+  check('tarjeta: enseña la final, no la de en medio', !conNota.includes('8.5'), conNota);
+
+  // Sin nota, ni insignia ni un hueco raro.
+  const sinNota = pintarCard({ ...base, rating: '', ratingFinal: '', entries: [] });
+  check('tarjeta: sin nota no pinta insignia', !sinNota.includes('aria-label="Nota'));
+
+  // El contador del diario.
+  const conDiario = texto(pintarCard({ ...base, rating: '', entries: [{ episode: 1, text: 'a' }, { episode: 2, text: 'b' }] }));
+  check('tarjeta: cuenta las notas del diario', conDiario.includes('2 notas'), conDiario);
+  const unaNota = texto(pintarCard({ ...base, rating: '', entries: [{ episode: 1, text: 'a' }] }));
+  check('tarjeta: concuerda el singular', unaNota.includes('1 nota'), unaNota);
+  // Una fila a medias no debe subir el contador y luego no aparecer en el modal.
+  const aMedias = texto(pintarCard({ ...base, rating: '', entries: [{ text: '  ' }] }));
+  check('tarjeta: una fila a medias no cuenta', !aMedias.includes('nota'), aMedias);
+}
+
 // -------------------------------------------------------------------- resultado
 console.log(`\n  ${pasan} comprobaciones de render pasan, ${fallos.length} fallan\n`);
 if (fallos.length) {

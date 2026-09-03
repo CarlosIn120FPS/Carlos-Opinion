@@ -7,14 +7,44 @@ import PageNavigationModal from './components/PageNavigationModal';
 import {
   CONTENT_TYPES,
   CONTENT_TYPE_BY_SLUG,
+  CONTENT_TYPE_ORDER,
   DEFAULT_CONTENT_TYPE,
   DEFAULT_SLUG,
 } from './data/contentTypes';
 import { useContentData } from './data/useContentData';
 import { readStored, writeStored, parseBoolean, parseIntInRange } from './lib/storage';
+import { matchesSearch } from './lib/search';
+import { itemRating, isUnrated } from './lib/rating';
 
 const MIN_COLUMNS = 1;
 const MAX_COLUMNS = 6;
+
+// Ordenar la rejilla. "Por defecto" es a.id - b.id, o sea el orden en que Carlos
+// creó las fichas: un artefacto interno que no significa nada para quien mira.
+const SORTS = {
+  defecto: {
+    label: 'Como las añadí',
+    compare: (a, b) => a.id - b.id,
+  },
+  nota: {
+    label: 'Mejor nota primero',
+    // Las fichas sin nota se van al final: si valieran 0 se colarían por delante
+    // de un 7 al ordenar al revés, y una ficha sin opinar no es una ficha mala.
+    compare: (a, b) => {
+      const ra = itemRating(a);
+      const rb = itemRating(b);
+      if (ra === null && rb === null) return a.id - b.id;
+      if (ra === null) return 1;
+      if (rb === null) return -1;
+      return rb - ra || a.id - b.id;
+    },
+  },
+  titulo: {
+    label: 'Alfabético',
+    compare: (a, b) => a.title.localeCompare(b.title, 'es', { sensitivity: 'base' }),
+  },
+};
+const SORT_KEYS = Object.keys(SORTS);
 
 // El número de columnas era un estilo inline, así que ganaba a cualquier clase
 // responsive de Tailwind: un móvil se comía las 4 columnas por defecto. Ahora la
@@ -55,6 +85,13 @@ function App() {
 
   const [isElastic, setIsElastic] = useState(() => readStored('isElastic', false, parseBoolean));
 
+  const [sortKey, setSortKey] = useState(() =>
+    readStored('sortKey', 'defecto', (raw) => (SORT_KEYS.includes(raw) ? raw : 'defecto')),
+  );
+
+  // "Sólo sin opinar": la lista de lo que tiene pendiente escribir.
+  const [onlyUnrated, setOnlyUnrated] = useState(false);
+
   const [maxColumns, setMaxColumns] = useState(() => maxColumnsFor(window.innerWidth));
 
   const { status, data, error } = useContentData(type);
@@ -68,6 +105,7 @@ function App() {
 
   useEffect(() => writeStored('columnCount', String(columnCount)), [columnCount]);
   useEffect(() => writeStored('isElastic', String(isElastic)), [isElastic]);
+  useEffect(() => writeStored('sortKey', sortKey), [sortKey]);
 
   useEffect(() => {
     document.documentElement.classList.toggle('dark', isDarkMode);
@@ -78,6 +116,7 @@ function App() {
   useEffect(() => {
     setActiveCategory('Todos');
     setSearchTerm('');
+    setOnlyUnrated(false);
   }, [type.id]);
 
   // El menú de ajustes se quedaba abierto para siempre: no se cerraba ni al
@@ -103,14 +142,17 @@ function App() {
   const effectiveColumns = Math.min(columnCount, maxColumns);
 
   const filteredItems = useMemo(() => {
-    const needle = searchTerm.toLowerCase();
+    const compare = (SORTS[sortKey] ?? SORTS.defecto).compare;
     return items
       .filter((item) => {
-        const matchesCategory = activeCategory === 'Todos' || item.category === activeCategory;
-        return matchesCategory && item.title.toLowerCase().includes(needle);
+        if (activeCategory !== 'Todos' && item.category !== activeCategory) return false;
+        if (onlyUnrated && !isUnrated(item)) return false;
+        return matchesSearch(item, searchTerm);
       })
-      .sort((a, b) => a.id - b.id);
-  }, [items, activeCategory, searchTerm]);
+      .sort(compare);
+  }, [items, activeCategory, searchTerm, sortKey, onlyUnrated]);
+
+  const unratedCount = useMemo(() => items.filter(isUnrated).length, [items]);
 
   const visibleCategories = useMemo(
     () => (activeCategory === 'Todos' ? categories : categories.filter((c) => c === activeCategory)),
@@ -162,6 +204,15 @@ function App() {
         </>
       );
     }
+    if (onlyUnrated) {
+      return (
+        <p className="text-2xl text-purple-600 dark:text-purple-300/70 font-semibold">
+          {activeCategory === 'Todos'
+            ? 'No queda nada sin opinar por aquí.'
+            : `No queda nada sin opinar en «${activeCategory}».`}
+        </p>
+      );
+    }
     if (activeCategory !== 'Todos') {
       return (
         <p className="text-2xl text-purple-600 dark:text-purple-300/70 font-semibold">
@@ -194,10 +245,33 @@ function App() {
           <h1 className="text-5xl md:text-6xl font-bold pb-2 bg-gradient-to-r from-purple-400 via-blue-400 to-indigo-400 bg-clip-text text-transparent">
             {type.pageTitle}
           </h1>
-          <span className="absolute -bottom-4 left-1/2 -translate-x-1/2 text-sm text-purple-500 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
-            Click para cambiar de sección
-          </span>
         </button>
+
+        {/* Barra de secciones. Antes la única puerta a /manga y /novelas era
+            pulsar el título, y la pista era opacity-0 group-hover: en un móvil no
+            aparece nunca, así que dos tercios de la web no existían para quien
+            llegaba desde un enlace. Ahora se ven las tres siempre. */}
+        <nav aria-label="Secciones" className="flex justify-center gap-2 flex-wrap mt-6">
+          {CONTENT_TYPE_ORDER.map((typeId) => {
+            const section = CONTENT_TYPES[typeId];
+            const isCurrent = section.id === type.id;
+            return (
+              <button
+                key={section.id}
+                onClick={() => goToSection(section.id)}
+                aria-current={isCurrent ? 'page' : undefined}
+                className={`px-5 py-2 rounded-full font-semibold transition-all duration-300 ${
+                  isCurrent
+                    ? 'bg-gradient-to-r from-purple-500 to-blue-500 text-white shadow-lg shadow-purple-500/40'
+                    : 'bg-white dark:bg-gray-800/60 shadow-sm backdrop-blur-md border border-gray-200 dark:border-gray-700 text-purple-600 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700'
+                }`}
+              >
+                {section.shortLabel}
+              </button>
+            );
+          })}
+        </nav>
+
         <p className="text-xl text-gray-800 dark:text-gray-300 mt-6 max-w-2xl mx-auto relative z-10">
           {type.pageDescription}
         </p>
@@ -264,6 +338,24 @@ function App() {
             </button>
           ))}
 
+          {/* "Sin opinar": no hay campo nuevo, se deriva de que no haya ni nota,
+              ni opinión, ni una sola entrada del diario. Sin esto una ficha a
+              medias se ve exactamente igual de terminada que una completa,
+              porque los bloques vacíos sencillamente no se pintan. */}
+          {unratedCount > 0 && (
+            <button
+              onClick={() => setOnlyUnrated((value) => !value)}
+              aria-pressed={onlyUnrated}
+              className={`px-6 py-3 rounded-lg font-semibold transition-all duration-300 ${
+                onlyUnrated
+                  ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-lg shadow-amber-500/40'
+                  : 'bg-white dark:bg-gray-800/60 shadow-sm dark:shadow-none backdrop-blur-md border border-dashed border-amber-400/70 text-amber-600 dark:text-amber-300 hover:bg-amber-50 dark:hover:bg-gray-700'
+              }`}
+            >
+              Sin opinar ({unratedCount})
+            </button>
+          )}
+
           {/* Settings Menu */}
           <div className="relative" ref={settingsRef}>
             <button
@@ -314,6 +406,23 @@ function App() {
                         <div className={`w-4 h-4 rounded-full bg-white shadow-sm transform transition-transform duration-300 ${isElastic ? 'translate-x-6' : 'translate-x-0'}`} />
                       </div>
                     </button>
+                  </div>
+                  <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-700">
+                    <label htmlFor="sort-key" className="block text-sm text-gray-700 dark:text-gray-300 mb-2">
+                      Ordenar por
+                    </label>
+                    <select
+                      id="sort-key"
+                      value={sortKey}
+                      onChange={(e) => setSortKey(e.target.value)}
+                      className="w-full px-3 py-2 rounded-lg text-sm bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    >
+                      {SORT_KEYS.map((key) => (
+                        <option key={key} value={key}>
+                          {SORTS[key].label}
+                        </option>
+                      ))}
+                    </select>
                   </div>
                   <div className="px-4 py-3 border-t border-gray-100 dark:border-gray-700">
                     <label htmlFor="column-count" className="flex items-center justify-between text-sm text-gray-700 dark:text-gray-300 mb-2">

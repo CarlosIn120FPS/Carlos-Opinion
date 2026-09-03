@@ -10,6 +10,10 @@ export const CONTENT_TYPES = {
     id: 'anime',
     slug: 'anime',
     file: 'anime.json',
+    // Etiqueta corta para la barra de secciones. La única puerta a /manga y
+    // /novelas era pulsar el H1, con una pista en opacity-0 group-hover: en móvil
+    // no se mostraba jamás, así que dos tercios de la web eran invisibles.
+    shortLabel: 'Anime',
     pageTitle: "Carlos' Opinion",
     pageDescription:
       'La página web en la que Carlos comparte su opinión sobre animes que ha visto, está viendo, verá, o ha abandonado.',
@@ -22,6 +26,7 @@ export const CONTENT_TYPES = {
     id: 'manga',
     slug: 'manga',
     file: 'manga.json',
+    shortLabel: 'Manga',
     pageTitle: "Carlos' Manga Opinion",
     pageDescription:
       'La página web en la que Carlos comparte su opinión sobre mangas que ha leído, está leyendo o ha abandonado.',
@@ -34,6 +39,7 @@ export const CONTENT_TYPES = {
     id: 'lightnovel',
     slug: 'novelas',
     file: 'lightnovels.json',
+    shortLabel: 'Novelas',
     pageTitle: "Carlos' Light Novel Opinion",
     pageDescription:
       'La página web en la que Carlos comparte su opinión sobre novelas ligeras que ha leído, está leyendo o ha abandonado.',

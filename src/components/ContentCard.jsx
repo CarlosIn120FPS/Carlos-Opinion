@@ -2,6 +2,7 @@ import { motion } from 'framer-motion';
 import CoverImage from './CoverImage';
 import { normalizeEntries } from '../lib/entries';
 import { esquemaDe } from '../data/niveles';
+import { itemRating, showRating } from '../lib/rating';
 
 // Antes se llamaba AnimeCard, pero renderiza igual animes, mangas y novelas.
 // El `layoutId` lleva el tipo delante: los ids empiezan en 1 en cada dataset, así
@@ -14,6 +15,10 @@ const ContentCard = ({ item, typeId, onSelect, isElastic = false }) => {
   // pasa por normalizeEntries y no por item.entries.length: una fila a medias no
   // debe subir el número y luego no aparecer al abrir la ficha.
   const notes = normalizeEntries(item.entries).length;
+
+  // La web se llama Carlos' Opinion y su portada no enseñaba ni una opinión: la
+  // nota vivía sólo dentro del modal.
+  const rating = itemRating(item);
 
   return (
     <motion.div
@@ -45,6 +50,18 @@ const ContentCard = ({ item, typeId, onSelect, isElastic = false }) => {
             className="w-full h-auto block group-hover:scale-110 transition-transform duration-300"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+
+          {rating !== null && (
+            <span
+              className="absolute top-2 left-2 flex items-center gap-1 px-2 py-0.5 text-sm font-bold rounded-full bg-black/70 text-yellow-300 border border-yellow-400/40 backdrop-blur-sm"
+              aria-label={`Nota: ${showRating(rating)} sobre 10`}
+            >
+              <svg className="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                <path d="M9.05 2.93c.3-.92 1.6-.92 1.9 0l1.31 4.04a1 1 0 00.95.69h4.25c.97 0 1.37 1.24.59 1.81l-3.44 2.5a1 1 0 00-.36 1.12l1.31 4.04c.3.92-.75 1.69-1.54 1.12l-3.43-2.5a1 1 0 00-1.18 0l-3.43 2.5c-.79.57-1.84-.2-1.54-1.12l1.31-4.04a1 1 0 00-.36-1.12l-3.44-2.5c-.78-.57-.38-1.81.59-1.81h4.25a1 1 0 00.95-.69l1.31-4.04z" />
+              </svg>
+              {showRating(rating)}
+            </span>
+          )}
 
           {notes > 0 && (
             <span className="absolute top-2 right-2 px-2 py-0.5 text-xs font-semibold rounded-full bg-black/60 text-purple-100 border border-purple-400/40 backdrop-blur-sm">
