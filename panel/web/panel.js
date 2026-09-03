@@ -10,7 +10,14 @@ import { itemRating, isUnrated, showRating } from '/m/rating.js';
 
 const $ = (s) => document.querySelector(s);
 const el = (tag, props = {}, hijos = []) => {
-  const n = Object.assign(document.createElement(tag), props);
+  // `dataset` es una propiedad de SÓLO LECTURA: hay que escribir dentro de ella,
+  // no encima. Con Object.assign directo el navegador lanza
+  // "Cannot set property dataset ... which has only a getter" y la página no
+  // arranca entera. Las demás que se usan aquí (style, value, textContent...) sí
+  // tienen setter.
+  const { dataset, ...resto } = props;
+  const n = Object.assign(document.createElement(tag), resto);
+  if (dataset) Object.assign(n.dataset, dataset);
   for (const h of [].concat(hijos)) n.append(h);
   return n;
 };
