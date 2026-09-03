@@ -1,5 +1,7 @@
 import { motion } from 'framer-motion';
 import CoverImage from './CoverImage';
+import { normalizeEntries } from '../lib/entries';
+import { esquemaDe } from '../data/niveles';
 
 // Antes se llamaba AnimeCard, pero renderiza igual animes, mangas y novelas.
 // El `layoutId` lleva el tipo delante: los ids empiezan en 1 en cada dataset, así
@@ -7,6 +9,11 @@ import CoverImage from './CoverImage';
 // y al cambiar de sección una ficha salía volando desde la posición de la otra.
 const ContentCard = ({ item, typeId, onSelect, isElastic = false }) => {
   const open = () => onSelect(item);
+
+  // Contador del diario. Cuenta las mismas entradas que pinta el modal — por eso
+  // pasa por normalizeEntries y no por item.entries.length: una fila a medias no
+  // debe subir el número y luego no aparecer al abrir la ficha.
+  const notes = normalizeEntries(item.entries).length;
 
   return (
     <motion.div
@@ -38,6 +45,12 @@ const ContentCard = ({ item, typeId, onSelect, isElastic = false }) => {
             className="w-full h-auto block group-hover:scale-110 transition-transform duration-300"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+
+          {notes > 0 && (
+            <span className="absolute top-2 right-2 px-2 py-0.5 text-xs font-semibold rounded-full bg-black/60 text-purple-100 border border-purple-400/40 backdrop-blur-sm">
+              {esquemaDe(typeId).countLabel(notes)}
+            </span>
+          )}
         </div>
 
         {/* Content */}

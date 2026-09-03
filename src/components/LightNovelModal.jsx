@@ -1,6 +1,8 @@
 import { useCallback, useRef, useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import CoverImage from './CoverImage';
+import EntriesBlock from './EntriesBlock';
+import { ESQUEMA } from '../data/niveles';
 import { useModalChrome } from '../hooks/useModalChrome';
 import { ratingEntries, opinionEntries } from '../lib/opinionFields';
 
@@ -274,10 +276,14 @@ const LightNovelModal = ({ item, onClose }) => {
               </div>
             </div>
 
-            {/* --- DIARIO DE CARLOS (Texto que puede fluir) --- */}
+            {/* --- LA RESEÑA (Texto que puede fluir) --- */}
+            {/* Se llamaba "El Diario de Carlos", pero lo que hay dentro es su
+                opinión de la obra entera — sus propias etiquetas ya dicen
+                "Reseña" y "Veredicto Final". El diario de verdad, volumen a
+                volumen, es el bloque de abajo; dos cosas no pueden llamarse igual. */}
             <div className="mb-8">
               <h3 className="text-2xl font-bold mb-4 border-b-2 border-stone-800 dark:border-stone-500 inline-block">
-                El Diario de Carlos
+                La Reseña
               </h3>
               <div className="space-y-4">
                 {opinions.map((entry) => (
@@ -290,6 +296,18 @@ const LightNovelModal = ({ item, onClose }) => {
                 ))}
               </div>
             </div>
+
+            {/* El diario por volúmenes. Sin plegar: este modal pagina con
+                columnas CSS y sólo recalcula al redimensionar, así que un
+                plegable dejaría el contador de páginas mintiendo. En un libro,
+                que el diario ocupe sus páginas es justo lo que se quiere. */}
+            <EntriesBlock
+              entries={item.entries}
+              schema={ESQUEMA.lightnovel}
+              variant="libro"
+              collapsible={false}
+              className="mb-8"
+            />
           </div>
         </div>
       </motion.div>

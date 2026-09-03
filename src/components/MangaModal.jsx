@@ -1,6 +1,8 @@
 import { useCallback, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import CoverImage from './CoverImage';
+import EntriesBlock from './EntriesBlock';
+import { ESQUEMA } from '../data/niveles';
 import { useModalChrome } from '../hooks/useModalChrome';
 import { ratingEntries, opinionEntries } from '../lib/opinionFields';
 
@@ -220,6 +222,18 @@ const MangaModal = ({ item, onClose }) => {
               </div>
             </div>
           </div>
+
+          {/* Panel 6: el diario, volumen a volumen. Otra viñeta más, plegada. */}
+          {item.entries?.length > 0 && (
+            <div className="md:col-span-12 border-4 border-black dark:border-gray-700 bg-yellow-50 dark:bg-yellow-900/20 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] dark:shadow-[4px_4px_0px_0px_rgba(255,255,255,0.1)] p-5">
+              <EntriesBlock
+                entries={item.entries}
+                schema={ESQUEMA.manga}
+                variant="vinieta"
+                className=""
+              />
+            </div>
+          )}
         </div>
       </motion.div>
 

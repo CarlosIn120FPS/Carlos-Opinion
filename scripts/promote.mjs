@@ -105,7 +105,8 @@ const ORDEN = [
   'id', 'title', 'japaneseTitle', 'category', 'image', 'description', 'genres',
   'fullSynopsis', 'episodes', 'hasManga', 'hasLightNovel', 'willReadSource',
   'doIRecommend', 'platforms', 'languages', 'rating', 'ratingFinal',
-  'personalOpinion', 'personalOpinionFinal', 'openings', 'endings', 'anilistIds',
+  'personalOpinion', 'personalOpinionFinal', 'openings', 'endings', 'entries',
+  'anilistIds',
 ];
 const ordenada = {};
 for (const k of ORDEN) if (k in ficha) ordenada[k] = ficha[k];

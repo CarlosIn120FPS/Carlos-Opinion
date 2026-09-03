@@ -42,9 +42,11 @@ diez segundos, y al terminar la serie hay doce entradas donde antes había un hu
 
 Por orden de lo que sostiene a lo demás:
 
-1. **Rediseño del modelo de ficha** → `rediseno-fichas.md`
+1. **Rediseño del modelo de ficha** → `rediseno-fichas.md` — **HECHO (2026-09-03)**
    Opinar por niveles: la obra, cada temporada, cada episodio; cada volumen, cada
    capítulo. Es la base: sin esto, el panel no tiene dónde escribir.
+   El esquema resultante está en `esquema-ficha.md`; se decidió lista **plana** con
+   localizadores, y los campos de opinión de siempre se quedaron intactos.
 
 2. **Panel privado** → `panel-privado.md`
    Su herramienta de escritura. Barra lateral por secciones, pinchas un título y
@@ -67,8 +69,8 @@ Por orden de lo que sostiene a lo demás:
 El orden importa, porque hay dependencias reales:
 
 ```
-1. Modelo de datos          ← primero: todo lo demás escribe o lee de aquí
-2. Panel privado            ← necesita el modelo
+1. Modelo de datos          ← HECHO: docs/esquema-ficha.md
+2. Panel privado            ← siguiente. Necesita el modelo, y ya lo tiene
 3. Fuentes (manga, novelas) ← necesita saber qué campos rellenar
 4. Web pública rehecha      ← puede ir en paralelo, no bloquea a nadie
 ```

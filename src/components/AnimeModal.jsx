@@ -1,7 +1,9 @@
 import { motion } from 'framer-motion';
 import CoverImage from './CoverImage';
+import EntriesBlock from './EntriesBlock';
 import { useModalChrome } from '../hooks/useModalChrome';
 import { ratingEntries, opinionEntries } from '../lib/opinionFields';
+import { ESQUEMA } from '../data/niveles';
 
 const RATING_LABELS = {
   during: 'Rating (mientras lo veo):',
@@ -216,6 +218,15 @@ const AnimeModal = ({ item, onClose }) => {
               </div>
             ))}
           </div>
+
+          {/* El diario: lo que fue pensando episodio a episodio. Va al final y
+              plegado — es lo más largo y lo más nuevo, no debe tapar la ficha. */}
+          <EntriesBlock
+            entries={item.entries}
+            schema={ESQUEMA.anime}
+            variant="cristal"
+            className="mt-6"
+          />
         </div>
       </motion.div>
     </motion.div>

@@ -8,6 +8,7 @@
     "build": "vite build",
     "build:pages": "vite build --base=/Carlos-Opinion/",
     "lint": "eslint .",
+    "test": "node scripts/test-entries.mjs && node scripts/test-render.mjs",
     "preview": "vite preview"
   },
   "dependencies": {

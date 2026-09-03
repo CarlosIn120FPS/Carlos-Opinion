@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { normalizeContent } from './normalize';
 
 // Los datos ya no viven dentro del bundle: se piden en tiempo de ejecución desde
 // public/data/*.json. Eso significa que para añadir un anime basta con editar el
@@ -8,40 +9,6 @@ import { useEffect, useState } from 'react';
 // funciona igual servido en la raíz de un dominio propio que en /Carlos-Opinion/
 // de GitHub Pages, sin tocar nada.
 const dataUrl = (file) => `${import.meta.env.BASE_URL}data/${file}`;
-
-const toArray = (value) => (Array.isArray(value) ? value : []);
-const toText = (value) => (typeof value === 'string' ? value : '');
-
-// Un JSON editado a mano se va a romper alguna vez: una coma de más, un campo
-// olvidado. Normalizamos aquí para que ningún componente tenga que defenderse y
-// para que un fallo en una ficha no tumbe la página entera.
-function normalizeItem(raw, index) {
-  return {
-    ...raw,
-    id: raw?.id ?? `sin-id-${index}`,
-    title: toText(raw?.title) || 'Sin título',
-    description: toText(raw?.description),
-    image: toText(raw?.image),
-    category: toText(raw?.category),
-    genres: toArray(raw?.genres),
-    platforms: toArray(raw?.platforms),
-    languages: toArray(raw?.languages),
-    openings: toArray(raw?.openings),
-    endings: toArray(raw?.endings),
-    physicalStores: toArray(raw?.physicalStores),
-  };
-}
-
-function normalize(json) {
-  const items = toArray(json?.items).map(normalizeItem);
-  const declared = toArray(json?.categories).filter((c) => typeof c === 'string');
-  // Una ficha con una categoría que no está en la lista sería invisible para
-  // siempre. Preferimos enseñarla al final antes que tragárnosla en silencio.
-  const extras = [...new Set(items.map((i) => i.category))].filter(
-    (c) => c && !declared.includes(c),
-  );
-  return { categories: [...declared, ...extras], items };
-}
 
 // Cache a nivel de módulo: cambiar de sección y volver no vuelve a pedir el JSON.
 const cache = new Map();
@@ -70,7 +37,7 @@ export function useContentData(type) {
         return response.json();
       })
       .then((json) => {
-        const data = normalize(json);
+        const data = normalizeContent(json);
         cache.set(id, data);
         setState({ id, status: 'ready', data, error: null });
       })
