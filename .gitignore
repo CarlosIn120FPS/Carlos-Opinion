@@ -31,3 +31,6 @@ yarn-error.log*
 # Cache y clon de trabajo del generador
 generador/cache/
 generador/work/
+
+# Copias que hace el panel antes de cada escritura
+panel/.copias/
