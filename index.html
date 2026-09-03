@@ -14,9 +14,9 @@
       content="Opiniones y reseñas de Carlos sobre los animes, mangas y novelas ligeras que ha visto, está viendo o ha abandonado."
     />
 
-    <!-- Para las vistas previas al compartir el enlace.
-         TODO al migrar al servidor propio: añadir <meta property="og:url"> y
-         <meta property="og:image"> con la URL absoluta definitiva del dominio. -->
+    <!-- Vistas previas al compartir. Estas son las genéricas; tras `vite build`,
+         scripts/og.mjs escribe una copia de esta página por sección y por ficha
+         (dist/anime/2.html...) con su título, su portada y og:url absolutos. -->
     <meta property="og:type" content="website" />
     <meta property="og:locale" content="es_ES" />
     <meta property="og:title" content="Carlos' Opinion" />

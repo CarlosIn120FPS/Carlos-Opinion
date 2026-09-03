@@ -165,6 +165,13 @@ function App() {
     [items, itemId],
   );
 
+  // El título de la pestaña sigue a la ficha abierta (el HTML por ficha de
+  // scripts/og.mjs ya lo trae, pero al navegar dentro de la app hay que
+  // mantenerlo). Al cerrar, vuelve al de la sección.
+  useEffect(() => {
+    document.title = selectedItem ? `${selectedItem.title} · ${type.pageTitle}` : type.pageTitle;
+  }, [selectedItem, type.pageTitle]);
+
   // Enlace a una ficha que ya no existe (id cambiado, enlace viejo): en vez de
   // dejar la página en blanco, volvemos a la sección sin ensuciar el historial.
   useEffect(() => {

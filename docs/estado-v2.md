@@ -8,9 +8,9 @@
 
 ## Resumen
 
-**Hecho: 24 de 27** de las cosas concretas que piden los cinco documentos
+**Hecho: 25 de 27** de las cosas concretas que piden los cinco documentos
 (fichas hermanas y portadas locales se cerraron la tarde de la auditoría). Lo
-que falta son **3 piezas de la web pública y del panel**, y ninguna bloquea a
+que falta son **2 piezas del panel**, y ninguna bloquea a
 otra.
 
 | Documento | Hecho | Falta |
@@ -18,7 +18,7 @@ otra.
 | `esquema-ficha.md` | 8 / 8 | — |
 | `rediseno-fichas.md` | 5 / 6 | Whakoom (investigado, no construido) |
 | `panel-privado.md` | 8 / 9 | "clonar a manga" |
-| `integracion-jellyfin.md` | 9 / 10 | OG tags |
+| `integracion-jellyfin.md` | 10 / 10 | — |
 | `VERSION-2.md` | 5 / 5 piezas | — |
 
 ---
@@ -67,18 +67,17 @@ con la ficha). El panel lo enseña en la ficha publicada en un bloque aparte,
 campo y un botón «Ya lo he revisado» que lo quita. La lista marca esas fichas
 con un pin «revisar». `panel/lib/revisar.mjs` es puro y está probado.
 
-### 4. Vista previa al compartir (OG tags por ficha)
+### 4. Vista previa al compartir (OG tags por ficha) — HECHO (2026-09-03)
 
-`integracion-jellyfin.md` §3.9. El TODO sigue literalmente abierto:
-
-```
-index.html:18   TODO al migrar al servidor propio: añadir <meta property="og:url"> y
-index.html:19   <meta property="og:image"> con la URL absoluta definitiva del dominio.
-```
-
-Y ya no hay excusa: el dominio propio existe desde ayer. Hoy todas las URLs
-comparten el mismo título genérico sin imagen, así que compartir `/anime/2` por
-WhatsApp manda un rectángulo gris.
+`integracion-jellyfin.md` §3.9. Tras `vite build`, `scripts/og.mjs` escribe una
+copia de `index.html` por sección (`anime.html`) y por ficha (`anime/2.html`)
+con `<title>`, description, `og:title`, `og:description`, `og:url`, `og:image`
+y `twitter:image` de esa ficha, con URLs absolutas del dominio propio (portada
+local incluida). nginx las sirve con `try_files $uri $uri.html …`: WhatsApp,
+Telegram o Discord ven título y portada al compartir `/anime/2`; para el
+navegador es la misma app. La web sigue siendo estática. Además la pestaña
+cambia de título al abrir una ficha. `scripts/test-og.mjs` lo prueba con los
+tipos reales.
 
 ### 5. Botón "clonar a manga"
 
