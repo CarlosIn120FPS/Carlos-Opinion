@@ -25,6 +25,7 @@ import { SECCIONES, CLAVES, seccion } from './lib/secciones.mjs';
 import { repoGit } from './lib/repo.mjs';
 import { promover, loQueFalta } from './lib/promover.mjs';
 import { enlazar } from './lib/hermanas.mjs';
+import { clonar } from './lib/clonar.mjs';
 import { anotar, quitar, serializarRevisar, FICHERO_REVISAR } from './lib/revisar.mjs';
 
 const RAIZ = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -329,7 +330,7 @@ const servidor = createServer(async (req, res) => {
     // Una sección que no existe es un 404 con su motivo, no un 500 sin explicar:
     // `seccion()` lanza un Error normal a propósito (es un fallo de programación,
     // no del cliente), así que aquí se comprueba antes de llamarla.
-    const mRuta = ruta.match(/^\/api\/([a-z]+)(\/op|\/hermana)?$/);
+    const mRuta = ruta.match(/^\/api\/([a-z]+)(\/op|\/hermana|\/clonar)?$/);
     if (mRuta && !CLAVES.includes(mRuta[1])) {
       return json(res, 404, {
         error: `sección "${mRuta[1]}" desconocida. Válidas: ${CLAVES.join(', ')}.`,
@@ -399,6 +400,32 @@ const servidor = createServer(async (req, res) => {
         return ficha;
       });
       return json(res, 200, { ok: true, ficha: resultado, pendiente: Boolean(repo) });
+    }
+
+    // «Clonar a manga»: { id, seccion, categoria } crea en `seccion` la ficha
+    // hermana de la ficha `id` de esta sección, ya enlazada. Dos ficheros, un
+    // commit, igual que enlazar.
+    const mClonar = ruta.match(/^\/api\/([a-z]+)\/clonar$/);
+    if (mClonar && req.method === 'POST') {
+      const clave = mClonar[1];
+      const { id, seccion: hermana, categoria } = await cuerpoDe(req);
+      if (!CLAVES.includes(hermana)) {
+        return json(res, 400, { error: `sección "${hermana}" desconocida. Válidas: ${CLAVES.join(', ')}.` });
+      }
+      const resultado = await enSerie(async () => {
+        if (repo) await repo.sincronizar();
+        const todos = { [clave]: await leerSeccion(clave), [hermana]: await leerSeccion(hermana) };
+        const { datos, ficha } = clonar(todos, { clave, id, hermana, categoria });
+        for (const c of Object.keys(datos)) await guardarSeccion(c, datos[c]);
+        if (repo) {
+          await repo.commitear(
+            `Panel: crear «${ficha.title}» en ${seccion(hermana).etiqueta.toLowerCase()} desde ${clave}`,
+            Object.keys(datos).map((c) => seccion(c).fichero),
+          );
+        }
+        return ficha;
+      });
+      return json(res, 200, { ok: true, ficha: resultado, seccion: hermana, pendiente: Boolean(repo) });
     }
 
     if (ruta.startsWith('/api/')) return json(res, 404, { error: 'ruta desconocida' });

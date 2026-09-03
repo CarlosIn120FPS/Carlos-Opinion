@@ -140,6 +140,8 @@ const ANILIST = {
 // Una ficha de manga publicada, para que el selector de hermanas tenga algo que
 // ofrecer. Sintética: en manga.json real no se escribe texto de prueba.
 const MANGA = { categories: ['Leído'], items: [{ id: 41, title: 'MANGA HERMANO', hasAnime: true }] };
+// Novelas: sin fichas, para poder crear una desde el anime.
+const NOVELA = { categories: ['Leída', 'Leyendo'], items: [] };
 
 const REVISAR = { anime: { 8: { campos: ['episodes', 'genres'], avisos: ['AVISO DEL GENERADOR'], fuente: 'anilist', fecha: '2026-09-03' } } };
 
@@ -156,6 +158,14 @@ globalThis.fetch = async (ruta, opciones = {}) => {
     return { ok: true, json: async () => ({ ok: true, ficha }) };
   }
   if (ruta === '/api/manga') return { ok: true, json: async () => MANGA };
+  if (ruta === '/api/lightnovel') return { ok: true, json: async () => NOVELA };
+  if (ruta === '/api/anime/clonar') {
+    const { id, seccion, categoria } = JSON.parse(opciones.body);
+    const origen = ANIME.items.find((i) => String(i.id) === String(id));
+    const ficha = { id: 7, title: origen.title, category: categoria, hasAnime: true, related: { anime: origen.id } };
+    NOVELA.items.push(ficha);
+    return { ok: true, json: async () => ({ ok: true, ficha, seccion }) };
+  }
   // Lo que propuso la máquina para la ficha 8 y aún no se ha mirado.
   if (ruta === '/api/revisar') return { ok: true, json: async () => REVISAR };
   if (ruta === '/api/anime/revisar/8/hecho') {
@@ -305,9 +315,10 @@ if (conDiario) {
   await new Promise((r) => setImmediate(r));
   const hermanas = detalle.querySelector('#hermanas');
   check('pinta el bloque de fichas hermanas', Boolean(hermanas) && plano.includes('otra sección'));
-  const selectores = hermanas?.buscarTodos('select') ?? [];
-  // Anime declara dos hermanas: manga y novela ligera.
-  igual('un selector por sección hermana', selectores.length, 2);
+  // Anime declara dos hermanas: manga y novela ligera. Cada una es un .campo con
+  // su selector de ficha (y, si no hay ficha, otro de categoría para crearla).
+  igual('un bloque por sección hermana', hermanas?.children.length, 2);
+  const selectores = hermanas?.children.map((c) => c.buscarTodos('select')[0]) ?? [];
   const opcionesManga = selectores[0]?.children.map((o) => o.textContent) ?? [];
   igual('el de manga ofrece las fichas publicadas de manga, y «sin ficha»',
     opcionesManga, ['— sin ficha —', 'MANGA HERMANO']);
@@ -324,6 +335,47 @@ if (conDiario) {
       enviada && JSON.parse(enviada.cuerpo), { id: ANIME.items[0].id, seccion: 'manga', hermanaId: '41' });
     igual('y actualiza la ficha en memoria con lo que devolvió el servidor',
       ANIME.items[0].related, { manga: 41 });
+  }
+
+  // --- «clonar a novela»: crear la hermana desde ésta -------------------------
+  {
+    // Se vuelve a abrir la ficha: ahora manga ya está enlazado (41) y novela no.
+    conDiario.onclick();
+    await new Promise((r) => setImmediate(r));
+    await new Promise((r) => setImmediate(r));
+    const hermanas2 = raiz.querySelector('#detalle').querySelector('#hermanas');
+    // El selector de novela no tiene ficha: debe ofrecer crearla, con las
+    // categorías DE NOVELAS, no las de anime.
+    const cajaNovela = hermanas2?.children[1];
+    const selectsNovela = cajaNovela?.buscarTodos('select') ?? [];
+    igual('junto al selector de novela hay otro de categoría', selectsNovela.length, 2);
+    igual('con las categorías de novelas', selectsNovela[1]?.children.map((o) => o.textContent),
+      ['¿En qué categoría?', 'Leída', 'Leyendo']);
+    const crear = cajaNovela?.buscarTodos('button').find((b) => b.textContent.includes('Crear'));
+    check('y un botón para crear la ficha a partir de ésta', Boolean(crear), cajaNovela?.textContent);
+    // El selector de manga ya tiene ficha (41): ahí no se ofrece crear.
+    check('donde ya hay ficha no se ofrece crear',
+      !(hermanas2?.children[0]?.buscarTodos('button') ?? []).some((b) => b.textContent.includes('Crear')));
+
+    if (crear && selectsNovela[1]) {
+      const antes = llamadas.length;
+      await crear.onclick();
+      check('sin categoría no manda nada y avisa',
+        !llamadas.slice(antes).some((l) => l.ruta === '/api/anime/clonar') && aviso.textContent.includes('categoría'));
+      selectsNovela[1].value = 'Leyendo';
+      await crear.onclick();
+      await new Promise((r) => setImmediate(r));
+      await new Promise((r) => setImmediate(r));
+      const enviada = llamadas.find((l) => l.ruta === '/api/anime/clonar');
+      igual('manda ficha, sección destino y categoría',
+        enviada && JSON.parse(enviada.cuerpo), { id: ANIME.items[0].id, seccion: 'lightnovel', categoria: 'Leyendo' });
+      check('y se va a la ficha nueva en su sección',
+        secciones.children.find((b) => b.dataset.clave === 'lightnovel')?.getAttribute('aria-current') === 'true'
+        && raiz.querySelector('#detalle').textContent.includes(ANIME.items[0].title));
+      // Volver a anime para el resto de comprobaciones.
+      await secciones.children.find((b) => b.dataset.clave === 'anime').onclick();
+      await new Promise((r) => setImmediate(r));
+    }
   }
 }
 

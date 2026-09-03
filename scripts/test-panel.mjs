@@ -18,6 +18,7 @@ import { SECCIONES, seccion, ordenar, clavesDeCarlos, CLAVES } from '../panel/li
 import { promover, loQueFalta } from '../panel/lib/promover.mjs';
 import { enlazar } from '../panel/lib/hermanas.mjs';
 import { anotar, quitar, de, serializarRevisar } from '../panel/lib/revisar.mjs';
+import { clonar, esqueleto, COMUNES } from '../panel/lib/clonar.mjs';
 
 const RAIZ = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -369,6 +370,64 @@ debeFallar('rechaza una operación desconocida',
   igual('de() da null si no hay nada', de(r2, 'lightnovel', 1), null);
   check('serializa con salto final', serializarRevisar({}).endsWith('}\n'));
   debeFallarSeccion('una sección inventada revienta', () => anotar({}, 'novelas', 1, { campos: ['x'] }));
+}
+
+// ======================================= 11. clonar a manga / a novela
+{
+  // Una ficha real de anime (con opiniones y diario) para clonar.
+  const origen = {
+    ...datosAnime.items.find((i) => i.id === 2),
+    rating: '9/10', personalOpinion: 'ME ENCANTA', entries: [{ id: 'e', date: '2026-01-01', episode: 1, text: 'x' }],
+    hasManga: true, hasLightNovel: false,
+  };
+  const anime = { categories: ['Visto'], items: [origen, { id: 9, title: 'Otro', category: 'Visto' }] };
+  const manga = { categories: ['Leído', 'Leyendo'], items: [{ id: 1, title: 'Chainsaw Man', category: 'Leído', hasAnime: true }] };
+
+  const { datos, ficha } = clonar({ anime, manga }, { clave: 'anime', id: 2, hermana: 'manga', categoria: 'Leyendo' });
+  igual('la ficha nueva tiene el id siguiente de manga', ficha.id, 2);
+  igual('y la categoría elegida', ficha.category, 'Leyendo');
+  for (const k of COMUNES) igual(`copia ${k}`, ficha[k], origen[k]);
+  check('los géneros son una copia, no el mismo array', ficha.genres !== origen.genres);
+  igual('hasAnime true: viene del anime', ficha.hasAnime, true);
+  igual('hasLightNovel se copia del anime', ficha.hasLightNovel, false);
+  igual('lo de manga queda vacío para rellenar', [ficha.chapters, ficha.volumes, ficha.author], ['', '', '']);
+  igual('lo de Carlos queda vacío: su opinión del manga no es la del anime',
+    [ficha.rating, ficha.ratingFinal, ficha.personalOpinion, ficha.personalOpinionFinal, ficha.doIRecommend], ['', '', '', '', '']);
+  check('sin diario', !('entries' in ficha));
+  check('sin anilistIds: los del anime no son los del manga', !('anilistIds' in ficha));
+  check('sin willReadSource: no existe en manga', !('willReadSource' in ficha));
+  igual('las claves siguen el orden de manga', Object.keys(ficha), [
+    'id', 'title', 'japaneseTitle', 'category', 'image', 'description', 'genres', 'fullSynopsis',
+    'chapters', 'volumes', 'author', 'hasAnime', 'hasLightNovel', 'related', 'doIRecommend',
+    'platforms', 'languages', 'rating', 'ratingFinal', 'personalOpinion', 'personalOpinionFinal', 'physicalStores',
+  ]);
+  igual('enlazada al anime', ficha.related, { anime: 2 });
+  igual('y el anime a ella', datos.anime.items[0].related, { manga: 2 });
+  check('el anime conserva su diario y sus opiniones',
+    datos.anime.items[0].personalOpinion === 'ME ENCANTA' && datos.anime.items[0].entries.length === 1);
+  igual('manga tiene una ficha más', datos.manga.items.length, 2);
+  check('no muta la entrada', anime.items[0].related === undefined && manga.items.length === 1);
+
+  // Hacia novela, desde el anime: hasAnime true, hasManga copiado, illustrator vacío.
+  const novela = { categories: ['Leída'], items: [] };
+  const n = clonar({ anime, lightnovel: novela }, { clave: 'anime', id: 2, hermana: 'lightnovel', categoria: 'Leída' }).ficha;
+  igual('a novela: banderas', [n.hasAnime, n.hasManga], [true, true]);
+  igual('a novela: id 1 en una sección vacía', n.id, 1);
+  check('a novela: illustrator vacío y sin chapters', n.illustrator === '' && !('chapters' in n));
+
+  // Y desde manga hacia anime.
+  const a = clonar({ manga, anime }, { clave: 'manga', id: 1, hermana: 'anime', categoria: 'Visto' }).ficha;
+  igual('a anime desde manga: hasManga true, episodes vacío', [a.hasManga, a.episodes], [true, '']);
+  check('a anime: openings y endings vacíos', Array.isArray(a.openings) && a.openings.length === 0 && Array.isArray(a.endings));
+
+  // Lo que se rechaza.
+  debeFallar('sin categoría', () => clonar({ anime, manga }, { clave: 'anime', id: 2, hermana: 'manga' }), 400, 'categoría');
+  debeFallar('categoría de otra sección', () => clonar({ anime, manga }, { clave: 'anime', id: 2, hermana: 'manga', categoria: 'Visto' }), 400, 'desconocida');
+  debeFallar('ya tiene hermana: no se duplica',
+    () => clonar(datos, { clave: 'anime', id: 2, hermana: 'manga', categoria: 'Leído' }), 400, 'ya tiene ficha');
+  debeFallar('ficha inexistente', () => clonar({ anime, manga }, { clave: 'anime', id: 999, hermana: 'manga', categoria: 'Leído' }), 404);
+  debeFallar('sección que no es hermana', () => clonar({ anime, anime2: anime }, { clave: 'anime', id: 2, hermana: 'anime', categoria: 'Visto' }), 400, 'no es una sección hermana');
+  igual('esqueleto no trae id ni category', ['id' in esqueleto(origen, 'anime', 'manga'), 'category' in esqueleto(origen, 'anime', 'manga')], [false, false]);
 }
 
 // -------------------------------------------------------------------- resultado

@@ -8,16 +8,15 @@
 
 ## Resumen
 
-**Hecho: 25 de 27** de las cosas concretas que piden los cinco documentos
-(fichas hermanas y portadas locales se cerraron la tarde de la auditoría). Lo
-que falta son **2 piezas del panel**, y ninguna bloquea a
-otra.
+**Hecho: 26 de 27** de las cosas concretas que piden los cinco documentos
+(los cinco puntos de abajo se cerraron la tarde de la auditoría). Lo único que
+falta es **el importador de Whakoom**.
 
 | Documento | Hecho | Falta |
 |---|---|---|
 | `esquema-ficha.md` | 8 / 8 | — |
 | `rediseno-fichas.md` | 5 / 6 | Whakoom (investigado, no construido) |
-| `panel-privado.md` | 8 / 9 | "clonar a manga" |
+| `panel-privado.md` | 9 / 9 | — |
 | `integracion-jellyfin.md` | 10 / 10 | — |
 | `VERSION-2.md` | 5 / 5 piezas | — |
 
@@ -79,10 +78,15 @@ navegador es la misma app. La web sigue siendo estática. Además la pestaña
 cambia de título al abrir una ficha. `scripts/test-og.mjs` lo prueba con los
 tipos reales.
 
-### 5. Botón "clonar a manga"
+### 5. Botón "clonar a manga" — HECHO (2026-09-03)
 
-`panel-privado.md`. Copiar los campos comunes y crear la ficha hermana enlazada.
-Encaja con el punto 1 y con que manga y novelas tengan una ficha cada uno.
+`panel-privado.md`. En el bloque de hermanas de una ficha, donde no hay ficha
+al otro lado, el panel ofrece «Crear la ficha de manga a partir de ésta» con un
+selector de categoría **de la sección destino**. `panel/lib/clonar.mjs` copia lo
+objetivo y común (título, título japonés, portada, descripción, géneros,
+sinopsis), deja vacío lo de la sección (capítulos, autor…) y lo que sólo escribe
+Carlos, no copia `anilistIds` ni el diario, y la enlaza en las dos direcciones
+con `enlazar()`. Dos ficheros, un commit. Si ya hay hermana, se niega.
 
 ### 6. Whakoom
 

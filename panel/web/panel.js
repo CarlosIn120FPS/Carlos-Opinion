@@ -487,13 +487,14 @@ function pintarDetalle() {
 // ------------------------------------------------------------ fichas hermanas
 // El enlace `related` es EXPLÍCITO: se elige la ficha de la otra sección de una
 // lista, nunca se adivina por título. El servidor lo escribe en las dos fichas.
-const otras = {}; // las fichas publicadas de cada sección, para elegir
+const otras = {}; // los datos de cada otra sección (fichas y categorías), para elegir
 
-async function fichasDe(clave) {
-  if (clave === estado.clave) return estado.datos.items;
-  if (!otras[clave]) otras[clave] = (await api(`/api/${clave}`)).items ?? [];
+async function datosDe(clave) {
+  if (clave === estado.clave) return estado.datos;
+  if (!otras[clave]) otras[clave] = await api(`/api/${clave}`);
   return otras[clave];
 }
+const fichasDe = async (clave) => (await datosDe(clave)).items ?? [];
 
 async function pintarHermanas(item) {
   const caja = $('#hermanas');
@@ -505,8 +506,11 @@ async function pintarHermanas(item) {
     control.append(el('option', { value: '', textContent: '— sin ficha —' }));
     const actual = item.related?.[hermana];
     let candidatas = [];
+    let categorias = [];
     try {
-      candidatas = await fichasDe(hermana);
+      const d = await datosDe(hermana);
+      candidatas = d.items ?? [];
+      categorias = d.categories ?? [];
     } catch (e) {
       avisar(`No se pudo leer ${ESQUEMA[hermana].nombre}: ${e.message}`);
     }
@@ -536,10 +540,41 @@ async function pintarHermanas(item) {
         control.value = String(fichaActual().related?.[hermana] ?? '');
       }
     };
-    cajas.push(el('div', { className: 'campo' }, [
+    const caja = el('div', { className: 'campo' }, [
       el('label', {}, [`¿Tiene ${ESQUEMA[hermana].nombre}? Su ficha:`, marca]),
       control,
-    ]));
+    ]);
+
+    // Sin ficha al otro lado: crearla desde ésta. Copia lo objetivo (título,
+    // portada, géneros, sinopsis), deja lo suyo vacío y la enlaza. La categoría
+    // es suya, como al publicar un borrador.
+    if (actual === undefined || actual === null || actual === '') {
+      const cat = el('select');
+      cat.append(el('option', { value: '', textContent: '¿En qué categoría?' }));
+      for (const c of categorias) cat.append(el('option', { value: c, textContent: c }));
+      const crear = el('button', { className: 'fantasma', textContent: `Crear la ficha de ${ESQUEMA[hermana].nombre} a partir de ésta` });
+      crear.onclick = async () => {
+        if (!cat.value) return avisar('Elige una categoría: eso no lo puede saber la máquina.');
+        crear.disabled = true;
+        try {
+          const r = await api(`/api/${estado.clave}/clonar`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id: item.id, seccion: hermana, categoria: cat.value }),
+          });
+          delete otras[hermana];
+          refrescarEstado();
+          // A la ficha nueva, en su sección: es donde toca escribir ahora.
+          await abrirSeccion(r.seccion);
+          abrirFicha(r.ficha.id);
+        } catch (e) {
+          avisar(`No se creó la ficha: ${e.message}`);
+          crear.disabled = false;
+        }
+      };
+      caja.append(el('div', { className: 'linea', style: 'margin-top:6px' }, [cat, crear]));
+    }
+    cajas.push(caja);
   }
   // Si mientras se cargaba se abrió otra ficha, no pisar lo que ya haya.
   if ($('#hermanas') === caja) caja.replaceChildren(...cajas);
