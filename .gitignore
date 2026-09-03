@@ -34,3 +34,6 @@ generador/work/
 
 # Copias que hace el panel antes de cada escritura
 panel/.copias/
+
+# Python
+__pycache__/

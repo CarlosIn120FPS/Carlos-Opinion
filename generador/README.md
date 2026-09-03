@@ -96,6 +96,38 @@ Las diferencias reales son de criterio, no errores, y **todas salen marcadas en
 `_revisar`**: cómo contar los capítulos de una obra partida en dos partes es una
 decisión suya, no un dato.
 
+## Whakoom: la colección de manga y novelas
+
+Whakoom no tiene API y raspar su web está prohibido por sus condiciones. Lo que
+sí hay es la **exportación manual** de la colección (cuenta PRO), que sale como
+xlsx. `whakoom.py` corre **en tu PC**, no en Pavilion: tu colección es un dato
+personal y se queda en casa. El fichero va en `generador/work/` (en
+`.gitignore`).
+
+```bash
+python3 whakoom.py work/whakoom.xlsx                # emparejar e informar
+python3 whakoom.py work/whakoom.xlsx --generar      # y borradores de los SEGUROS
+python3 whakoom.py work/whakoom.xlsx --columnas serie=Serie,numero=Número
+```
+
+Lee el xlsx sin dependencias (es un zip con XML), detecta las columnas por el
+nombre de la cabecera, agrupa los tomos en series, descarta las que ya están en
+la web y busca el resto en AniList (con caché). El informe tiene cuatro cajas:
+
+| | |
+|---|---|
+| **Ya en la web** | ni se busca |
+| **Seguro** | un único candidato y el título coincide → `--anilist-id` listo |
+| **Dudoso** | varios candidatos, o uno que no coincide → se elige a mano |
+| **Sin resultado** | AniList no lo conoce |
+
+**Nunca crea un borrador de un emparejamiento dudoso.** Emparejar por título es
+frágil (aquí «Call of the Night» ya se casó con Shimoneta una vez), y un
+borrador equivocado cuesta más que preguntar. `--generar` solo toca los seguros.
+
+Ni opiniones, ni notas, ni `physicalStores`: Whakoom dice qué tomos tienes, no
+dónde los compraste ni qué te parecieron.
+
 ## Una ficha es una franquicia
 
 Es la decisión de diseño central. *Las Quintillizas* son **una** ficha aunque en

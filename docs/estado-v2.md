@@ -88,16 +88,20 @@ sinopsis), deja vacío lo de la sección (capítulos, autor…) y lo que sólo e
 Carlos, no copia `anilistIds` ni el diario, y la enlaza en las dos direcciones
 con `enlazar()`. Dos ficheros, un commit. Si ya hay hermana, se niega.
 
-### 6. Whakoom
+### 6. Whakoom — CONSTRUIDO (2026-09-03), pendiente de calibrar con la exportación real
 
-`rediseno-fichas.md`. Investigado a fondo y **con veredicto**: no tiene API y
-raspar está prohibido por sus condiciones de uso. El único camino es la
-exportación manual, que Carlos tiene por ser PRO. El emparejador está diseñado y
-sin construir.
+`rediseno-fichas.md`. No tiene API y raspar está prohibido; el camino es la
+exportación manual (cuenta PRO), que sale como **xlsx**. `generador/whakoom.py`
+corre en el PC de Carlos (la colección no sale de casa): lee el xlsx sin
+dependencias (zip + XML), detecta las columnas por nombre (o `--columnas`),
+agrupa los tomos en series, descarta las que ya están en la web y busca el
+resto en AniList con caché. Solo llama SEGURO a un único candidato cuyo título
+coincide; lo demás sale como DUDOSO con sus `--anilist-id` para elegir a mano.
+`--generar` crea borradores solo de los seguros. `generador/test_whakoom.py`
+(14) lo prueba sin red con un xlsx sintético.
 
-Ojo con el reparto real de trabajo: el 70% de "lo de Whakoom" era la pieza 3, el
-generador de manga y novelas — **y esa ya está hecha**. Lo que queda es un
-emparejador de nombres a ids que correría en su PC.
+Falta pasarle la exportación real de Carlos para ajustar la detección de
+columnas y el troceo de los títulos a lo que Whakoom escribe de verdad.
 
 ---
 
