@@ -1,0 +1,44 @@
+#!/usr/bin/env bash
+# Carlos' Opinion — hook `update` (Pavilion)
+#
+# Se instala en ~/carlos-opinion/repo.git/hooks/update.
+#
+# Impide reescribir `main`. Un repositorio bare NO lleva reflog: comprobado,
+# `core.logAllRefUpdates` sale sin configurar y `logs/` no existe. Así que un
+# `push --force` sobre main es IRRECUPERABLE, y ahí es donde viven las entradas
+# del diario, que son el único dato del proyecto que no se puede regenerar de
+# ninguna fuente.
+#
+# Por qué un hook y no `receive.denyNonFastForwards`: esa opción es global y
+# rompería la pasada nocturna del generador, que hace
+# `git push --quiet --force origin HEAD:borradores` (generador/generar.py:1075).
+# Aquí sólo se protege main; las demás ramas siguen pudiendo forzarse.
+#
+# A diferencia de post-receive, git SÍ respeta el código de salida de `update`:
+# si sale distinto de 0, la ref no se actualiza.
+
+set -euo pipefail
+
+ref="$1"
+viejo="$2"
+nuevo="$3"
+CERO="0000000000000000000000000000000000000000"
+
+[ "$ref" = "refs/heads/main" ] || exit 0   # otras ramas, a su aire
+[ "$viejo" = "$CERO" ] && exit 0           # main aún no existía
+
+if [ "$nuevo" = "$CERO" ]; then
+  echo "  RECHAZADO: no se borra main desde un push." >&2
+  exit 1
+fi
+
+# Fast-forward = lo viejo es antepasado de lo nuevo. Si no, se está reescribiendo.
+if ! git merge-base --is-ancestor "$viejo" "$nuevo"; then
+  echo "  RECHAZADO: esto reescribiría main (${viejo:0:7} -> ${nuevo:0:7})." >&2
+  echo "  Un repo bare no tiene reflog: lo que se pierda aquí no vuelve." >&2
+  echo "  Si querías forzar el despliegue sin cambiar nada:" >&2
+  echo "      git commit --allow-empty -m redesplegar && git push casa main" >&2
+  exit 1
+fi
+
+exit 0

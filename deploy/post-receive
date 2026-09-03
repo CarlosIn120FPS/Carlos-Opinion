@@ -19,10 +19,30 @@ BRANCH="main"
 # los comandos de git dentro de $BUILD creerían que su repo es el bare.
 unset GIT_DIR GIT_WORK_TREE GIT_QUARANTINE_PATH
 
+# Un despliegue cada vez. Sin esto, dos pushes solapados comparten el índice del
+# bare en el `checkout -f` de abajo y el `dist/` que vite vacía al compilar.
+# Mientras el único cliente era el PC de Carlos no pasaba; en cuanto haya un
+# segundo (el panel privado, que empuja solo), pasa. El -w evita que un `npm ci`
+# colgado deje el cerrojo puesto para siempre.
+exec 9>"$BASE/.deploy.lock"
+flock -w 900 9 || { echo "  ERROR: otro despliegue lleva 15 min bloqueado." >&2; exit 1; }
+
+# `git` IGNORA el código de salida de post-receive: comprobado, un hook con
+# `exit 1` deja el push en exit code 0 y la ref actualizada. O sea que el fallo
+# es MUDO para cualquier cosa que no lea el texto del push. Estos dos ficheros
+# son la forma de enterarse: scripts/deploy.mjs los compara con lo que acaba de
+# empujar. No cambian el comportamiento del hook, sólo lo hacen observable.
+REV_ACTUAL="(desconocida)"
 log()   { echo "  $*"; }
-fallo() { echo "  ERROR: $*" >&2; echo "  >>> NO se ha publicado nada. La web sigue con la versión anterior."; exit 1; }
+fallo() {
+  echo "  ERROR: $*" >&2
+  echo "  >>> NO se ha publicado nada. La web sigue con la versión anterior."
+  printf '%s\n%s\n' "$REV_ACTUAL" "$*" > "$BASE/.deploy-fail" || true
+  exit 1
+}
 
 while read -r _old newrev ref; do
+  REV_ACTUAL="$newrev"
   [ "$ref" = "refs/heads/$BRANCH" ] || { log "Ignorando $ref (solo se publica $BRANCH)"; continue; }
 
   echo
@@ -58,6 +78,10 @@ while read -r _old newrev ref; do
 
   # --delay-updates mueve todo a su sitio al final: nadie pilla la web a medias.
   rsync -a --delete --delay-updates dist/ "$SITE/" || fallo "no se pudo copiar a $SITE"
+
+  # Sólo aquí, con la web ya servida, se marca el despliegue como bueno.
+  echo "$newrev" > "$BASE/.deploy-ok"
+  rm -f "$BASE/.deploy-fail"
 
   echo "  Publicado. https://opinion.carlosin120fps.duckdns.org"
   echo
