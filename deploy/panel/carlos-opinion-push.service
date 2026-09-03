@@ -1,0 +1,42 @@
+# Publica lo que el panel haya escrito. Lo dispara el timer cada 2 minutos.
+#
+# Va aparte del escritor porque empujar dispara el hook de despliegue, y ese
+# hook compila: `git receive-pack` —y por tanto npm ci, vite build y rsync— son
+# procesos HIJOS de este `git push`, dentro de este cgroup.
+#
+# De ahí las dos ausencias deliberadas de abajo. No son olvidos.
+
+[Unit]
+Description=Carlos' Opinion — publicar lo escrito en el panel
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=carlosalexei
+Group=carlosalexei
+WorkingDirectory=/home/carlosalexei/carlos-opinion/panel-work
+ExecStart=/usr/bin/node panel/empujar.mjs
+
+Environment=HOME=/home/carlosalexei
+Environment=CO_PANEL_BASE=/home/carlosalexei/carlos-opinion
+Environment=CO_PANEL_NTFY=http://192.168.50.148:8090/carlos-opinion
+
+# SIN MemoryMax A PROPÓSITO. El límite de 100 MB del nodo va en el escritor, que
+# es el que está siempre en pie. Aquí dentro corre `vite build`: encerrarlo en un
+# cgroup de 96 MB lo mataría por OOM a mitad de despliegue y dejaría la web rota.
+# Este proceso vive segundos cada dos minutos, y sólo cuando hay algo que enviar.
+#
+# SIN TimeoutStartSec A PROPÓSITO. En Type=oneshot el defecto de systemd ya es
+# infinity. Ponerle un timeout mataría el cgroup ENTERO al vencer —hook, npm y el
+# rsync a medias—, que es exactamente el escenario que deja la web a medio copiar.
+# La espera se controla con el `flock -w 900` de deploy/post-receive, que falla
+# limpio en vez de morir por la mitad.
+
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/home/carlosalexei/carlos-opinion
+
+[Install]
+WantedBy=multi-user.target

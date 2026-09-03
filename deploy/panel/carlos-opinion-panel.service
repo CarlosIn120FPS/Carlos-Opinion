@@ -1,0 +1,52 @@
+# El panel privado (escritor). Aplica lo que Carlos escribe y lo commitea.
+# NO empuja: de eso se encarga carlos-opinion-push.timer.
+#
+# Se instala en /etc/systemd/system/ y corre COMO CARLOS, no como root: sin
+# User= una unidad de sistema corre como root, y esto ejecuta git y escribe en
+# su repositorio.
+
+[Unit]
+Description=Carlos' Opinion — panel privado (escritor)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=carlosalexei
+Group=carlosalexei
+WorkingDirectory=/home/carlosalexei/carlos-opinion/panel-work
+ExecStart=/usr/bin/node panel/servidor.mjs
+Restart=on-failure
+RestartSec=5
+
+Environment=HOME=/home/carlosalexei
+Environment=CO_PANEL_MODO=servidor
+Environment=CO_PANEL_IP=192.168.50.148
+Environment=CO_PANEL_PUERTO=8099
+# El token vive aquí, fuera del repositorio (que es público en GitHub).
+EnvironmentFile=/home/carlosalexei/carlos-opinion/panel.env
+
+# Regla permanente del nodo: todo servicio nuevo por debajo de 100 MB.
+# MemoryHigh estrangula antes de que MemoryMax mate, porque dentro de este
+# cgroup corren también los `git fetch/rebase/commit` que lanza el escritor.
+MemoryHigh=80M
+MemoryMax=96M
+
+# Endurecimiento. Sólo puede escribir en su propio directorio.
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/home/carlosalexei/carlos-opinion
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+
+# No tiene nada que hacer fuera de la LAN. Quien da la cara a internet es NPM.
+IPAddressDeny=any
+IPAddressAllow=192.168.50.0/24 localhost
+
+[Install]
+WantedBy=multi-user.target

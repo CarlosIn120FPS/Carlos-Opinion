@@ -3,6 +3,9 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- El servidor sustituye __TOKEN__ al servir esta página. En modo local se
+     queda tal cual y no se comprueba: allí no hay nadie más escuchando. -->
+<meta name="panel-token" content="__TOKEN__">
 <title>Panel · Carlos' Opinion</title>
 <style>
   :root {
@@ -107,6 +110,7 @@
       <h1>Panel privado</h1>
       <div class="modo" id="modo"></div>
       <div id="secciones"></div>
+      <div id="estado" class="modo" style="margin-top:18px"></div>
     </aside>
     <div id="lista"><input id="buscador" type="search" placeholder="Buscar..." autocomplete="off"></div>
     <main id="detalle"><p class="vacio">Elige una ficha de la izquierda.</p></main>

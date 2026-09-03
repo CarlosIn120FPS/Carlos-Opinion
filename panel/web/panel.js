@@ -25,19 +25,41 @@ function avisar(mensaje) {
   avisar.t = setTimeout(() => { a.style.display = 'none'; }, 6000);
 }
 
-async function api(ruta, opciones) {
-  const r = await fetch(ruta, opciones);
+// El token lo inyecta el servidor en la página. Va en cabecera propia y no en
+// `Authorization`, que en modo servidor lo ocupa la Access List de NPM.
+const TOKEN = document.querySelector('meta[name="panel-token"]')?.content ?? '';
+
+async function api(ruta, opciones = {}) {
+  const r = await fetch(ruta, {
+    ...opciones,
+    headers: { ...(opciones.headers ?? {}), 'X-Panel-Token': TOKEN },
+  });
   const cuerpo = await r.json().catch(() => ({}));
   if (!r.ok) throw new Error(cuerpo.error || `HTTP ${r.status}`);
   return cuerpo;
 }
 
-const enviarOp = (op) =>
-  api(`/api/${estado.clave}/op`, {
+const enviarOp = async (op) => {
+  const r = await api(`/api/${estado.clave}/op`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(op),
   });
+  refrescarEstado();
+  return r;
+};
+
+// Cuánto falta por publicarse. En modo servidor el 200 llega en cuanto se
+// commitea, y el timer publica en un par de minutos: la interfaz lo dice en vez
+// de dar a entender que ya está en línea.
+async function refrescarEstado() {
+  try {
+    const e = await api('/api/estado');
+    $('#estado').textContent = e.pendientes
+      ? `${e.pendientes} cambio${e.pendientes > 1 ? 's' : ''} · se publica en ~2 min`
+      : 'todo publicado';
+  } catch { /* sin conexión: el aviso ya sale por otro lado */ }
+}
 
 // ------------------------------------------------------------------ secciones
 async function arrancar() {
@@ -54,6 +76,8 @@ async function arrancar() {
     }));
   }
   await abrirSeccion(info.secciones[0].clave);
+  refrescarEstado();
+  setInterval(refrescarEstado, 30000);
 }
 
 async function abrirSeccion(clave) {

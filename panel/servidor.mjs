@@ -22,6 +22,7 @@ import { fileURLToPath } from 'node:url';
 import { randomUUID } from 'node:crypto';
 import { aplicar, serializar, ErrorPanel } from './lib/aplicar.mjs';
 import { SECCIONES, CLAVES, seccion } from './lib/secciones.mjs';
+import { repoGit } from './lib/repo.mjs';
 
 const RAIZ = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const WEB = resolve(RAIZ, 'panel/web');
@@ -32,7 +33,27 @@ const PUERTO = Number(process.env.CO_PANEL_PUERTO || 8099);
 // criterio del nodo (deploy/docker-compose.yml:15) es no abrir nunca en 0.0.0.0.
 // En local ni siquiera sale de la máquina.
 const MODO = process.env.CO_PANEL_MODO || 'local';
-const DIRECCION = MODO === 'local' ? '127.0.0.1' : (process.env.CO_PANEL_IP || '127.0.0.1');
+const DIRECCION = MODO === 'local' ? '127.0.0.1' : process.env.CO_PANEL_IP;
+
+// En modo servidor esto edita la web desde fuera de casa: arrancar sin token o
+// escuchando en todas las interfaces sería justo lo que no se puede hacer, así
+// que se muere aquí en vez de arrancar mal.
+const TOKEN = process.env.CO_PANEL_TOKEN || '';
+if (MODO === 'servidor') {
+  if (!DIRECCION || DIRECCION === '0.0.0.0' || DIRECCION === '::') {
+    console.error('  CO_PANEL_IP tiene que ser la IP de LAN. Nunca 0.0.0.0.');
+    process.exit(1);
+  }
+  if (TOKEN.length < 24) {
+    console.error('  CO_PANEL_TOKEN ausente o demasiado corto (mínimo 24 caracteres).');
+    process.exit(1);
+  }
+}
+
+// En modo servidor el panel es otro cliente de git: commitea lo que escribe. En
+// local escribe en el árbol de trabajo y ya; Carlos commitea cuando quiere.
+const repo = MODO === 'servidor' ? repoGit(RAIZ) : null;
+const REMOTO_PUSH = process.env.CO_PANEL_REMOTO || 'origin';
 
 // Los tres módulos que el navegador comparte con la web pública. Allowlist
 // literal: si se sirviera un directorio raíz, dentro está .git/ — con el
@@ -120,6 +141,13 @@ async function estatico(res, ruta) {
   const destino = resolve(WEB, `.${limpia}`);
   if (!destino.startsWith(WEB)) return json(res, 403, { error: 'fuera de sitio' });
   try {
+    if (destino.endsWith('index.html')) {
+      // El token viaja dentro de la página: si has llegado hasta aquí es que ya
+      // pasaste la Access List de NPM. No es una segunda contraseña, es lo que
+      // impide que otra web haga peticiones a ésta desde tu navegador.
+      const html = await readFile(destino, 'utf8');
+      return enviar(res, 200, html.replace('__TOKEN__', TOKEN), TIPOS['.html']);
+    }
     const cuerpo = await readFile(destino);
     enviar(res, 200, cuerpo, TIPOS[extname(destino)] ?? 'application/octet-stream');
   } catch {
@@ -139,6 +167,14 @@ const servidor = createServer(async (req, res) => {
     }
 
     // --- API -----------------------------------------------------------------
+    // Cabecera propia, NO `Authorization: Bearer`. La Access List de NPM usa
+    // auth_basic: el navegador ya tiene cacheado un `Authorization: Basic` para
+    // este origen, y mandar un Bearer encima haría que nginx viera un
+    // Authorization que no es Basic y devolviera 401 sin llegar hasta aquí.
+    if (ruta.startsWith('/api/') && TOKEN && req.headers['x-panel-token'] !== TOKEN) {
+      return json(res, 401, { error: 'falta el token del panel; recarga la página' });
+    }
+
     if (ruta === '/api/secciones' && req.method === 'GET') {
       return json(res, 200, {
         modo: MODO,
@@ -150,9 +186,31 @@ const servidor = createServer(async (req, res) => {
       });
     }
 
+    // Antes que la ruta de sección: /api/estado también encaja en /^\/api\/(\w+)$/
+    // y acabaría buscando una sección llamada "estado".
+    if (ruta === '/api/estado' && req.method === 'GET') {
+      return json(res, 200, { modo: MODO, pendientes: repo ? await repo.pendientes() : 0 });
+    }
+
+    // Una sección que no existe es un 404 con su motivo, no un 500 sin explicar:
+    // `seccion()` lanza un Error normal a propósito (es un fallo de programación,
+    // no del cliente), así que aquí se comprueba antes de llamarla.
+    const mRuta = ruta.match(/^\/api\/([a-z]+)(\/op)?$/);
+    if (mRuta && !CLAVES.includes(mRuta[1])) {
+      return json(res, 404, {
+        error: `sección "${mRuta[1]}" desconocida. Válidas: ${CLAVES.join(', ')}.`,
+      });
+    }
+
     const mSeccion = ruta.match(/^\/api\/([a-z]+)$/);
     if (mSeccion && req.method === 'GET') {
-      const datos = await leerSeccion(mSeccion[1]);
+      // Ponerse al día antes de leer: si no, Carlos promociona un borrador desde
+      // el PC y en el móvil no aparece. Datos rancios es lo que hace que se deje
+      // de usar una herramienta.
+      const datos = await enSerie(async () => {
+        if (repo) await repo.sincronizar();
+        return leerSeccion(mSeccion[1]);
+      });
       return json(res, 200, datos);
     }
 
@@ -161,15 +219,21 @@ const servidor = createServer(async (req, res) => {
       const clave = mOp[1];
       const op = await cuerpoDe(req);
       const resultado = await enSerie(async () => {
+        if (repo) await repo.sincronizar();
         const datos = await leerSeccion(clave);
         const { datos: nuevos, ficha } = aplicar(datos, op, clave, {
           hoy: new Date().toISOString().slice(0, 10),
           nuevoId: `e-${randomUUID().slice(0, 8)}`,
         });
         await guardarSeccion(clave, nuevos);
+        // Se commitea aquí y se devuelve el 200. El push lo hace el timer: si
+        // fuese aquí, escribir dos frases costaría el minuto que tarda el build.
+        if (repo) {
+          await repo.commitear(`Panel: ${op.op} en «${ficha.title}»`, [seccion(clave).fichero]);
+        }
         return ficha;
       });
-      return json(res, 200, { ok: true, ficha: resultado });
+      return json(res, 200, { ok: true, ficha: resultado, pendiente: Boolean(repo) });
     }
 
     if (ruta.startsWith('/api/')) return json(res, 404, { error: 'ruta desconocida' });
@@ -183,7 +247,18 @@ const servidor = createServer(async (req, res) => {
   }
 });
 
+// Al arrancar, dejar el árbol utilizable: puede que el proceso anterior muriese
+// entre escribir y commitear y haya quedado una modificación suelta.
+if (repo) {
+  const limpiado = await repo.sanear();
+  if (limpiado) console.warn('  AVISO: había un cambio a medias sin commitear; se ha descartado.');
+}
+
 servidor.listen(PUERTO, DIRECCION, () => {
+  if (MODO === 'servidor') {
+    console.log(`Panel escuchando en http://${DIRECCION}:${PUERTO} (empuja el timer)`);
+    return;
+  }
   console.log(`
   Panel privado (modo ${MODO})
 

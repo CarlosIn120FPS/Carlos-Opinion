@@ -1,0 +1,18 @@
+# Cada dos minutos, mira si el panel ha escrito algo y lo publica.
+#
+# Un timer y no un hook sobre .git/logs/HEAD: ese fichero lo escriben también el
+# fetch y el rebase del propio escritor, así que se autoalimentaría. Y un timer
+# no puede "perderse" un disparo — si no había nada que enviar, el script sale
+# en milisegundos.
+
+[Unit]
+Description=Carlos' Opinion — comprobar cada 2 min si hay algo que publicar
+
+[Timer]
+OnBootSec=3min
+OnUnitActiveSec=2min
+AccuracySec=15s
+Unit=carlos-opinion-push.service
+
+[Install]
+WantedBy=timers.target
