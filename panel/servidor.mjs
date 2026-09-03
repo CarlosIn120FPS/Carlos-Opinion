@@ -67,7 +67,13 @@ const MODULOS = new Map([
   ['/m/entries.js', 'src/lib/entries.js'],
   ['/m/niveles.js', 'src/data/niveles.js'],
   ['/m/rating.js', 'src/lib/rating.js'],
+  ['/m/pendientes.js', 'panel/lib/pendientes.mjs'],
 ]);
+
+// El usuario de AniList, para la bandeja de pendientes. Vive en panel.env, no en
+// el repositorio: es publico y un nombre de usuario es un dato personal. Si no
+// esta puesto, la bandeja no aparece — no es un error, es que no se usa.
+const ANILIST_USUARIO = process.env.CO_ANILIST_USUARIO || '';
 
 const TIPOS = {
   '.html': 'text/html; charset=utf-8',
@@ -186,6 +192,7 @@ const servidor = createServer(async (req, res) => {
     if (ruta === '/api/secciones' && req.method === 'GET') {
       return json(res, 200, {
         modo: MODO,
+        anilist: ANILIST_USUARIO,
         secciones: CLAVES.map((c) => ({
           clave: c,
           etiqueta: SECCIONES[c].etiqueta,

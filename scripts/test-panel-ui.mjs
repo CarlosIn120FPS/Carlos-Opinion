@@ -127,16 +127,29 @@ const DETALLE = {
     genres: ['Comedia'], hasManga: true, hasLightNovel: false, openings: [], endings: [] },
 };
 
+// Respuesta fija de AniList: la ficha 8 (Alya) con 2 episodios vistos.
+const ANILIST = {
+  data: {
+    MediaListCollection: { lists: [{ entries: [
+      { mediaId: 162804, progress: 2, status: 'CURRENT', updatedAt: 1788400000 },
+    ] }] },
+    Page: { media: [{ id: 162804, format: 'TV', seasonYear: 2024 }] },
+  },
+};
+
 const llamadas = [];
 globalThis.fetch = async (ruta, opciones = {}) => {
   llamadas.push({ ruta, metodo: opciones.method ?? 'GET', cabeceras: opciones.headers ?? {} });
+  if (String(ruta).includes('graphql.anilist.co')) {
+    return { ok: true, status: 200, json: async () => ANILIST };
+  }
   const mDetalle = ruta.match(/^\/api\/borradores\/anime\/(\d+)$/);
   if (mDetalle) return { ok: true, json: async () => DETALLE[mDetalle[1]] };
   const cuerpo =
     ruta === '/api/borradores'
       ? { borradores: BORRADORES, categorias: { anime: ANIME.categories, manga: [], lightnovel: [] } }
       : ruta === '/api/secciones'
-      ? { modo: 'servidor', secciones: [
+      ? { modo: 'servidor', anilist: 'carlostest', secciones: [
           { clave: 'anime', etiqueta: 'Anime', campos: [
             { clave: 'category', tipo: 'categoria', etiqueta: 'Categoría' },
             { clave: 'rating', tipo: 'texto', etiqueta: 'Nota' },
@@ -170,6 +183,7 @@ await build({
         '/m/entries.js': 'src/lib/entries.js',
         '/m/niveles.js': 'src/data/niveles.js',
         '/m/rating.js': 'src/lib/rating.js',
+        '/m/pendientes.js': 'panel/lib/pendientes.mjs',
       };
       b.onResolve({ filter: /^\/m\// }, (args) => {
         const destino = MAPA[args.path];
@@ -198,8 +212,9 @@ check('y no deja un aviso de error', !aviso.textContent.includes('No se pudo arr
   aviso.textContent);
 
 const secciones = raiz.querySelector('#secciones');
+// Las pseudo-secciones (borradores, pendientes) llevan clave con __ delante.
 const botonesSeccion = secciones.children.filter(
-  (b) => b.dataset.clave && b.dataset.clave !== '__borradores',
+  (b) => b.dataset.clave && !b.dataset.clave.startsWith('__'),
 );
 igual('pinta las tres secciones en la barra lateral',
   botonesSeccion.map((b) => b.textContent), ['Anime', 'Manga', 'Novelas ligeras']);
@@ -283,6 +298,39 @@ if (conDiario) {
       opciones.includes('Viendo') && opciones.includes('Visto'), JSON.stringify(opciones));
     check('y la primera opción obliga a elegir',
       opciones[0]?.includes('categoría'), JSON.stringify(opciones));
+  }
+}
+
+// --- la bandeja de pendientes -----------------------------------------------
+{
+  const bPend = secciones.children.find((b) => b.dataset.clave === '__pendientes');
+  check('hay un boton de pendientes cuando hay usuario de AniList', Boolean(bPend));
+  if (bPend) {
+    await bPend.onclick();
+    await new Promise((r) => setImmediate(r));
+    await new Promise((r) => setImmediate(r));
+
+    const det = raiz.querySelector('#detalle').textContent;
+    check('ensena los pendientes', det.includes('Pendientes de comentar'), det.slice(0, 200));
+    check('con la ficha a la que pertenecen', det.includes('Alya'), det.slice(0, 300));
+    // AniList dice 2 episodios vistos; la ficha 8 no tiene diario: dos filas.
+    check('una fila por episodio visto sin comentar',
+      det.includes('Episodio 2') && det.includes('Episodio 1'), det.slice(0, 400));
+    // Una sola temporada: no se numera.
+    check('con una sola temporada no pone Tn', !det.includes('T1 · Episodio'), det.slice(0, 400));
+    check('la fecha solo va en el ultimo visto', det.includes('sin fecha'), det.slice(0, 400));
+
+    // LO QUE NO PUEDE HACER: rellenar la opinion ni la nota.
+    const campos = raiz.querySelector('#detalle').buscarTodos('input');
+    check('hay campos para escribir', campos.length >= 2, String(campos.length));
+    check('pero vienen VACIOS: la voz es suya',
+      campos.every((i) => !i.value), JSON.stringify(campos.map((i) => i.value)));
+
+    check('se consulto a AniList de verdad',
+      llamadas.some((l) => String(l.ruta).includes('graphql.anilist.co')));
+    check('y sin mandarle el token del panel',
+      llamadas.filter((l) => String(l.ruta).includes('anilist'))
+        .every((l) => !l.cabeceras['X-Panel-Token']));
   }
 }
 

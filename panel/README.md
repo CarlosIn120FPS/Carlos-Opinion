@@ -89,6 +89,37 @@ campo que nadie pinta.
 - **Escritura atómica** (`.tmp` + `rename`) y copia previa en `.copias/`, de la
   que se guardan las 20 últimas por sección.
 
+## La bandeja de pendientes
+
+Aparece sólo si `panel.env` tiene `CO_ANILIST_USUARIO=<tu usuario>`. Sin eso no
+sale, y no es un error: es que no se usa.
+
+Enseña los episodios que AniList dice que has visto y todavía no has comentado,
+con la temporada, el episodio y la fecha ya puestos, y **la opinión y la nota
+vacías**. Lo escribes ahí mismo y se guarda por la misma ruta de siempre.
+
+**Nuestro código no habla con Crunchyroll nunca.** Sus condiciones prohíben
+acceder al sitio con cualquier cosa que no sea un navegador. El buzón es AniList,
+que sí tiene API pública pensada para clientes de terceros. Cómo llegue el
+episodio a AniList es cosa de Carlos: a mano, o con una extensión que lo
+sincronice desde donde vea.
+
+Detalles que importan:
+
+- **La consulta se hace desde el navegador**, no desde Pavilion. El servicio del
+  panel corre con `IPAddressDeny=any` y no tiene salida a internet a propósito,
+  por ser el proceso siempre en pie y expuesto por NPM. Abrírsela para leer una
+  lista de episodios sería empeorar el endurecimiento a cambio de nada.
+- **Se usa `MediaListCollection`, no `Page.mediaList`**, aunque el segundo
+  permitiría filtrar por ids y traer menos datos. Comprobado ejecutándolo: con un
+  usuario inventado, `MediaListCollection` da un 404 «User not found» y
+  `Page.mediaList` da un 500. Con el segundo no se puede distinguir «has escrito
+  mal el usuario» de «AniList está caído», que es justo lo primero que va a pasar.
+- **Las temporadas se numeran por año**, no por el orden de `anilistIds`, que
+  viene del recorrido del grafo y no es cronológico. Las películas y los OVA no
+  se numeran: no son la temporada 3 de nada.
+- **Una ficha sin `anilistIds` no puede salir**: no hay forma de cruzarla.
+
 ## Seguridad
 
 En modo local escucha **sólo en 127.0.0.1**: no sale de la máquina. `listen(puerto)`

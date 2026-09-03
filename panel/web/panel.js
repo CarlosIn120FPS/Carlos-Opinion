@@ -7,6 +7,7 @@
 import { buildDiary, normalizeEntries } from '/m/entries.js';
 import { ESQUEMA } from '/m/niveles.js';
 import { itemRating, isUnrated, showRating } from '/m/rating.js';
+import { CONSULTA, interpretar, construirBandeja, explicarError } from '/m/pendientes.js';
 
 const $ = (s) => document.querySelector(s);
 const el = (tag, props = {}, hijos = []) => {
@@ -26,6 +27,8 @@ const estado = {
   secciones: [], clave: null, datos: null, fichaId: null, filtro: '',
   // Los borradores son una vista aparte: no son fichas publicadas todavía.
   enBorradores: false, borradores: [], borradorId: null, categorias: {},
+  // La bandeja de pendientes: lo que AniList dice que ha visto y no ha comentado.
+  enPendientes: false, anilist: '', bandeja: null,
 };
 
 function avisar(mensaje) {
@@ -94,6 +97,17 @@ async function arrancar() {
   });
   caja.append(el('div', { style: 'height:14px' }), botonBorradores);
 
+  // Sólo si hay usuario configurado. Sin él no es un error: es que no se usa.
+  estado.anilist = info.anilist || '';
+  if (estado.anilist) {
+    botonPendientes = el('button', {
+      textContent: 'Pendientes',
+      onclick: () => abrirPendientes(),
+      dataset: { clave: '__pendientes' },
+    });
+    caja.append(botonPendientes);
+  }
+
   await abrirSeccion(info.secciones[0].clave);
   refrescarEstado();
   contarBorradores();
@@ -101,6 +115,7 @@ async function arrancar() {
 }
 
 let botonBorradores = null;
+let botonPendientes = null;
 
 async function contarBorradores() {
   try {
@@ -122,6 +137,7 @@ async function abrirSeccion(clave) {
   estado.clave = clave;
   estado.fichaId = null;
   estado.enBorradores = false;
+  estado.enPendientes = false;
   estado.datos = await api(`/api/${clave}`);
   marcarSeccion(clave);
   $('#detalle').replaceChildren(el('p', { className: 'vacio', textContent: 'Elige una ficha de la izquierda.' }));
@@ -133,6 +149,7 @@ const seccionActual = () => estado.secciones.find((s) => s.clave === estado.clav
 // ----------------------------------------------------------------- borradores
 async function abrirBorradores() {
   estado.enBorradores = true;
+  estado.enPendientes = false;
   estado.borradorId = null;
   marcarSeccion('__borradores');
   $('#detalle').replaceChildren(
@@ -260,11 +277,141 @@ async function abrirBorrador(resumen) {
   main.replaceChildren(...trozos);
 }
 
+// ------------------------------------------------------------- pendientes
+// La consulta a AniList se hace DESDE AQUÍ, desde el navegador, y no desde el
+// servidor del panel. No es un capricho: ese servicio corre con IPAddressDeny=any
+// (ver deploy/panel/carlos-opinion-panel.service) y no tiene salida a internet a
+// propósito, por ser el proceso siempre en pie y expuesto por NPM. Abrírsela para
+// leer una lista de episodios sería empeorar el endurecimiento a cambio de nada.
+async function consultarAniList(ids) {
+  const r = await fetch('https://graphql.anilist.co', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ query: CONSULTA, variables: { usuario: estado.anilist, ids } }),
+  });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok || j.errors) throw new Error(explicarError(r.status, j.errors));
+  return j;
+}
+
+async function abrirPendientes() {
+  estado.enPendientes = true;
+  estado.enBorradores = false;
+  marcarSeccion('__pendientes');
+  pintarLista();
+  const main = $('#detalle');
+  main.replaceChildren(el('p', { className: 'vacio', textContent: 'Preguntando a AniList...' }));
+
+  try {
+    // La bandeja es de anime: es donde hay episodios que ver.
+    const datos = estado.clave === 'anime' ? estado.datos : await api('/api/anime');
+    const ids = [...new Set((datos.items ?? []).flatMap((i) => i.anilistIds ?? []))];
+    if (!ids.length) {
+      return main.replaceChildren(el('p', { className: 'vacio',
+        textContent: 'Ninguna ficha declara anilistIds, así que no hay nada que cruzar.' }));
+    }
+    const { listasPorId, formatos } = interpretar(await consultarAniList(ids));
+    estado.bandeja = construirBandeja(datos.items, listasPorId, formatos);
+    pintarPendientes();
+  } catch (e) {
+    main.replaceChildren(
+      el('h3', { textContent: 'No se ha podido leer AniList' }),
+      el('p', { style: 'color:#94a3b8', textContent: e.message }),
+    );
+  }
+}
+
+function pintarPendientes() {
+  const main = $('#detalle');
+  const bandeja = estado.bandeja ?? [];
+  const total = bandeja.reduce((n, b) => n + b.filas.length, 0);
+  if (botonPendientes) {
+    botonPendientes.textContent = total ? `Pendientes (${total})` : 'Pendientes';
+  }
+
+  if (!total) {
+    return main.replaceChildren(
+      el('h2', { textContent: 'Al día' }),
+      el('p', { style: 'color:#94a3b8', textContent:
+        `Nada que comentar. Marca episodios en AniList como «${estado.anilist}» y aparecerán aquí.` }),
+    );
+  }
+
+  const trozos = [
+    el('h2', { textContent: 'Pendientes de comentar' }),
+    el('div', { className: 'jp', textContent:
+      `Según AniList (${estado.anilist}). La opinión y la nota las escribes tú.` }),
+  ];
+
+  for (const grupo of bandeja) {
+    trozos.push(el('h3', { textContent: grupo.ficha.title }));
+    for (const fila of grupo.filas) trozos.push(pintarFilaPendiente(grupo.ficha, fila));
+    if (grupo.recortadas) {
+      trozos.push(el('p', { style: 'color:#94a3b8;font-size:13px',
+        textContent: `y ${grupo.recortadas} episodio${grupo.recortadas > 1 ? 's' : ''} más atrás.` }));
+    }
+  }
+  main.replaceChildren(...trozos);
+}
+
+function pintarFilaPendiente(ficha, fila) {
+  const etiqueta = (fila.season ? `T${fila.season} · ` : '') + `Episodio ${fila.episode}`;
+  const nota = el('input', { type: 'number', min: '0', max: '10', step: '0.1', placeholder: 'nota' });
+  const texto = el('input', { type: 'text', placeholder: '¿Qué te ha parecido?' });
+  const boton = el('button', { className: 'principal', textContent: 'Guardar' });
+  const caja = el('div', { className: 'nueva', style: 'margin-bottom:10px' });
+
+  boton.onclick = async () => {
+    if (!texto.value.trim() && !nota.value) {
+      return avisar('Escribe algo o pon una nota: una entrada vacía no dice nada.');
+    }
+    boton.disabled = true;
+    try {
+      // El localizador y la fecha vienen de AniList; el texto y la nota, de él.
+      const entrada = { episode: fila.episode };
+      if (fila.season) entrada.season = fila.season;
+      if (fila.date) entrada.date = fila.date;
+      if (nota.value) entrada.rating = nota.value;
+      if (texto.value.trim()) entrada.text = texto.value;
+
+      await api(`/api/anime/op`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ op: 'entry.add', id: ficha.id, entrada }),
+      });
+      refrescarEstado();
+      caja.replaceChildren(el('div', { className: 'grupo',
+        textContent: `${etiqueta} · guardado` }));
+      // Fuera de la bandeja: ya está comentado.
+      estado.bandeja = estado.bandeja
+        .map((g) => ({ ...g, filas: g.filas.filter((f) => f.clave !== fila.clave) }))
+        .filter((g) => g.filas.length);
+      const quedan = estado.bandeja.reduce((n, g) => n + g.filas.length, 0);
+      if (botonPendientes) botonPendientes.textContent = quedan ? `Pendientes (${quedan})` : 'Pendientes';
+    } catch (e) {
+      avisar(e.message);
+      boton.disabled = false;
+    }
+  };
+
+  caja.append(
+    el('div', { className: 'linea' }, [
+      el('div', { style: 'flex:0 0 auto' }, [el('label', { textContent: fila.date || 'sin fecha' }),
+        el('div', { className: 'et', textContent: etiqueta })]),
+      el('div', { style: 'flex:0 0 90px' }, [el('label', { textContent: 'Nota' }), nota]),
+      el('div', { style: 'flex:1' }, [el('label', { textContent: 'Opinión' }), texto]),
+    ]),
+    el('div', {}, [boton]),
+  );
+  return caja;
+}
+
 // ---------------------------------------------------------------------- lista
 function pintarLista() {
   const lista = $('#lista');
   for (const n of [...lista.children]) if (n.id !== 'buscador') n.remove();
 
+  if (estado.enPendientes) return;
   if (estado.enBorradores) return pintarListaBorradores(lista);
 
   const filtro = estado.filtro.toLowerCase();
