@@ -45,8 +45,21 @@ RestrictSUIDSGID=true
 RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
 
 # No tiene nada que hacer fuera de la LAN. Quien da la cara a internet es NPM.
+#
+# OJO CON LA TERCERA LÍNEA: Nginx Proxy Manager corre en Docker, en la red
+# matrix-stack_default (172.31.0.0/16), así que sus peticiones NO llegan con una
+# IP de la LAN sino con la del bridge. Sin ese rango, el panel funciona por
+# http://192.168.50.148:8099 pero por HTTPS no carga — y no deja ni rastro en el
+# log, porque el filtro corta antes de que la conexión llegue al proceso.
+#
+# El síntoma exacto, por si vuelve a pasar:
+#   docker exec nginx-proxy-manager curl -s -o /dev/null -w '%{http_code}' \
+#       http://192.168.50.148:8099/     -> 000 (bloqueado) en vez de 200
+#
+# Si algún día se recrea esa red con otra subred, hay que actualizar esta línea:
+#   docker network inspect matrix-stack_default --format '{{range .IPAM.Config}}{{.Subnet}}{{end}}'
 IPAddressDeny=any
-IPAddressAllow=192.168.50.0/24 localhost
+IPAddressAllow=192.168.50.0/24 172.31.0.0/16 localhost
 
 [Install]
 WantedBy=multi-user.target
