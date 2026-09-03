@@ -11,6 +11,8 @@
 // personalOpinion); el español es sólo lo que se pinta. Ver docs/esquema-ficha.md.
 export const ESQUEMA = {
   anime: {
+    slug: 'anime',
+    nombre: 'anime',
     // Deliberadamente distinto de "Rating (mientras lo veo)", que es el campo de
     // obra de toda la vida. Son dos cosas y no pueden llamarse igual.
     diaryTitle: 'Diario de visionado',
@@ -21,6 +23,8 @@ export const ESQUEMA = {
     ],
   },
   manga: {
+    slug: 'manga',
+    nombre: 'manga',
     diaryTitle: 'Diario de lectura',
     countLabel: (n) => `${n} ${n === 1 ? 'nota' : 'notas'}`,
     levels: [
@@ -29,6 +33,8 @@ export const ESQUEMA = {
     ],
   },
   lightnovel: {
+    slug: 'novelas',
+    nombre: 'novela ligera',
     diaryTitle: 'Diario de lectura',
     countLabel: (n) => `${n} ${n === 1 ? 'nota' : 'notas'}`,
     // Un solo nivel a propósito: en novelas se opina por volumen, no por capítulo.

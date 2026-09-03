@@ -242,6 +242,50 @@ const texto = (html) =>
   }
 }
 
+// ----------------------------------------------------- fichas hermanas, en los tres
+// Antes «Tiene manga: Sí» no llevaba a ningún sitio, ni con ficha real al otro
+// lado. Ahora son tres estados y sólo uno pinta un <button> clicable de verdad.
+{
+  const comun = {
+    id: 1, title: 'FICHA DE PRUEBA', japaneseTitle: '—', image: '', description: '—',
+    fullSynopsis: '—', genres: [], platforms: [], languages: [], openings: [], endings: [],
+    physicalStores: [], rating: '', ratingFinal: '', personalOpinion: '', personalOpinionFinal: '',
+    doIRecommend: '', entries: [],
+  };
+
+  // Los <button> del cierre y demás no anidan otros botones aquí dentro, así que
+  // basta con extraer el contenido de cada uno para saber si el texto vive
+  // DENTRO de un botón o suelto como texto plano.
+  const textosDeBotones = (html) =>
+    [...html.matchAll(/<button\b[^>]*>([\s\S]*?)<\/button>/g)].map((m) => texto(m[1]));
+
+  const casos = [
+    ['AnimeModal', 'anime', { hasManga: false, related: {} }, false],
+    ['AnimeModal', 'anime', { hasManga: true, related: {} }, false],
+    ['AnimeModal', 'anime', { hasManga: true, related: { manga: 9 } }, true],
+    ['MangaModal', 'manga', { hasAnime: true, related: { anime: 4 } }, true],
+    ['MangaModal', 'manga', { hasAnime: false, related: {} }, false],
+    ['LightNovelModal', 'lightnovel', { hasAnime: false, hasManga: false, related: {} }, false],
+    ['LightNovelModal', 'lightnovel', { hasAnime: true, hasManga: false, related: { anime: 4 } }, true],
+  ];
+
+  for (const [nombre, tipo, extra, esperaEnlace] of casos) {
+    const Modal = await compilar(`src/components/${nombre}.jsx`, `${nombre}.mjs`);
+    const item = { ...comun, ...extra };
+    const html = renderToStaticMarkup(
+      createElement(Modal, { item, onClose() {}, onOpenRelated() {} }),
+    );
+    const botones = textosDeBotones(html);
+    const hayEnlaceDeHermana = botones.some((b) => b.includes('→'));
+    check(
+      `${nombre} related=${JSON.stringify(extra.related)}: ${esperaEnlace ? 'SÍ' : 'NO'} enlaza a la ficha`,
+      hayEnlaceDeHermana === esperaEnlace,
+      `botones: ${JSON.stringify(botones)}`,
+    );
+    check(`${nombre}: sigue pintando la ficha`, texto(html).includes('FICHA DE PRUEBA'));
+  }
+}
+
 // ------------------------------------------------- la tarjeta: nota y contador
 {
   const Card = await compilar('src/components/ContentCard.jsx', 'ContentCard.mjs');

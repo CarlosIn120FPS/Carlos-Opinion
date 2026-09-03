@@ -3,6 +3,7 @@ import CoverImage from './CoverImage';
 import EntriesBlock from './EntriesBlock';
 import { useModalChrome } from '../hooks/useModalChrome';
 import { ratingEntries, opinionEntries } from '../lib/opinionFields';
+import { hermanas } from '../lib/related';
 import { ESQUEMA } from '../data/niveles';
 
 const RATING_LABELS = {
@@ -17,7 +18,7 @@ const OPINION_LABELS = {
   single: 'Opinión Personal',
 };
 
-const AnimeModal = ({ item, onClose }) => {
+const AnimeModal = ({ item, onClose, onOpenRelated }) => {
   useModalChrome(onClose);
 
   const ratings = ratingEntries(item, RATING_LABELS);
@@ -99,15 +100,27 @@ const AnimeModal = ({ item, onClose }) => {
                   <span>{item.episodes}</span>
                 </div>
 
-                <div className="flex items-center gap-2">
-                  <span className="text-purple-300 font-semibold">Tiene manga?</span>
-                  <span>{item.hasManga ? 'Sí' : 'No'}</span>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <span className="text-purple-300 font-semibold">Tiene novela ligera?</span>
-                  <span>{item.hasLightNovel ? 'Sí' : 'No'}</span>
-                </div>
+                {/* Antes esto era «Tiene manga: Sí» y no llevaba a ningún sitio,
+                    ni cuando la ficha existía. Ahora son tres estados y, si hay
+                    ficha al otro lado, se va a ella. */}
+                {hermanas(item, 'anime').map((h) => (
+                  <div key={h.seccion} className="flex items-center gap-2">
+                    <span className="text-purple-300 font-semibold">{h.pregunta}</span>
+                    {h.estado === 'ficha' ? (
+                      <button
+                        type="button"
+                        onClick={() => onOpenRelated?.(h.seccion, h.id)}
+                        className="px-3 py-1 rounded-lg bg-gradient-to-r from-purple-500/40 to-blue-500/40 border border-purple-400/50 text-purple-100 hover:scale-105 transition-transform"
+                      >
+                        {h.etiqueta}
+                      </button>
+                    ) : (
+                      <span className={h.estado === 'existe' ? 'text-purple-200/80' : ''}>
+                        {h.etiqueta}
+                      </span>
+                    )}
+                  </div>
+                ))}
 
                 {/* Con guarda: sin ella, una ficha a medias enseña la etiqueta
                     seguida de nada — hoy pasa en la de Alya. */}

@@ -181,6 +181,14 @@ function App() {
     [navigate],
   );
 
+  // Ir a la ficha hermana en otra sección. Cambia la URL entera (sección + id),
+  // así que no hace falta cargar los datos de la otra sección aquí: al navegar,
+  // App vuelve a montar contra la nueva ruta y useContentData hace su trabajo.
+  const openRelated = useCallback(
+    (typeId, id) => navigate(`/${CONTENT_TYPES[typeId].slug}/${id}`),
+    [navigate],
+  );
+
   const ItemModal = type.Modal;
 
   // Todos los hooks ya se han llamado, así que aquí ya es seguro salir.
@@ -551,7 +559,14 @@ function App() {
 
       {/* Content Modal */}
       <AnimatePresence>
-        {selectedItem && <ItemModal key={`${type.id}-modal`} item={selectedItem} onClose={closeItem} />}
+        {selectedItem && (
+          <ItemModal
+            key={`${type.id}-modal`}
+            item={selectedItem}
+            onClose={closeItem}
+            onOpenRelated={openRelated}
+          />
+        )}
       </AnimatePresence>
     </div>
   );

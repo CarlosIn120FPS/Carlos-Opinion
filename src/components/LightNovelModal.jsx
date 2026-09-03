@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import CoverImage from './CoverImage';
 import EntriesBlock from './EntriesBlock';
 import { ESQUEMA } from '../data/niveles';
+import { hermanas } from '../lib/related';
 import { useModalChrome } from '../hooks/useModalChrome';
 import { ratingEntries, opinionEntries } from '../lib/opinionFields';
 
@@ -21,7 +22,7 @@ const OPINION_LABELS = {
   single: 'Reseña:',
 };
 
-const LightNovelModal = ({ item, onClose }) => {
+const LightNovelModal = ({ item, onClose, onOpenRelated }) => {
   const [currentSpread, setCurrentSpread] = useState(0);
   const [totalSpreads, setTotalSpreads] = useState(1);
   const [isMobile, setIsMobile] = useState(() => window.innerWidth < 768);
@@ -202,14 +203,20 @@ const LightNovelModal = ({ item, onClose }) => {
               <p>
                 <strong className="text-stone-900 dark:text-stone-100">Volúmenes:</strong> {item.volumes}
               </p>
-              <p>
-                <strong className="text-stone-900 dark:text-stone-100">¿Tiene Anime?:</strong>{' '}
-                {item.hasAnime ? 'Sí' : 'No'}
-              </p>
-              <p>
-                <strong className="text-stone-900 dark:text-stone-100">¿Tiene Manga?:</strong>{' '}
-                {item.hasManga ? 'Sí' : 'No'}
-              </p>
+              {hermanas(item, 'lightnovel').map((h) => (
+                <p key={h.seccion}>
+                  <strong className="text-stone-900 dark:text-stone-100">{h.pregunta}</strong>{' '}
+                  {h.estado === 'ficha' ? (
+                    <button
+                      type="button"
+                      onClick={() => onOpenRelated?.(h.seccion, h.id)}
+                      className="px-2 py-0.5 text-sm font-bold bg-amber-100 dark:bg-amber-900/40 text-amber-900 dark:text-amber-100 rounded border border-amber-400 dark:border-amber-700 hover:bg-amber-200 dark:hover:bg-amber-800/60 transition-colors"
+                    >
+                      {h.etiqueta}
+                    </button>
+                  ) : h.etiqueta}
+                </p>
+              ))}
               <p>
                 <strong className="text-stone-900 dark:text-stone-100">Idiomas:</strong> {item.languages.join(', ')}
               </p>

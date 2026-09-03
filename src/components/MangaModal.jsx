@@ -4,6 +4,7 @@ import CoverImage from './CoverImage';
 import EntriesBlock from './EntriesBlock';
 import { ESQUEMA } from '../data/niveles';
 import { normalizeEntries } from '../lib/entries';
+import { hermanas } from '../lib/related';
 import { useModalChrome } from '../hooks/useModalChrome';
 import { ratingEntries, opinionEntries } from '../lib/opinionFields';
 
@@ -21,7 +22,7 @@ const OPINION_LABELS = {
   single: 'Opinión',
 };
 
-const MangaModal = ({ item, onClose }) => {
+const MangaModal = ({ item, onClose, onOpenRelated }) => {
   const [selectedStore, setSelectedStore] = useState(null);
 
   // Escape cierra primero la tienda si está abierta; sólo si no, el modal entero.
@@ -112,10 +113,20 @@ const MangaModal = ({ item, onClose }) => {
                   <span className="font-black text-blue-600 dark:text-blue-400">Capítulos/Volúmenes:</span>{' '}
                   {item.chapters} / {item.volumes}
                 </p>
-                <p>
-                  <span className="font-black text-blue-600 dark:text-blue-400">¿Tiene Anime?:</span>{' '}
-                  {item.hasAnime ? '¡Sí!' : 'No'}
-                </p>
+                {hermanas(item, 'manga').map((h) => (
+                  <p key={h.seccion}>
+                    <span className="font-black text-blue-600 dark:text-blue-400">{h.pregunta}</span>{' '}
+                    {h.estado === 'ficha' ? (
+                      <button
+                        type="button"
+                        onClick={() => onOpenRelated?.(h.seccion, h.id)}
+                        className="px-2 py-0.5 bg-green-100 dark:bg-green-900/40 border-2 border-black dark:border-gray-600 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] dark:shadow-[2px_2px_0px_0px_rgba(255,255,255,0.1)] font-bold text-sm hover:translate-y-0.5 hover:shadow-none transition-all"
+                      >
+                        {h.etiqueta}
+                      </button>
+                    ) : h.etiqueta}
+                  </p>
+                ))}
               </div>
             </div>
 

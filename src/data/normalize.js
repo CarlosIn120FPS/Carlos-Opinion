@@ -11,6 +11,18 @@
 const toArray = (value) => (Array.isArray(value) ? value : []);
 const toText = (value) => (typeof value === 'string' ? value : '');
 
+// { manga: 1, lightnovel: 3 }: el id de la ficha hermana en cada sección. Un
+// objeto suelto o con valores raros (una cadena, un array) no debe reventar el
+// enlace: se descarta la entrada mala en vez de toda la ficha.
+const toRelated = (value) => {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
+  const salida = {};
+  for (const [seccion, id] of Object.entries(value)) {
+    if (typeof id === 'number' || typeof id === 'string') salida[seccion] = id;
+  }
+  return salida;
+};
+
 export function normalizeItem(raw, index) {
   return {
     ...raw,
@@ -28,6 +40,9 @@ export function normalizeItem(raw, index) {
     // El diario por niveles. Opcional en el JSON, siempre un array aquí, para
     // que ninguna ficha antigua obligue a los componentes a defenderse.
     entries: toArray(raw?.entries),
+    // Fichas hermanas: el enlace es EXPLÍCITO, nunca adivinado por título. Eso ya
+    // se probó y emparejó «Call of the Night» con Shimoneta.
+    related: toRelated(raw?.related),
   };
 }
 
