@@ -20,6 +20,7 @@ import { readFile } from 'node:fs/promises';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { repoGit } from './lib/repo.mjs';
+import { localizarRepo } from '../scripts/portadas.mjs';
 
 const RAIZ = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const BASE = process.env.CO_PANEL_BASE || '/home/carlosalexei/carlos-opinion';
@@ -32,6 +33,21 @@ async function avisar(texto) {
   console.error(texto);
   if (!NTFY) return;
   await fetch(NTFY, { method: 'POST', body: texto }).catch(() => {});
+}
+
+// Portadas locales ANTES de mirar si hay algo que empujar: una ficha publicada
+// desde el móvil llega con la URL de AniList, y el panel no puede bajarla (su
+// servicio no tiene salida a internet a propósito). Este proceso sí. Si no hay
+// nada externo, cuesta leer tres JSON y ya. Si la descarga falla, la ficha se
+// queda con su URL y se reintenta en el próximo ciclo.
+try {
+  const { cambiados, informe } = await localizarRepo(RAIZ, { log: console.log });
+  if (cambiados.length) {
+    const titulos = informe.filter((f) => f.estado === 'ok').map((f) => f.title).join(', ');
+    await repo.commitear(`Portadas locales: ${titulos}`, cambiados);
+  }
+} catch (e) {
+  await avisar(`Panel: no se pudieron traer las portadas — ${e.message}`);
 }
 
 const pendientes = await repo.pendientes().catch(() => 0);

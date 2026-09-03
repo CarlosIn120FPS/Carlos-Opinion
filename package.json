@@ -8,8 +8,9 @@
     "build": "vite build",
     "build:pages": "vite build --base=/Carlos-Opinion/",
     "lint": "eslint .",
-    "test": "node scripts/test-entries.mjs && node scripts/test-web.mjs && node scripts/test-related.mjs && node scripts/test-panel.mjs && node scripts/test-pendientes.mjs && node scripts/test-panel-ui.mjs && node scripts/test-render.mjs",
+    "test": "node scripts/test-entries.mjs && node scripts/test-web.mjs && node scripts/test-related.mjs && node scripts/test-panel.mjs && node scripts/test-pendientes.mjs && node scripts/test-portadas.mjs && node scripts/test-panel-ui.mjs && node scripts/test-render.mjs",
     "panel": "node panel/servidor.mjs",
+    "portadas": "node scripts/portadas.mjs",
     "deploy": "node scripts/deploy.mjs",
     "preview": "vite preview"
   },

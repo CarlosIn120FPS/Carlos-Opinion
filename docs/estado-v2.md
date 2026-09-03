@@ -8,16 +8,17 @@
 
 ## Resumen
 
-**Hecho: 22 de 27** de las cosas concretas que piden los cinco documentos
-(las fichas hermanas se cerraron la tarde de la auditoría). Lo que falta son
-**5 piezas de la web pública y del panel**, y ninguna bloquea a otra.
+**Hecho: 23 de 27** de las cosas concretas que piden los cinco documentos
+(fichas hermanas y portadas locales se cerraron la tarde de la auditoría). Lo
+que falta son **4 piezas de la web pública y del panel**, y ninguna bloquea a
+otra.
 
 | Documento | Hecho | Falta |
 |---|---|---|
 | `esquema-ficha.md` | 8 / 8 | — |
 | `rediseno-fichas.md` | 5 / 6 | Whakoom (investigado, no construido) |
 | `panel-privado.md` | 7 / 9 | `_revisar` tras publicar · "clonar a manga" |
-| `integracion-jellyfin.md` | 8 / 10 | portadas locales · OG tags |
+| `integracion-jellyfin.md` | 9 / 10 | OG tags |
 | `VERSION-2.md` | 5 / 5 piezas | — |
 
 ---
@@ -41,21 +42,20 @@ Aún no hay ningún `related` en los datos reales: Chainsaw Man está en manga y
 anime sigue en borradores. Cuando Carlos publique ese borrador, lo enlaza desde
 el panel.
 
-### 2. Las portadas siguen colgando de terceros
+### 2. Las portadas siguen colgando de terceros — HECHO (2026-09-03)
 
-`integracion-jellyfin.md` §3.3. **8 de 8 fichas de anime** apuntan fuera:
+`integracion-jellyfin.md` §3.3. Las 10 fichas publicadas tienen ya su portada en
+`public/covers/` (la de Mushoku Tensei en MyAnimeList **ya estaba muerta**, 404;
+se sustituyó por la de AniList). La procedencia de cada fichero, con la URL
+original, está en `public/covers/origen.json`.
 
-```bash
-grep -c '"image": "http' public/data/anime.json   # 8
-ls public/covers                                   # no existe
-```
-
-Crunchyroll, Netflix, wikia, JustWatch, Amazon y MyAnimeList. Esas URLs llevan
-tokens que rotan, y cuando una caduca **no te enteras**, porque el placeholder
-gris de `CoverImage.jsx` lo disimula educadamente.
-
-Y ahora pesa más que antes: el generador ya trae `coverImage` de AniList en los
-34 borradores. Si se publican tal cual, pasan de 8 portadas frágiles a 42.
+- `npm run portadas` en el PC: baja lo que siga fuera y reescribe `image`.
+- `panel/empujar.mjs` en Pavilion hace lo mismo antes de cada publicación, así
+  que una ficha publicada desde el móvil pierde la URL de AniList en ~2 min.
+- Reglas (`panel/lib/portadas.mjs`): nunca se deja `image` en blanco; el tipo
+  sale de los bytes, no de la URL; un 404 se anota y no se reintenta; un fallo
+  de red sí; si la original ha muerto y hay `anilistIds`, se usa AniList.
+- `scripts/test-entries.mjs` comprueba que toda portada local exista de verdad.
 
 ### 3. Al publicar un borrador se pierde el "revisar esto"
 

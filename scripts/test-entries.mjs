@@ -12,7 +12,7 @@
  *     campos son su voz.
  */
 
-import { readFileSync } from 'node:fs';
+import { readFileSync, existsSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { normalizeContent } from '../src/data/normalize.js';
@@ -88,6 +88,17 @@ for (const [fichero, tipo] of FICHEROS) {
       buildDiary(normalizada.entries, ESQUEMA[tipo].levels).total,
       0,
     );
+
+    // Una portada propia ("covers/anime-8.jpg") tiene que existir en public/:
+    // si el fichero falta, la web enseña el recuadro gris sin que nadie avise.
+    const portada = normalizada.image;
+    if (portada && !/^(https?:)?\/\//.test(portada) && !portada.startsWith('data:')) {
+      check(
+        `${fichero}[${i}] "${original.title}": la portada local existe`,
+        existsSync(resolve(RAIZ, 'public', portada)),
+        `no hay public/${portada}`,
+      );
+    }
   });
 }
 

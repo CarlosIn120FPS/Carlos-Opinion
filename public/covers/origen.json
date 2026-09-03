@@ -1,0 +1,63 @@
+{
+  "anime-8": {
+    "url": "https://imgsrv.crunchyroll.com/cdn-cgi/image/fit=contain,format=auto,quality=85,width=1200,height=675/catalog/crunchyroll/d503056131dd28ac9887ee6e8e80c0de.png",
+    "fichero": "anime-8.webp",
+    "fecha": "2026-09-03",
+    "bytes": 98688
+  },
+  "anime-2": {
+    "url": "https://occ-0-8407-92.1.nflxso.net/dnm/api/v6/6AYY37jfdO6hpXcMjf9Yu5cnmO0/AAAABSu_mVftGhttwyUHdjj3jPTkYaJ1Rb2cK2w_Xw7fErSKayXjwvuiV8HTyZyOMwrS7NRKsUKwqCVk-eOU_bwlrE_NX7n8dtN_ngWK.jpg?r=9e8",
+    "fichero": "anime-2.jpg",
+    "fecha": "2026-09-03",
+    "bytes": 377130
+  },
+  "anime-3": {
+    "url": "https://static.wikia.nocookie.net/voiceacting/images/b/bd/Rascal_Does_Not_Dream_of_Bunny_Girl_Senpai.jpeg/",
+    "fichero": "anime-3.webp",
+    "fecha": "2026-09-03",
+    "bytes": 213394
+  },
+  "anime-4": {
+    "url": "https://images.justwatch.com/poster/335629617/s718/temporada-1.jpg",
+    "fichero": "anime-4.jpg",
+    "fecha": "2026-09-03",
+    "bytes": 169711
+  },
+  "anime-7": {
+    "url": "https://m.media-amazon.com/images/M/MV5BODVhMWE1NjctYjcwMC00MzQwLWI5YzItMTcyMTNiNmE5MTFjXkEyXkFqcGc@._V1_.jpg",
+    "fichero": "anime-7.jpg",
+    "fecha": "2026-09-03",
+    "bytes": 330831
+  },
+  "anime-1": {
+    "url": "https://m.media-amazon.com/images/S/pv-target-images/47841083191a83af5ca8696e4d9342d11285395848c37cbd9819084c618a7eb9.jpg",
+    "fichero": "anime-1.jpg",
+    "fecha": "2026-09-03",
+    "bytes": 657044
+  },
+  "anime-5": {
+    "url": "https://myanimelist.net/images/anime/1423/155713l.jpg",
+    "fichero": "anime-5.jpg",
+    "fecha": "2026-09-03",
+    "bytes": 82974
+  },
+  "anime-6": {
+    "url": "https://myanimelist.net/images/anime/1902/128382l.jpg",
+    "fichero": "anime-6.jpg",
+    "fecha": "2026-09-03",
+    "bytes": 120876
+  },
+  "manga-1": {
+    "url": "https://cdn.myanimelist.net/images/manga/3/216464l.jpg",
+    "fichero": "manga-1.jpg",
+    "fecha": "2026-09-03",
+    "bytes": 148427
+  },
+  "lightnovel-1": {
+    "url": "https://s4.anilist.co/file/anilistcdn/media/manga/cover/large/nx85470-jt6BF9tDWB2X.jpg",
+    "fichero": "lightnovel-1.jpg",
+    "fecha": "2026-09-03",
+    "bytes": 158346,
+    "sustituye": "https://cdn.myanimelist.net/images/manga/3/118335l.jpg"
+  }
+}

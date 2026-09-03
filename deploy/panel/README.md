@@ -133,6 +133,10 @@ roto da un push con éxito y una web sin actualizar, en silencio.
 - **Tampoco lleva `TimeoutStartSec`.** En `Type=oneshot` el defecto ya es
   infinito. Ponerle uno mataría el cgroup entero al vencer —hook, npm y el rsync
   a medias—, que es el escenario que deja la web a medio copiar.
+- **El que empuja también trae las portadas** (`scripts/portadas.mjs`) antes de
+  mirar si hay algo que publicar. El escritor no puede: no tiene salida a
+  internet a propósito. Así una ficha publicada desde el móvil deja de apuntar
+  a AniList en el siguiente ciclo, y el commit «Portadas locales: …» sale solo.
 - **El timer hace el ciclo completo** (fetch, rebase, push), no sólo el push. Si
   Carlos empuja desde el PC entre medias, un push a secas saldría rechazado y el
   contador de pendientes seguiría en pie: se reintentaría cada dos minutos para
