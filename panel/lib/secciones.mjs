@@ -36,6 +36,7 @@ export const SECCIONES = {
       'fullSynopsis', 'episodes', 'hasManga', 'hasLightNovel', 'willReadSource',
       'doIRecommend', 'platforms', 'languages', 'rating', 'ratingFinal',
       'personalOpinion', 'personalOpinionFinal', 'openings', 'endings', 'entries',
+      'anilistIds',
     ],
   },
   manga: {
@@ -55,7 +56,7 @@ export const SECCIONES = {
       'id', 'title', 'japaneseTitle', 'category', 'image', 'description', 'genres',
       'fullSynopsis', 'chapters', 'volumes', 'author', 'hasAnime', 'doIRecommend',
       'platforms', 'languages', 'rating', 'ratingFinal', 'personalOpinion',
-      'personalOpinionFinal', 'physicalStores', 'entries',
+      'personalOpinionFinal', 'physicalStores', 'entries', 'anilistIds',
     ],
   },
   lightnovel: {
@@ -75,7 +76,7 @@ export const SECCIONES = {
       'id', 'title', 'japaneseTitle', 'category', 'image', 'description', 'genres',
       'fullSynopsis', 'volumes', 'author', 'illustrator', 'hasAnime', 'hasManga',
       'doIRecommend', 'languages', 'rating', 'ratingFinal', 'personalOpinion',
-      'personalOpinionFinal', 'physicalStores', 'entries',
+      'personalOpinionFinal', 'physicalStores', 'entries', 'anilistIds',
     ],
   },
 };

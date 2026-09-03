@@ -192,9 +192,13 @@ const datosAnime = JSON.parse(readFileSync(resolve(RAIZ, 'public/data/anime.json
   const { ficha } = aplicar(datosAnime,
     { op: 'entry.add', id: 5, entrada: { episode: 1, text: 'x' } }, 'anime', CTX);
   const claves = Object.keys(ficha);
-  igual('entries va al final, después de endings', claves.at(-1), 'entries');
+  // anilistIds va detrás de entries porque asi esta DECLARADO en el orden, no
+  // porque caiga al final por no conocerse.
+  const original = Object.keys(datosAnime.items.find((i) => i.id === 5));
+  igual('entries va justo antes de anilistIds',
+    claves.slice(-2), ['entries', 'anilistIds']);
   igual('y no ha movido nada de lo que había',
-    claves.slice(0, -1), Object.keys(datosAnime.items.find((i) => i.id === 5)));
+    claves.filter((k) => k !== 'entries'), original);
 }
 
 // ======================================================= 7. operación inventada
