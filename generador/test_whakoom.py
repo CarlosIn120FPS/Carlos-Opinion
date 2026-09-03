@@ -52,15 +52,18 @@ def xlsx_minimo(cabeceras, filas):
     return buf.getvalue()
 
 
-CABECERAS = ["Título", "Número", "Serie", "Autor", "Editorial", "Tipo"]
+# Las cabeceras son las de la exportacion REAL de Whakoom (Wkid, Series,
+# Edition, Number, Title, Publisher, Language, Release, Grade, Place, Notes,
+# Readed, Url), mas Autor y Tipo que Whakoom no trae pero otros ficheros si.
+CABECERAS = ["Título", "Número", "Series", "Autor", "Publisher", "Tipo", "Language", "Readed", "Url"]
 FILAS = [
-    ["Chainsaw Man #1", 1, "Chainsaw Man", "Tatsuki Fujimoto", "Norma", "Manga"],
-    ["Chainsaw Man #3", 3, "Chainsaw Man", "Tatsuki Fujimoto", "Norma", "Manga"],
-    ["Chainsaw Man #2", 2, "Chainsaw Man", "", "Norma", "Manga"],
-    ["Mushoku Tensei 1", "", "", "Rifujin na Magonote", "Planeta", "Novela"],
-    ["Spy x Family nº 4", "", "", "Tatsuya Endo", "Ivrea", "Manga"],
-    ["Oyasumi Punpun 1", "", "", "Inio Asano", "", "Manga"],
-    ["Cosa rarisima", "", "", "", "", ""],
+    ["Chainsaw Man #1", 1, "Chainsaw Man", "Tatsuki Fujimoto", "Norma", "Manga", "Español (España)", "01/02/2026", "https://w/1"],
+    ["Chainsaw Man #3", 3, "Chainsaw Man", "Tatsuki Fujimoto", "Norma", "Manga", "Español (España)", "", "https://w/3"],
+    ["Chainsaw Man #2", 2, "Chainsaw Man", "", "Norma", "Manga", "Español (España)", "05/02/2026", "https://w/2"],
+    ["Mushoku Tensei 1", "", "", "Rifujin na Magonote", "Planeta", "Novela", "Español (España)", "01/01/2026", ""],
+    ["Spy x Family nº 4", "", "", "Tatsuya Endo", "Ivrea", "Manga", "Inglés (Estados Unidos)", "", ""],
+    ["Oyasumi Punpun 1", "", "", "Inio Asano", "", "Manga", "Español (España)", "", ""],
+    ["Cosa rarisima", "", "", "", "", "", "", "", ""],
 ]
 
 
@@ -92,14 +95,14 @@ class Lector(unittest.TestCase):
         cab, filas = whakoom.leer_xlsx(self.ruta)
         self.assertEqual(cab, CABECERAS)
         self.assertEqual(len(filas), len(FILAS))
-        self.assertEqual(filas[0], ["Chainsaw Man #1", "1", "Chainsaw Man", "Tatsuki Fujimoto", "Norma", "Manga"])
+        self.assertEqual(filas[0][:6], ["Chainsaw Man #1", "1", "Chainsaw Man", "Tatsuki Fujimoto", "Norma", "Manga"])
 
     def test_las_celdas_vacias_no_desplazan(self):
         _, filas = whakoom.leer_xlsx(self.ruta)
         # La tercera fila no tiene autor: Editorial tiene que seguir en su sitio.
         self.assertEqual(filas[2][3], "")
         self.assertEqual(filas[2][4], "Norma")
-        self.assertEqual(filas[6], ["Cosa rarisima", "", "", "", "", ""])
+        self.assertEqual(filas[6], ["Cosa rarisima"] + [""] * 8)
 
     def test_columna_a_indice(self):
         self.assertEqual(whakoom._columna_a_indice("A1"), 0)
@@ -122,6 +125,9 @@ class Columnas(unittest.TestCase):
         self.assertEqual(roles["serie"], 2)
         self.assertEqual(roles["autor"], 3)
         self.assertEqual(roles["tipo"], 5)
+        self.assertEqual(roles["idioma"], 6)
+        self.assertEqual(roles["leido"], 7)   # "Readed", tal cual lo escribe Whakoom
+        self.assertEqual(roles["url"], 8)
 
     def test_forzadas_mandan(self):
         roles = whakoom.detectar_columnas(["Nombre raro", "Cosa"], {"titulo": "Nombre raro", "numero": "cosa"})
@@ -158,6 +164,22 @@ class Series(unittest.TestCase):
         self.assertEqual(por["Mushoku Tensei"]["tipo"], "Novela")
         self.assertEqual(por["Spy x Family"]["tomos"], [4])
         self.assertIn("Cosa rarisima", por)
+
+    def test_leidos_y_categoria_sugerida(self):
+        roles = whakoom.detectar_columnas(CABECERAS)
+        series = whakoom.agrupar_series(CABECERAS, [[str(x) for x in f] for f in FILAS], roles)
+        por = {s["serie"]: s for s in series}
+        # Chainsaw Man: 3 tomos, leidos el 1 y el 2 (fecha en Readed), el 3 no.
+        self.assertEqual(por["Chainsaw Man"]["leidos"], [1, 2])
+        self.assertEqual(por["Chainsaw Man"]["ultimoLeido"], 2)
+        self.assertEqual(por["Chainsaw Man"]["categoriaSugerida"], "Leyendo")
+        self.assertEqual(por["Chainsaw Man"]["idiomas"], ["Español (España)"])
+        # Todo leido -> Leido; nada -> No leido.
+        self.assertEqual(por["Mushoku Tensei"]["categoriaSugerida"], "Leído")
+        self.assertEqual(por["Spy x Family"]["categoriaSugerida"], "No leído")
+        self.assertIsNone(por["Spy x Family"]["ultimoLeido"])
+        # Sin tomos numerados no se sugiere nada.
+        self.assertEqual(por["Cosa rarisima"]["categoriaSugerida"], "")
 
 
 class Emparejar(unittest.TestCase):
@@ -197,12 +219,66 @@ class Emparejar(unittest.TestCase):
         def buscar(_):
             return [{"id": 1, "title": {"romaji": "Obra"}, "format": "MANGA"},
                     {"id": 2, "title": {"romaji": "Obra"}, "format": "NOVEL"}]
-        s = [{"serie": "Obra", "tomos": [1], "filas": 1, "tipo": "Novela ligera", "autor": "", "editorial": "", "isbn": []}]
+        s = [{"serie": "Obra", "tomos": [1], "leidos": [], "filas": 1, "tipo": "Novela ligera", "autor": "", "editorial": "", "idiomas": [], "isbn": []}]
         r = whakoom.emparejar(s, {}, buscar=buscar)[0]
         self.assertEqual(r["estado"], "seguro")
         self.assertEqual(r["seccion"], "lightnovel")
-        s2 = [{"serie": "Obra", "tomos": [1], "filas": 1, "tipo": "", "autor": "", "editorial": "", "isbn": []}]
+        s2 = [{"serie": "Obra", "tomos": [1], "leidos": [], "filas": 1, "tipo": "", "autor": "", "editorial": "", "idiomas": [], "isbn": []}]
         self.assertEqual(whakoom.emparejar(s2, {}, buscar=buscar)[0]["estado"], "dudoso")
+
+    def test_sinonimos_one_shot_recorte_y_hermana(self):
+        # Lo que enseno la coleccion real: titulos en espanol que AniList
+        # reconoce por SINONIMO, one-shots colados con 17 tomos, series con
+        # sufijo de edicion, y series que ya tienen ficha de anime en la web.
+        consultas = []
+
+        def buscar(titulo):
+            consultas.append(titulo)
+            n = whakoom.generar._normalizar(titulo)
+            if n == "alya a veces me susurra en ruso":
+                return [{"id": 152404, "title": {"romaji": "Tokidoki Bosotto Russia-go de Dereru Tonari no Alya-san",
+                                                 "english": "Alya Sometimes Hides Her Feelings in Russian"},
+                         "synonyms": ["Alya a veces me susurra en ruso"], "format": "MANGA", "volumes": 8}]
+            if n == "demon slave":
+                return [{"id": 1, "title": {"romaji": "Demon Slave"}, "format": "ONE_SHOT"},
+                        {"id": 2, "title": {"romaji": "Demon Slave"}, "format": "MANGA", "volumes": 17}]
+            if n == "neon genesis evangelion":
+                return [{"id": 3, "title": {"romaji": "Neon Genesis Evangelion"}, "format": "MANGA"}]
+            if n == "call of the night":
+                return [{"id": 111233, "title": {"english": "Call of the Night"}, "format": "MANGA"}]
+            return []
+
+        base = {"leidos": [], "filas": 1, "tipo": "", "autor": "", "editorial": "", "idiomas": [], "isbn": []}
+        series = [
+            {**base, "serie": "Alya a veces me susurra en ruso", "tomos": [1, 2]},
+            {**base, "serie": "Demon Slave", "tomos": list(range(1, 18))},
+            {**base, "serie": "Neon Genesis Evangelion - Edición Coleccionista", "tomos": [1, 2]},
+            {**base, "serie": "Call of the Night", "tomos": [1]},
+        ]
+        anime = {"call of the night": (2, "Call of the Night")}
+        r = {s["serie"]: s for s in whakoom.emparejar(series, {}, buscar=buscar, anime_publicado=anime)}
+
+        # Titulo espanol en los sinonimos: seguro, aunque romaji e ingles no coincidan.
+        self.assertEqual(r["Alya a veces me susurra en ruso"]["estado"], "seguro")
+        self.assertEqual(r["Alya a veces me susurra en ruso"]["anilist"]["id"], 152404)
+        # Con 17 tomos el ONE_SHOT se descarta y queda un unico candidato: seguro.
+        self.assertEqual(r["Demon Slave"]["estado"], "seguro")
+        self.assertEqual(r["Demon Slave"]["anilist"]["id"], 2)
+        # Sufijo de edicion: se busca sin el, PERO al ser recortada nunca es segura.
+        self.assertEqual(r["Neon Genesis Evangelion - Edición Coleccionista"]["estado"], "dudoso")
+        self.assertEqual(r["Neon Genesis Evangelion - Edición Coleccionista"]["buscadoComo"], "Neon Genesis Evangelion")
+        self.assertIn("Neon Genesis Evangelion - Edición Coleccionista", consultas)  # primero tal cual
+        # La pista de hermana sale del anime publicado.
+        self.assertEqual(r["Call of the Night"]["hermanaAnime"], (2, "Call of the Night"))
+        self.assertIsNone(r["Demon Slave"]["hermanaAnime"])
+
+    def test_variantes_de_busqueda(self):
+        self.assertEqual(whakoom.variantes_de_busqueda("Re:ZeRo - Empezar de cero - Volumen 2"),
+                         ["Re:ZeRo - Empezar de cero - Volumen 2", "Re:ZeRo - Empezar de cero", "Re:ZeRo"])
+        self.assertEqual(whakoom.variantes_de_busqueda("Pack Lycoris Recoil"), ["Pack Lycoris Recoil", "Lycoris Recoil"])
+        self.assertEqual(whakoom.variantes_de_busqueda("Alter Ego"), ["Alter Ego"])
+        self.assertEqual(whakoom.variantes_de_busqueda("Seraph of the End: Guren Ichinose"),
+                         ["Seraph of the End: Guren Ichinose", "Seraph of the End"])
 
     def test_generar_solo_los_seguros(self):
         llamadas = []

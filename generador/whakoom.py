@@ -132,9 +132,13 @@ SINONIMOS = {
     "autor": ["autor", "autores", "author", "authors", "guion", "guionista", "writer"],
     "editorial": ["editorial", "publisher", "sello"],
     "tipo": ["tipo", "type", "formato", "format", "categoria"],
-    "estado": ["estado", "status", "leido", "read"],
+    # Whakoom exporta "Readed" (sic): la fecha en que se marco leido, o vacio.
+    "leido": ["leido", "leida", "readed", "read", "fechalectura", "readdate"],
+    "estado": ["estado", "status"],
+    "idioma": ["idioma", "language", "lengua"],
     "isbn": ["isbn", "ean", "codigo"],
-    "fecha": ["fecha", "date", "anadido", "added"],
+    "fecha": ["fecha", "date", "release", "salida", "anadido", "added"],
+    "url": ["url", "enlace", "link"],
 }
 
 
@@ -207,20 +211,40 @@ def agrupar_series(cabeceras, filas, roles):
             continue
         k = generar._normalizar(serie)
         s = series.setdefault(k, {
-            "serie": serie, "tomos": [], "filas": 0,
-            "autor": "", "editorial": "", "tipo": "", "isbn": [],
+            "serie": serie, "tomos": [], "leidos": [], "filas": 0,
+            "autor": "", "editorial": "", "tipo": "", "idiomas": [], "isbn": [],
         })
         s["filas"] += 1
         if numero is not None and numero not in s["tomos"]:
             s["tomos"].append(numero)
+        # Whakoom pone en "Readed" la fecha de lectura; vacio = sin leer.
+        if col("leido") and numero is not None and numero not in s["leidos"]:
+            s["leidos"].append(numero)
         for rol in ("autor", "editorial", "tipo"):
             if not s[rol] and col(rol):
                 s[rol] = col(rol)
+        if col("idioma") and col("idioma") not in s["idiomas"]:
+            s["idiomas"].append(col("idioma"))
         if col("isbn"):
             s["isbn"].append(col("isbn"))
     for s in series.values():
         s["tomos"].sort()
+        s["leidos"].sort()
+        s["ultimoLeido"] = s["leidos"][-1] if s["leidos"] else None
+        s["categoriaSugerida"] = categoria_sugerida(s)
     return list(series.values())
+
+
+def categoria_sugerida(s):
+    """Solo una SUGERENCIA para el informe: la categoria la elige Carlos al
+    publicar. Todo leido -> Leido; algo -> Leyendo; nada -> No leido."""
+    if not s["tomos"]:
+        return ""
+    if s["leidos"] and len(s["leidos"]) >= len(s["tomos"]):
+        return "Leído"
+    if s["leidos"]:
+        return "Leyendo"
+    return "No leído"
 
 
 # ------------------------------------------------------------ emparejar
@@ -242,14 +266,80 @@ def _titulos_publicados(carpeta_datos):
     return salida
 
 
+# Con `synonyms`: AniList guarda ahi los titulos licenciados ("Alya a veces me
+# susurra en ruso" es sinonimo de "Alya Sometimes Hides Her Feelings in
+# Russian"). Sin ellos, casi toda la coleccion en espanol salia como dudosa
+# aunque AniList devolviera el candidato correcto y solo ese.
+CONSULTA_SINONIMOS = """
+query ($busqueda: String) {
+  Page(page: 1, perPage: 6) {
+    media(search: $busqueda, type: MANGA, sort: SEARCH_MATCH) {
+      id
+      title { romaji english native }
+      synonyms
+      format
+      volumes
+      startDate { year }
+    }
+  }
+}
+"""
+
+
+def _anime_publicado(carpeta_datos):
+    ruta = os.path.join(carpeta_datos, "anime.json")
+    salida = {}
+    if os.path.isfile(ruta):
+        with open(ruta, encoding="utf-8") as f:
+            for it in json.load(f).get("items", []):
+                for t in (it.get("title"), it.get("japaneseTitle")):
+                    n = generar._normalizar(t)
+                    if n:
+                        salida[n] = (it.get("id"), it.get("title"))
+    return salida
+
+
 def buscar_con_cache(titulo):
     clave = re.sub(r"[^a-z0-9]+", "-", generar._normalizar(titulo))[:80] or "vacio"
-    en_cache = generar._cache_leer("busqueda-manga", clave)
+    en_cache = generar._cache_leer("busqueda-manga-sinonimos", clave)
     if en_cache is not None:
         return en_cache
-    r = generar.buscar_en_anilist(titulo, "MANGA")
-    generar._cache_escribir("busqueda-manga", clave, r)
+    r = generar.anilist(CONSULTA_SINONIMOS, {"busqueda": titulo})["Page"]["media"]
+    generar._cache_escribir("busqueda-manga-sinonimos", clave, r)
     return r
+
+
+# Lo que Whakoom pega al nombre de la serie y no es parte del titulo: la
+# edicion, el arco ("Volumen 2" de Re:Zero son arcos, no tomos), los packs.
+SUFIJOS_EDICION = re.compile(
+    r"\s*[-\u2013:(]?\s*(edici[o\u00f3]n\s+\S+.*|ed\.\s+\S+.*|volumen\s+\d+.*|vol\.?\s*\d+.*|"
+    r"integral.*|omnibus.*|deluxe.*|kanzenban.*|box\s*set.*|3\s*en\s*1.*|2\s*en\s*1.*)\)?$",
+    re.IGNORECASE,
+)
+
+
+def variantes_de_busqueda(serie):
+    """Con que se busca, en orden. La primera es la serie tal cual; despues sin
+    sufijos de edicion; despues lo que hay antes de ' - ' o ':'. Todo lo que no
+    sea la primera se trata como DUDOSO aunque coincida: se ha recortado."""
+    variantes = [serie]
+    # "Pack Lycoris Recoil": el pack es de Whakoom, no de la obra.
+    sin_prefijo = re.sub(r"^(pack|estuche|caja)\s+", "", serie, flags=re.IGNORECASE)
+    sin_sufijo = SUFIJOS_EDICION.sub("", sin_prefijo).strip(" -\u2013:,")
+    if sin_sufijo and sin_sufijo != serie:
+        variantes.append(sin_sufijo)
+    base = variantes[-1]
+    for sep in (" - ", " \u2013 ", ": "):
+        if sep in base:
+            corto = base.split(sep)[0].strip()
+            if len(corto) >= 4 and corto not in variantes:
+                variantes.append(corto)
+    return variantes
+
+
+def _titulos_de(m):
+    t = m.get("title") or {}
+    return [x for x in (t.get("romaji"), t.get("english"), t.get("native")) if x] + list(m.get("synonyms") or [])
 
 
 def _seccion_de(formato):
@@ -264,8 +354,10 @@ def _quiere_novela(serie):
     return "novel" in generar._normalizar(serie.get("tipo", "")) or "novela" in (serie.get("tipo") or "").lower()
 
 
-def emparejar(series, publicados, buscar=buscar_con_cache):
-    """Decide por cada serie. `buscar` se inyecta para probar sin red."""
+def emparejar(series, publicados, buscar=buscar_con_cache, anime_publicado=None):
+    """Decide por cada serie. `buscar` se inyecta para probar sin red.
+    `anime_publicado` es {titulo normalizado: (id, titulo)} de anime.json."""
+    anime_publicado = anime_publicado or {}
     for s in series:
         n = generar._normalizar(s["serie"])
         s["candidatos"] = []
@@ -276,22 +368,38 @@ def emparejar(series, publicados, buscar=buscar_con_cache):
             s["estado"] = "ya-en-web"
             s["seccion"], s["publicado"], s["fichaId"] = ya
             continue
+        # Pista, no decision: si el titulo coincide con una ficha de anime ya
+        # publicada, esta sera su hermana (related) al publicarla.
+        s["hermanaAnime"] = anime_publicado.get(n)
+
+        resultados = []
+        recortada = False
         try:
-            resultados = buscar(s["serie"]) or []
+            for i, consulta in enumerate(variantes_de_busqueda(s["serie"])):
+                resultados = buscar(consulta) or []
+                if resultados:
+                    recortada = i > 0
+                    s["buscadoComo"] = consulta
+                    break
         except Exception as e:  # red caida: se dice y se sigue con las demas
             s["estado"] = "error"
             s["error"] = str(e)
             continue
         prefiere_novela = _quiere_novela(s)
+        varios_tomos = len(s["tomos"]) > 1
         for m in resultados:
             t = m.get("title") or {}
             sec = _seccion_de(m.get("format"))
             if sec is None:
                 continue
-            coincide = any(generar._normalizar(x) == n for x in (t.get("romaji"), t.get("english"), t.get("native")))
+            # Un one-shot no tiene 17 tomos: con mas de un tomo no es esa obra.
+            if m.get("format") == "ONE_SHOT" and varios_tomos:
+                continue
+            coincide = any(generar._normalizar(x) == n for x in _titulos_de(m))
             s["candidatos"].append({
                 "id": m["id"], "titulo": t.get("english") or t.get("romaji"),
                 "formato": m.get("format"), "seccion": sec, "coincide": coincide,
+                "volumenes": m.get("volumes"),
             })
         if not s["candidatos"]:
             s["estado"] = "sin-resultado"
@@ -299,7 +407,7 @@ def emparejar(series, publicados, buscar=buscar_con_cache):
         exactos = [c for c in s["candidatos"] if c["coincide"]]
         if prefiere_novela:
             exactos = [c for c in exactos if c["seccion"] == "lightnovel"] or exactos
-        if len(exactos) == 1:
+        if len(exactos) == 1 and not recortada:
             s["estado"] = "seguro"
             s["anilist"] = exactos[0]
             s["seccion"] = exactos[0]["seccion"]
@@ -320,7 +428,11 @@ def imprimir(series):
         t = s["tomos"]
         if not t:
             return f"{s['filas']} fila(s)"
-        return f"{len(t)} tomo(s): {t[0]}–{t[-1]}" if len(t) > 1 else f"tomo {t[0]}"
+        base = f"{len(t)} tomo(s): {t[0]}–{t[-1]}" if len(t) > 1 else f"tomo {t[0]}"
+        if s.get("leidos"):
+            base += f", leídos {len(s['leidos'])} (hasta el {s['ultimoLeido']})"
+        cat = s.get("categoriaSugerida")
+        return base + (f" → {cat}" if cat else "")
 
     print(f"\n  {len(series)} series en la exportacion de Whakoom\n")
     if grupos["ya-en-web"]:
@@ -331,14 +443,18 @@ def imprimir(series):
         print(f"\n  SEGUROS ({len(grupos['seguro'])}) — un solo candidato y el titulo coincide:")
         for s in grupos["seguro"]:
             a = s["anilist"]
-            print(f"    {s['serie']}  ->  --seccion {s['seccion']} --anilist-id {a['id']}  [{a['formato']}]  ({tomos(s)})")
+            extra = f"  \u00b7 hermana del anime \u00ab{s['hermanaAnime'][1]}\u00bb (ficha {s['hermanaAnime'][0]})" if s.get("hermanaAnime") else ""
+            print(f"    {s['serie']}  ->  --seccion {s['seccion']} --anilist-id {a['id']}  [{a['formato']}]  ({tomos(s)}){extra}")
     if grupos["dudoso"]:
         print(f"\n  DUDOSOS ({len(grupos['dudoso'])}) — elige a mano y lanza generar.py:")
         for s in grupos["dudoso"]:
-            print(f"    {s['serie']}  ({tomos(s)})")
+            como = f"  (buscado como \u00ab{s['buscadoComo']}\u00bb)" if s.get("buscadoComo") and s["buscadoComo"] != s["serie"] else ""
+            extra = f"  \u00b7 hermana del anime \u00ab{s['hermanaAnime'][1]}\u00bb" if s.get("hermanaAnime") else ""
+            print(f"    {s['serie']}  ({tomos(s)}){como}{extra}")
             for c in s["candidatos"][:5]:
                 marca = "=" if c["coincide"] else " "
-                print(f"      {marca} --seccion {c['seccion']:<10} --anilist-id {c['id']:<8} {c['titulo']}  [{c['formato']}]")
+                vols = f", {c['volumenes']} vols" if c.get("volumenes") else ""
+                print(f"      {marca} --seccion {c['seccion']:<10} --anilist-id {c['id']:<8} {c['titulo']}  [{c['formato']}{vols}]")
     if grupos["sin-resultado"]:
         print(f"\n  SIN RESULTADO EN ANILIST ({len(grupos['sin-resultado'])}):")
         for s in grupos["sin-resultado"]:
@@ -394,7 +510,7 @@ def main():
     print(f"# columnas: " + ", ".join(f"{rol}={cabeceras[i]!r}" for rol, i in roles.items()), file=sys.stderr)
 
     series = agrupar_series(cabeceras, filas, roles)
-    series = emparejar(series, _titulos_publicados(args.datos))
+    series = emparejar(series, _titulos_publicados(args.datos), anime_publicado=_anime_publicado(args.datos))
     imprimir(series)
 
     salida = args.salida or os.path.join(AQUI, "work", "whakoom-emparejado.json")

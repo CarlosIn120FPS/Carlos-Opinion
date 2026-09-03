@@ -8,14 +8,14 @@
 
 ## Resumen
 
-**Hecho: 26 de 27** de las cosas concretas que piden los cinco documentos
-(los cinco puntos de abajo se cerraron la tarde de la auditoría). Lo único que
-falta es **el importador de Whakoom**.
+**Hecho: 27 de 27** de las cosas concretas que piden los cinco documentos
+(los seis puntos de abajo se cerraron la tarde de la auditoría). No falta
+**nada de lo planeado**; lo que queda es lo que vaya saliendo al usarlo.
 
 | Documento | Hecho | Falta |
 |---|---|---|
 | `esquema-ficha.md` | 8 / 8 | — |
-| `rediseno-fichas.md` | 5 / 6 | Whakoom (investigado, no construido) |
+| `rediseno-fichas.md` | 6 / 6 | — |
 | `panel-privado.md` | 9 / 9 | — |
 | `integracion-jellyfin.md` | 10 / 10 | — |
 | `VERSION-2.md` | 5 / 5 piezas | — |
@@ -88,7 +88,7 @@ sinopsis), deja vacío lo de la sección (capítulos, autor…) y lo que sólo e
 Carlos, no copia `anilistIds` ni el diario, y la enlaza en las dos direcciones
 con `enlazar()`. Dos ficheros, un commit. Si ya hay hermana, se niega.
 
-### 6. Whakoom — CONSTRUIDO (2026-09-03), pendiente de calibrar con la exportación real
+### 6. Whakoom — HECHO (2026-09-03), calibrado con la exportación real
 
 `rediseno-fichas.md`. No tiene API y raspar está prohibido; el camino es la
 exportación manual (cuenta PRO), que sale como **xlsx**. `generador/whakoom.py`
@@ -100,8 +100,11 @@ coincide; lo demás sale como DUDOSO con sus `--anilist-id` para elegir a mano.
 `--generar` crea borradores solo de los seguros. `generador/test_whakoom.py`
 (14) lo prueba sin red con un xlsx sintético.
 
-Falta pasarle la exportación real de Carlos para ajustar la detección de
-columnas y el troceo de los títulos a lo que Whakoom escribe de verdad.
+Calibrado con la exportación real (55 series, 384 tomos): lee `Readed` para
+saber por dónde va y sugerir categoría, usa los sinónimos de AniList para los
+títulos en español (12 → 28 seguros), descarta one-shots con varios tomos y
+limpia sufijos de edición. Resultado: 28 seguros, 20 dudosos con candidatos,
+7 sin resultado. Ver `generador/README.md`.
 
 ---
 

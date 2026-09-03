@@ -112,7 +112,26 @@ python3 whakoom.py work/whakoom.xlsx --columnas serie=Serie,numero=Número
 
 Lee el xlsx sin dependencias (es un zip con XML), detecta las columnas por el
 nombre de la cabecera, agrupa los tomos en series, descarta las que ya están en
-la web y busca el resto en AniList (con caché). El informe tiene cuatro cajas:
+la web y busca el resto en AniList (con caché).
+
+Calibrado con la exportación real (2026-09-03: 55 series, 384 tomos). Lo que
+trae Whakoom: `Series` (el título de la **edición española**), `Number`,
+`Title` (subtítulo del tomo, no de la serie), `Publisher`, `Language`,
+`Release`, `Readed` (la fecha en que lo marcaste leído) y `Url`. Con eso:
+
+- **Por dónde vas**: tomos leídos y el último, y una categoría *sugerida* por
+  serie (todo leído → Leído, a medias → Leyendo, nada → No leído). La
+  categoría de verdad la eliges al publicar.
+- **Títulos en español**: AniList guarda los títulos licenciados como
+  *sinónimos*; si el de Whakoom está entre ellos, la coincidencia cuenta. Pasó
+  de 12 seguros a 28 solo con eso.
+- Un ONE_SHOT con más de un tomo no es esa obra: se descarta.
+- Sufijos de edición («- Volumen 2», «Edición Coleccionista», «Pack …») se
+  quitan antes de buscar; lo encontrado así es siempre dudoso.
+- Si el título coincide con una ficha de anime publicada, lo dice: será su
+  hermana al publicarla.
+
+El informe tiene cuatro cajas:
 
 | | |
 |---|---|
