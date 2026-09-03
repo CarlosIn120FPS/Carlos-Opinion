@@ -57,19 +57,15 @@ original, está en `public/covers/origen.json`.
   de red sí; si la original ha muerto y hay `anilistIds`, se usa AniList.
 - `scripts/test-entries.mjs` comprueba que toda portada local exista de verdad.
 
-### 3. Al publicar un borrador se pierde el "revisar esto"
+### 3. Al publicar un borrador se pierde el "revisar esto" — HECHO (2026-09-03)
 
-`panel-privado.md` §3 pedía que el panel enseñe los campos marcados en
-`_meta._revisar` *"en un bloque aparte de revisar lo que propuso la máquina,
-visualmente distinto de escribe lo tuyo"*.
-
-Está a medias: **en la vista de borradores sí sale**; al publicar, `promover()`
-descarta `_meta` y esa información desaparece. Así que una ficha recién publicada
-con `chapters` dudoso o `description` propuesta por Ollama se ve idéntica a una
-que Carlos revisó entera.
-
-El arreglo acordado en la verificación adversarial es un side-car
-`panel/revisar.json` fuera de `public/`, escrito al promocionar. No está hecho.
+`panel-privado.md` §3. Al publicar (desde el panel o con `scripts/promote.mjs`)
+lo que el generador marcó en `_meta._revisar`, junto con sus avisos, la fuente y
+la fecha, se apunta en **`panel/revisar.json`** (fuera de `public/`, commiteado
+con la ficha). El panel lo enseña en la ficha publicada en un bloque aparte,
+«Revisa lo que propuso la máquina», con el valor que quedó publicado de cada
+campo y un botón «Ya lo he revisado» que lo quita. La lista marca esas fichas
+con un pin «revisar». `panel/lib/revisar.mjs` es puro y está probado.
 
 ### 4. Vista previa al compartir (OG tags por ficha)
 

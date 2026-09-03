@@ -29,6 +29,8 @@ const estado = {
   enBorradores: false, borradores: [], borradorId: null, categorias: {},
   // La bandeja de pendientes: lo que AniList dice que ha visto y no ha comentado.
   enPendientes: false, anilist: '', bandeja: null,
+  // Lo que propuso la máquina al publicar y aún no se ha mirado (panel/revisar.json).
+  revisar: {},
 };
 
 function avisar(mensaje) {
@@ -108,11 +110,19 @@ async function arrancar() {
     caja.append(botonPendientes);
   }
 
+  await cargarRevisar();
   await abrirSeccion(info.secciones[0].clave);
   refrescarEstado();
   contarBorradores();
   setInterval(refrescarEstado, 30000);
 }
+
+async function cargarRevisar() {
+  try {
+    estado.revisar = await api('/api/revisar');
+  } catch { estado.revisar = {}; }
+}
+const revisarDe = (clave, id) => estado.revisar?.[clave]?.[String(id)] ?? null;
 
 let botonBorradores = null;
 let botonPendientes = null;
@@ -263,6 +273,7 @@ async function abrirBorrador(resumen) {
         body: JSON.stringify({ categoria: selector.value }),
       });
       await contarBorradores();
+      await cargarRevisar();
       await abrirSeccion(resumen.seccion);
       abrirFicha(r.ficha.id);
       refrescarEstado();
@@ -435,6 +446,7 @@ function pintarLista() {
     if (diario) fila.append(el('span', { className: 'pin diario', textContent: `${diario}` }));
     // La lista de lo que le falta por escribir, que es para lo que abre esto.
     if (isUnrated(item)) fila.append(el('span', { className: 'pin pendiente', textContent: 'sin opinar' }));
+    if (revisarDe(estado.clave, item.id)) fila.append(el('span', { className: 'pin revisar', textContent: 'revisar' }));
     lista.append(fila);
   }
 }
@@ -459,6 +471,7 @@ function pintarDetalle() {
   main.replaceChildren(
     el('h2', { textContent: item.title }),
     el('div', { className: 'jp', textContent: item.japaneseTitle ?? '' }),
+    ...pintarRevisar(item),
     el('h3', { textContent: 'Lo que escribes tú' }),
     ...seccionActual().campos.map((campo) => pintarCampo(item, campo)),
     el('h3', { textContent: 'La misma obra en otra sección' }),
@@ -530,6 +543,45 @@ async function pintarHermanas(item) {
   }
   // Si mientras se cargaba se abrió otra ficha, no pisar lo que ya haya.
   if ($('#hermanas') === caja) caja.replaceChildren(...cajas);
+}
+
+// Lo que propuso la máquina al publicar y aún no ha mirado. Bloque aparte y
+// distinto de "lo que escribes tú": son datos objetivos que el generador rellenó
+// con menos certeza (episodios, sinopsis, géneros...). Se enseña el valor que
+// quedó publicado y un botón para decir "visto".
+function pintarRevisar(item) {
+  const r = revisarDe(estado.clave, item.id);
+  if (!r) return [];
+  const caja = el('div', { className: 'revisar' });
+  caja.append(el('h3', { textContent: 'Revisa lo que propuso la máquina' }));
+  caja.append(el('div', { className: 'jp', textContent:
+    `Publicada ${r.fecha || 'sin fecha'} desde ${r.fuente || 'el generador'}. ` +
+    'La máquina no puede saber si esto está bien; míralo y márcalo como visto.' }));
+  for (const campo of r.campos ?? []) {
+    const v = item[campo];
+    const texto = Array.isArray(v) ? v.join(', ') : (v == null || v === '' ? '—' : String(v));
+    caja.append(el('div', { className: 'campo' }, [
+      el('label', { textContent: campo }),
+      el('div', { textContent: texto }),
+    ]));
+  }
+  for (const a of r.avisos ?? []) caja.append(el('div', { className: 'grupo', textContent: a }));
+  const boton = el('button', { className: 'principal', textContent: 'Ya lo he revisado' });
+  boton.onclick = async () => {
+    boton.disabled = true;
+    try {
+      const { revisar } = await api(`/api/${estado.clave}/revisar/${item.id}/hecho`, { method: 'POST' });
+      estado.revisar = revisar ?? {};
+      refrescarEstado();
+      pintarLista();
+      pintarDetalle();
+    } catch (e) {
+      avisar(`No se pudo marcar: ${e.message}`);
+      boton.disabled = false;
+    }
+  };
+  caja.append(el('div', { style: 'margin-top:10px' }, [boton]));
+  return [caja];
 }
 
 // Sólo los campos que le tocan a él: los declara panel/lib/secciones.mjs y el

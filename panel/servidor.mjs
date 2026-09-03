@@ -25,6 +25,7 @@ import { SECCIONES, CLAVES, seccion } from './lib/secciones.mjs';
 import { repoGit } from './lib/repo.mjs';
 import { promover, loQueFalta } from './lib/promover.mjs';
 import { enlazar } from './lib/hermanas.mjs';
+import { anotar, quitar, serializarRevisar, FICHERO_REVISAR } from './lib/revisar.mjs';
 
 const RAIZ = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const WEB = resolve(RAIZ, 'panel/web');
@@ -101,6 +102,13 @@ const enSerie = (fn) => {
 
 const leerSeccion = async (clave) =>
   JSON.parse(await readFile(resolve(RAIZ, seccion(clave).fichero), 'utf8'));
+
+// panel/revisar.json: lo que propuso la máquina y aún no se ha mirado. Fuera de
+// public/ porque no es un dato de la ficha, es una nota para este panel.
+const leerRevisar = () =>
+  readFile(resolve(RAIZ, FICHERO_REVISAR), 'utf8').then(JSON.parse, () => ({}));
+const guardarRevisar = (registro) =>
+  writeFile(resolve(RAIZ, FICHERO_REVISAR), serializarRevisar(registro), 'utf8');
 
 /**
  * Escritura atómica con anillo de copias. Escribe a .tmp y renombra: si esto se
@@ -270,14 +278,43 @@ const servidor = createServer(async (req, res) => {
         await git.traerBorradores(REMOTO);
         const borrador = await git.leerBorrador(REMOTO, seccion(clave).drafts, id);
         const datos = await leerSeccion(clave);
-        const { datos: nuevos, ficha, revisar } = promover(datos, borrador, { categoria, clave });
+        const { datos: nuevos, ficha, revisar, avisos } = promover(datos, borrador, { categoria, clave });
         await guardarSeccion(clave, nuevos);
+        // Lo que hay que revisar sobrevive a la publicación (antes se perdía
+        // aquí mismo: promover() quita _meta y nadie lo apuntaba).
+        const registro = anotar(await leerRevisar(), clave, ficha.id, {
+          campos: revisar, avisos, fuente: borrador._meta?.fuente ?? '',
+          hoy: new Date().toISOString().slice(0, 10),
+        });
+        await guardarRevisar(registro);
         if (repo) {
-          await repo.commitear(`Panel: publicar «${ficha.title}» (${categoria})`, [seccion(clave).fichero]);
+          await repo.commitear(`Panel: publicar «${ficha.title}» (${categoria})`,
+            [seccion(clave).fichero, FICHERO_REVISAR]);
         }
         return { ficha, revisar };
       });
       return json(res, 200, { ok: true, ...resultado });
+    }
+
+    // --- lo que propuso la máquina y aún no se ha revisado ------------------
+    if (ruta === '/api/revisar' && req.method === 'GET') {
+      return json(res, 200, await enSerie(async () => {
+        if (repo) await repo.sincronizar();
+        return leerRevisar();
+      }));
+    }
+    const mHecho = ruta.match(/^\/api\/([a-z]+)\/revisar\/(\d+)\/hecho$/);
+    if (mHecho && req.method === 'POST') {
+      const [, clave, id] = mHecho;
+      if (!CLAVES.includes(clave)) return json(res, 404, { error: 'sección desconocida' });
+      const registro = await enSerie(async () => {
+        if (repo) await repo.sincronizar();
+        const nuevo = quitar(await leerRevisar(), clave, id);
+        await guardarRevisar(nuevo);
+        if (repo) await repo.commitear(`Panel: revisada la ficha ${id} de ${clave}`, [FICHERO_REVISAR]);
+        return nuevo;
+      });
+      return json(res, 200, { ok: true, revisar: registro });
     }
 
     // Una sección que no existe es un 404 con su motivo, no un 500 sin explicar:

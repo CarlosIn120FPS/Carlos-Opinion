@@ -19,6 +19,7 @@ import { readFileSync, writeFileSync, renameSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { promover } from '../panel/lib/promover.mjs';
+import { anotar, serializarRevisar, FICHERO_REVISAR } from '../panel/lib/revisar.mjs';
 import { seccion, CLAVES } from '../panel/lib/secciones.mjs';
 import { serializar } from '../panel/lib/aplicar.mjs';
 
@@ -103,6 +104,19 @@ renameSync(tmp, DESTINO);
 
 // ---------------------------------------------------------------- resumen
 const { ficha, revisar, avisos } = resultado;
+
+// Lo que hay que revisar sobrevive a la publicación: panel/revisar.json, que
+// el panel enseña en la ficha hasta que Carlos lo marque como visto.
+{
+  const rutaRevisar = resolve(RAIZ, FICHERO_REVISAR);
+  let registro = {};
+  try { registro = JSON.parse(readFileSync(rutaRevisar, 'utf8')); } catch { /* aún no existe */ }
+  const nuevo = anotar(registro, clave, ficha.id, {
+    campos: revisar, avisos, fuente: borrador._meta?.fuente ?? '',
+    hoy: new Date().toISOString().slice(0, 10),
+  });
+  if (nuevo !== registro) writeFileSync(rutaRevisar, serializarRevisar(nuevo), 'utf8');
+}
 const vacios = s.campos
   .map((c) => c.clave)
   .filter((c) => c !== 'category' && !ficha[c]);

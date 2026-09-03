@@ -141,6 +141,8 @@ const ANILIST = {
 // ofrecer. Sintética: en manga.json real no se escribe texto de prueba.
 const MANGA = { categories: ['Leído'], items: [{ id: 41, title: 'MANGA HERMANO', hasAnime: true }] };
 
+const REVISAR = { anime: { 8: { campos: ['episodes', 'genres'], avisos: ['AVISO DEL GENERADOR'], fuente: 'anilist', fecha: '2026-09-03' } } };
+
 const llamadas = [];
 globalThis.fetch = async (ruta, opciones = {}) => {
   llamadas.push({ ruta, metodo: opciones.method ?? 'GET', cabeceras: opciones.headers ?? {}, cuerpo: opciones.body });
@@ -154,6 +156,12 @@ globalThis.fetch = async (ruta, opciones = {}) => {
     return { ok: true, json: async () => ({ ok: true, ficha }) };
   }
   if (ruta === '/api/manga') return { ok: true, json: async () => MANGA };
+  // Lo que propuso la máquina para la ficha 8 y aún no se ha mirado.
+  if (ruta === '/api/revisar') return { ok: true, json: async () => REVISAR };
+  if (ruta === '/api/anime/revisar/8/hecho') {
+    delete REVISAR.anime;
+    return { ok: true, json: async () => ({ ok: true, revisar: REVISAR }) };
+  }
   const mDetalle = ruta.match(/^\/api\/borradores\/anime\/(\d+)$/);
   if (mDetalle) return { ok: true, json: async () => DETALLE[mDetalle[1]] };
   const cuerpo =
@@ -266,6 +274,31 @@ if (conDiario) {
   check('enseña la nota de la entrada', plano.includes('8/10'), plano);
   const inputs = detalle.buscarTodos('input');
   check('el formulario de nueva entrada tiene sus niveles', inputs.length >= 3, `${inputs.length}`);
+
+  // --- lo que propuso la máquina: bloque aparte, y sobrevive a publicar ------
+  {
+    check('la lista marca la ficha con cosas que revisar',
+      conDiario.buscarTodos('.revisar').length === 1, conDiario.textContent);
+    const bloque = detalle.querySelector('.revisar');
+    check('pinta el bloque de revisar en la ficha', Boolean(bloque));
+    const t = bloque?.textContent ?? '';
+    check('con los campos marcados y su valor publicado',
+      t.includes('episodes') && t.includes(String(ANIME.items[0].episodes)), t.slice(0, 300));
+    check('los géneros (array) salen como lista legible',
+      t.includes(ANIME.items[0].genres.join(', ')), t.slice(0, 300));
+    check('y los avisos del generador', t.includes('AVISO DEL GENERADOR'));
+    const boton = bloque?.buscarTodos('button')[0];
+    check('hay un botón para marcarlo como revisado', boton?.textContent.includes('revisado'));
+    if (boton) {
+      await boton.onclick();
+      await new Promise((r) => setImmediate(r));
+      check('al pulsarlo avisa al servidor',
+        llamadas.some((l) => l.ruta === '/api/anime/revisar/8/hecho' && l.metodo === 'POST'));
+      check('y el bloque desaparece', !raiz.querySelector('#detalle').querySelector('.revisar'));
+      check('y la marca de la lista también',
+        raiz.querySelector('#lista').buscarTodos('.pin').every((p) => p.textContent !== 'revisar'));
+    }
+  }
 
   // --- fichas hermanas: se eligen de una lista, nunca se adivinan --------------
   await new Promise((r) => setImmediate(r));

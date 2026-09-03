@@ -17,6 +17,7 @@ import { aplicar, serializar, ErrorPanel } from '../panel/lib/aplicar.mjs';
 import { SECCIONES, seccion, ordenar, clavesDeCarlos, CLAVES } from '../panel/lib/secciones.mjs';
 import { promover, loQueFalta } from '../panel/lib/promover.mjs';
 import { enlazar } from '../panel/lib/hermanas.mjs';
+import { anotar, quitar, de, serializarRevisar } from '../panel/lib/revisar.mjs';
 
 const RAIZ = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -350,6 +351,24 @@ debeFallar('rechaza una operación desconocida',
   debeFallar('una ficha propia que no existe es 404',
     () => enlazar({ anime, manga }, { clave: 'anime', id: 999, hermana: 'manga', hermanaId: 1 }),
     404, 'en anime');
+}
+
+// ================================ 10. lo que hay que revisar sobrevive
+{
+  const r1 = anotar({}, 'anime', 12, { campos: ['episodes', 'description'], avisos: ['x'], fuente: 'anilist', hoy: '2026-09-03' });
+  igual('anotar guarda campos, avisos, fuente y fecha', de(r1, 'anime', 12),
+    { campos: ['episodes', 'description'], avisos: ['x'], fuente: 'anilist', fecha: '2026-09-03' });
+  igual('el id se indexa como cadena y se busca con número o cadena', de(r1, 'anime', '12')?.fuente, 'anilist');
+  check('sin nada que revisar no anota', anotar({}, 'anime', 1, { campos: [], avisos: [] }) !== null
+    && Object.keys(anotar({}, 'anime', 1, { campos: [], avisos: [] })).length === 0);
+  const r2 = anotar(r1, 'manga', 3, { campos: ['chapters'], hoy: '2026-09-03' });
+  check('anotar no muta el registro anterior', !r1.manga);
+  igual('quitar deja las demás', Object.keys(quitar(r2, 'anime', 12)), ['manga']);
+  igual('quitar de una ficha que no está no cambia nada', quitar(r2, 'anime', 999), r2);
+  check('quitar la última de una sección elimina la sección', !('manga' in quitar(r2, 'manga', 3)));
+  igual('de() da null si no hay nada', de(r2, 'lightnovel', 1), null);
+  check('serializa con salto final', serializarRevisar({}).endsWith('}\n'));
+  debeFallarSeccion('una sección inventada revienta', () => anotar({}, 'novelas', 1, { campos: ['x'] }));
 }
 
 // -------------------------------------------------------------------- resultado
