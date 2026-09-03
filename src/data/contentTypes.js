@@ -18,8 +18,6 @@ export const CONTENT_TYPES = {
     pageDescription:
       'La página web en la que Carlos comparte su opinión sobre animes que ha visto, está viendo, verá, o ha abandonado.',
     searchPlaceholder: 'Buscar anime por título...',
-    navTitle: "Carlos' Anime Opinion",
-    navDescription: 'Opiniones y reseñas sobre series y películas de anime.',
     Modal: AnimeModal,
   },
   manga: {
@@ -31,8 +29,6 @@ export const CONTENT_TYPES = {
     pageDescription:
       'La página web en la que Carlos comparte su opinión sobre mangas que ha leído, está leyendo o ha abandonado.',
     searchPlaceholder: 'Buscar manga por título...',
-    navTitle: "Carlos' Manga Opinion",
-    navDescription: 'Opiniones y viñetas sobre los mangas que leo.',
     Modal: MangaModal,
   },
   lightnovel: {
@@ -44,8 +40,6 @@ export const CONTENT_TYPES = {
     pageDescription:
       'La página web en la que Carlos comparte su opinión sobre novelas ligeras que ha leído, está leyendo o ha abandonado.',
     searchPlaceholder: 'Buscar novela ligera por título...',
-    navTitle: "Carlos' Light Novel Opinion",
-    navDescription: 'Reseñas literarias de novelas ligeras.',
     Modal: LightNovelModal,
   },
 };

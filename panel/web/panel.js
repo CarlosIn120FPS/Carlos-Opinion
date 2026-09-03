@@ -494,7 +494,6 @@ async function datosDe(clave) {
   if (!otras[clave]) otras[clave] = await api(`/api/${clave}`);
   return otras[clave];
 }
-const fichasDe = async (clave) => (await datosDe(clave)).items ?? [];
 
 async function pintarHermanas(item) {
   const caja = $('#hermanas');

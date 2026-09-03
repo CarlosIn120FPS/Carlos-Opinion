@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Navigate, useNavigate, useParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import ContentCard from './components/ContentCard';
-import PageNavigationModal from './components/PageNavigationModal';
 
 import {
   CONTENT_TYPES,
@@ -69,7 +68,6 @@ function App() {
   const knownType = CONTENT_TYPE_BY_SLUG[sectionSlug];
   const type = knownType ?? CONTENT_TYPES[DEFAULT_CONTENT_TYPE];
 
-  const [isNavOpen, setIsNavOpen] = useState(false);
   const [activeCategory, setActiveCategory] = useState('Todos');
   const [searchTerm, setSearchTerm] = useState('');
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -180,7 +178,16 @@ function App() {
     }
   }, [status, itemId, selectedItem, navigate, type.slug]);
 
-  const closeNav = useCallback(() => setIsNavOpen(false), []);
+  // El título ya no abre un modal de navegación: las tres secciones están
+  // siempre a la vista como píldoras y hacía lo mismo que ellas. Ahora es el
+  // «volver al principio» de la sección: sin filtro, sin búsqueda, sin ficha.
+  const resetSection = useCallback(() => {
+    setActiveCategory('Todos');
+    setSearchTerm('');
+    setOnlyUnrated(false);
+    if (itemId) navigate(`/${type.slug}`);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [itemId, navigate, type.slug]);
   const openItem = useCallback((item) => navigate(`/${type.slug}/${item.id}`), [navigate, type.slug]);
   const closeItem = useCallback(() => navigate(`/${type.slug}`), [navigate, type.slug]);
   const goToSection = useCallback(
@@ -257,9 +264,8 @@ function App() {
         className="text-center mb-8 md:mb-10"
       >
         <button
-          onClick={() => setIsNavOpen(true)}
-          aria-haspopup="dialog"
-          aria-expanded={isNavOpen}
+          onClick={resetSection}
+          aria-label={`${type.pageTitle}: volver al principio`}
           className="hover:scale-105 transition-transform duration-300 relative group mb-2 md:mb-4 rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-500"
         >
           <h1 className="text-4xl md:text-6xl font-bold tracking-tight pb-2 bg-gradient-to-r from-purple-400 via-blue-400 to-indigo-400 bg-clip-text text-transparent">
@@ -290,6 +296,28 @@ function App() {
               </button>
             );
           })}
+
+          {/* El tema, a la vista. Estaba dentro del engranaje de ajustes, que es
+              donde nadie lo busca. Sol si estamos en oscuro (pulsar = aclarar),
+              luna si estamos en claro. */}
+          <button
+            onClick={() => setIsDarkMode((value) => !value)}
+            aria-pressed={isDarkMode}
+            aria-label={isDarkMode ? 'Cambiar a tema claro' : 'Cambiar a tema oscuro'}
+            title={isDarkMode ? 'Tema claro' : 'Tema oscuro'}
+            className="w-9 h-9 md:w-10 md:h-10 flex items-center justify-center rounded-full bg-white dark:bg-gray-800/60 shadow-sm backdrop-blur-md border border-gray-200 dark:border-gray-700 text-purple-600 dark:text-amber-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-all duration-300"
+          >
+            {isDarkMode ? (
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" aria-hidden="true">
+                <circle cx="12" cy="12" r="4" />
+                <path strokeLinecap="round" d="M12 2v2m0 16v2M4.93 4.93l1.41 1.41m11.32 11.32l1.41 1.41M2 12h2m16 0h2M4.93 19.07l1.41-1.41m11.32-11.32l1.41-1.41" />
+              </svg>
+            ) : (
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" aria-hidden="true">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z" />
+              </svg>
+            )}
+          </button>
         </nav>
 
         {/* En móvil, la frase de presentación y la línea decorativa empujaban
@@ -406,23 +434,14 @@ function App() {
                     <h3 className="font-semibold text-gray-700 dark:text-gray-200">Ajustes</h3>
                   </div>
                   <div className="p-2 border-b border-gray-100 dark:border-gray-700">
-                    <button
-                      onClick={() => setIsDarkMode((value) => !value)}
-                      aria-pressed={isDarkMode}
-                      className="w-full flex items-center justify-between px-4 py-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-200"
-                    >
-                      <span className="text-gray-700 dark:text-gray-300">Tema Oscuro</span>
-                      <div className={`w-12 h-6 rounded-full transition-colors duration-300 flex items-center p-1 ${isDarkMode ? 'bg-purple-500' : 'bg-gray-300 dark:bg-gray-600'}`}>
-                        <div className={`w-4 h-4 rounded-full bg-white shadow-sm transform transition-transform duration-300 ${isDarkMode ? 'translate-x-6' : 'translate-x-0'}`} />
-                      </div>
-                    </button>
+                    {/* El tema ya no vive aquí: tiene su botón junto a las secciones. */}
                     {/* Antes esto hacía window.location.reload(). El estado ya es
                         reactivo y la `key` de la tarjeta fuerza el remontaje, así
                         que el recargón solo servía para el parpadeo en blanco. */}
                     <button
                       onClick={() => setIsElastic((value) => !value)}
                       aria-pressed={isElastic}
-                      className="w-full flex items-center justify-between px-4 py-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-200 mt-1"
+                      className="w-full flex items-center justify-between px-4 py-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-200"
                     >
                       <span className="text-gray-700 dark:text-gray-300">Animación Elástica</span>
                       <div className={`w-12 h-6 rounded-full transition-colors duration-300 flex items-center p-1 ${isElastic ? 'bg-purple-500' : 'bg-gray-300 dark:bg-gray-600'}`}>
@@ -564,13 +583,6 @@ function App() {
           </>
         )}
       </motion.div>
-
-      {/* Navigation Modal */}
-      <AnimatePresence>
-        {isNavOpen && (
-          <PageNavigationModal key="nav-modal" currentPage={type.id} onNavigate={goToSection} onClose={closeNav} />
-        )}
-      </AnimatePresence>
 
       {/* Content Modal */}
       <AnimatePresence>

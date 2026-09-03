@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion';
-import CoverImage, { resolveSrc } from './CoverImage';
+import CoverImage from './CoverImage';
+import { resolveSrc } from '../lib/covers';
 import { normalizeEntries } from '../lib/entries';
 import { esquemaDe } from '../data/niveles';
 import { itemRating, showRating } from '../lib/rating';
