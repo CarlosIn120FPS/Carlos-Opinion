@@ -282,15 +282,19 @@ const servidor = createServer(async (req, res) => {
         await guardarSeccion(clave, nuevos);
         // Lo que hay que revisar sobrevive a la publicación (antes se perdía
         // aquí mismo: promover() quita _meta y nadie lo apuntaba).
-        const registro = anotar(await leerRevisar(), clave, ficha.id, {
+        const previo = await leerRevisar();
+        const registro = anotar(previo, clave, ficha.id, {
           campos: revisar, avisos, fuente: borrador._meta?.fuente ?? '',
           hoy: new Date().toISOString().slice(0, 10),
         });
-        await guardarRevisar(registro);
-        if (repo) {
-          await repo.commitear(`Panel: publicar «${ficha.title}» (${categoria})`,
-            [seccion(clave).fichero, FICHERO_REVISAR]);
+        // Si no hay nada que revisar, anotar() devuelve el mismo objeto y no se
+        // toca el fichero: `git add` de una ruta que no existe fallaría.
+        const rutas = [seccion(clave).fichero];
+        if (registro !== previo) {
+          await guardarRevisar(registro);
+          rutas.push(FICHERO_REVISAR);
         }
+        if (repo) await repo.commitear(`Panel: publicar «${ficha.title}» (${categoria})`, rutas);
         return { ficha, revisar };
       });
       return json(res, 200, { ok: true, ...resultado });
@@ -309,9 +313,14 @@ const servidor = createServer(async (req, res) => {
       if (!CLAVES.includes(clave)) return json(res, 404, { error: 'sección desconocida' });
       const registro = await enSerie(async () => {
         if (repo) await repo.sincronizar();
-        const nuevo = quitar(await leerRevisar(), clave, id);
-        await guardarRevisar(nuevo);
-        if (repo) await repo.commitear(`Panel: revisada la ficha ${id} de ${clave}`, [FICHERO_REVISAR]);
+        const previo = await leerRevisar();
+        const nuevo = quitar(previo, clave, id);
+        // Sólo si cambia algo: si no, se escribiría un fichero vacío y se
+        // commitearía (y publicaría, con su build) por nada.
+        if (nuevo !== previo) {
+          await guardarRevisar(nuevo);
+          if (repo) await repo.commitear(`Panel: revisada la ficha ${id} de ${clave}`, [FICHERO_REVISAR]);
+        }
         return nuevo;
       });
       return json(res, 200, { ok: true, revisar: registro });
