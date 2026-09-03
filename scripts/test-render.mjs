@@ -286,6 +286,31 @@ const texto = (html) =>
   }
 }
 
+// ---------------------------------------- el título en español, en los tres
+{
+  const base = {
+    id: 1, title: 'FICHA DE PRUEBA', japaneseTitle: 'JP', description: '', image: '',
+    genres: [], platforms: [], languages: [], openings: [], endings: [], physicalStores: [],
+    entries: [], related: {}, episodes: '', chapters: '', volumes: '', author: '', illustrator: '',
+  };
+  for (const [nombre, tipo] of [['AnimeModal', 'anime'], ['MangaModal', 'manga'], ['LightNovelModal', 'lightnovel']]) {
+    const Modal = await compilar(`src/components/${nombre}.jsx`, `${nombre}.mjs`);
+    const con = texto(renderToStaticMarkup(createElement(Modal, {
+      item: { ...base, spanishTitle: 'TITULO ESPANOL DE PRUEBA' }, onClose() {},
+    })));
+    check(`${nombre}: pinta el título en español`, con.includes('TITULO ESPANOL DE PRUEBA'), con.slice(0, 200));
+    const sin = texto(renderToStaticMarkup(createElement(Modal, { item: { ...base, spanishTitle: '' }, onClose() {} })));
+    check(`${nombre}: sin título español no deja una etiqueta vacía`,
+      !sin.includes('Título en español'), sin.slice(0, 200));
+    void tipo;
+  }
+  const Card = await compilar('src/components/ContentCard.jsx', 'ContentCard.mjs');
+  const tarjeta = texto(renderToStaticMarkup(createElement(Card, {
+    item: { ...base, spanishTitle: 'TITULO ESPANOL DE PRUEBA' }, typeId: 'manga', onSelect() {},
+  })));
+  check('tarjeta: enseña el título en español', tarjeta.includes('TITULO ESPANOL DE PRUEBA'), tarjeta);
+}
+
 // ------------------------------------------------- la tarjeta: nota y contador
 {
   const Card = await compilar('src/components/ContentCard.jsx', 'ContentCard.mjs');

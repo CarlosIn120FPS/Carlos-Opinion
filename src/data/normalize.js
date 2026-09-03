@@ -28,6 +28,9 @@ export function normalizeItem(raw, index) {
     ...raw,
     id: raw?.id ?? `sin-id-${index}`,
     title: toText(raw?.title) || 'Sin título',
+    // El título de la edición española, cuando lo hay. `title` sigue siendo el
+    // de AniList (inglés o romaji): es el que se empareja con las fuentes.
+    spanishTitle: toText(raw?.spanishTitle),
     description: toText(raw?.description),
     image: toText(raw?.image),
     category: toText(raw?.category),

@@ -89,6 +89,19 @@ igual('busca por romanización: "Seishun Buta"',
 // Antes esto era lo ÚNICO que funcionaba, así que tiene que seguir funcionando.
 igual('sigue buscando por título', buscar(anime, 'Rent-a'), ['Rent-a-Girlfriend']);
 
+// El título de la edición española: «Un amor de tinta y espuma» no se parece en
+// nada a «The Summer You Were There», y es como él lo conoce. Ficha sintética.
+{
+  const conEs = [
+    ...manga,
+    { id: 999, title: 'The Summer You Were There', spanishTitle: 'Un amor de tinta y espuma', genres: [] },
+  ];
+  igual('busca por título en español', buscar(conEs, 'tinta y espuma'), ['The Summer You Were There']);
+  igual('y sin tildes', buscar(conEs, 'espuma'), ['The Summer You Were There']);
+  check('searchableText incluye el título español',
+    searchableText(conEs.at(-1)).includes('un amor de tinta y espuma'));
+}
+
 // Sin tildes.
 check('"japones" encuentra "Japonés"', buscar(anime, 'japones').length > 0);
 check('"comedia" encuentra el género', buscar(anime, 'comedia').length >= 4,

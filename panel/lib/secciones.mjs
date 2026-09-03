@@ -25,6 +25,7 @@ export const SECCIONES = {
     // Ofrecerlo en las otras dos inventaría un campo que no existe.
     campos: [
       { clave: 'category', tipo: 'categoria', etiqueta: 'Categoría' },
+      { clave: 'spanishTitle', tipo: 'texto', etiqueta: 'Título en español' },
       { clave: 'rating', tipo: 'texto', etiqueta: 'Nota (mientras lo veo)' },
       { clave: 'ratingFinal', tipo: 'texto', etiqueta: 'Nota final' },
       { clave: 'personalOpinion', tipo: 'parrafo', etiqueta: 'Opinión (mientras lo veo)' },
@@ -33,7 +34,7 @@ export const SECCIONES = {
       { clave: 'willReadSource', tipo: 'parrafo', etiqueta: '¿Voy a leer el manga/novela?' },
     ],
     orden: [
-      'id', 'title', 'japaneseTitle', 'category', 'image', 'description', 'genres',
+      'id', 'title', 'spanishTitle', 'japaneseTitle', 'category', 'image', 'description', 'genres',
       'fullSynopsis', 'episodes', 'hasManga', 'hasLightNovel', 'related', 'willReadSource',
       'doIRecommend', 'platforms', 'languages', 'rating', 'ratingFinal',
       'personalOpinion', 'personalOpinionFinal', 'openings', 'endings', 'entries',
@@ -47,6 +48,7 @@ export const SECCIONES = {
     drafts: 'drafts/manga',
     campos: [
       { clave: 'category', tipo: 'categoria', etiqueta: 'Categoría' },
+      { clave: 'spanishTitle', tipo: 'texto', etiqueta: 'Título en español' },
       { clave: 'rating', tipo: 'texto', etiqueta: 'Nota (mientras lo leo)' },
       { clave: 'ratingFinal', tipo: 'texto', etiqueta: 'Nota final' },
       { clave: 'personalOpinion', tipo: 'parrafo', etiqueta: 'Opinión (mientras lo leo)' },
@@ -54,7 +56,7 @@ export const SECCIONES = {
       { clave: 'doIRecommend', tipo: 'parrafo', etiqueta: '¿Lo recomiendo?' },
     ],
     orden: [
-      'id', 'title', 'japaneseTitle', 'category', 'image', 'description', 'genres',
+      'id', 'title', 'spanishTitle', 'japaneseTitle', 'category', 'image', 'description', 'genres',
       'fullSynopsis', 'chapters', 'volumes', 'author', 'hasAnime', 'hasLightNovel', 'related',
       'doIRecommend',
       'platforms', 'languages', 'rating', 'ratingFinal', 'personalOpinion',
@@ -68,6 +70,7 @@ export const SECCIONES = {
     drafts: 'drafts/lightnovel',
     campos: [
       { clave: 'category', tipo: 'categoria', etiqueta: 'Categoría' },
+      { clave: 'spanishTitle', tipo: 'texto', etiqueta: 'Título en español' },
       { clave: 'rating', tipo: 'texto', etiqueta: 'Nota (mientras la leo)' },
       { clave: 'ratingFinal', tipo: 'texto', etiqueta: 'Nota final' },
       { clave: 'personalOpinion', tipo: 'parrafo', etiqueta: 'Opinión (mientras la leo)' },
@@ -75,7 +78,7 @@ export const SECCIONES = {
       { clave: 'doIRecommend', tipo: 'parrafo', etiqueta: '¿La recomiendo?' },
     ],
     orden: [
-      'id', 'title', 'japaneseTitle', 'category', 'image', 'description', 'genres',
+      'id', 'title', 'spanishTitle', 'japaneseTitle', 'category', 'image', 'description', 'genres',
       'fullSynopsis', 'volumes', 'author', 'illustrator', 'hasAnime', 'hasManga', 'related',
       'doIRecommend', 'languages', 'rating', 'ratingFinal', 'personalOpinion',
       'personalOpinionFinal', 'physicalStores', 'entries', 'anilistIds',

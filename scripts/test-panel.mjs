@@ -204,6 +204,33 @@ const datosAnime = JSON.parse(readFileSync(resolve(RAIZ, 'public/data/anime.json
     claves.filter((k) => k !== 'entries'), original);
 }
 
+// ======================================= 6b. el título en español
+{
+  const { ficha } = aplicar(datosAnime,
+    { op: 'field.set', id: 2, campo: 'spanishTitle', valor: 'Yofukashi no Uta: Canción nocturna' }, 'anime', CTX);
+  igual('spanishTitle se edita desde el panel', ficha.spanishTitle, 'Yofukashi no Uta: Canción nocturna');
+  igual('y va justo detrás de title', Object.keys(ficha).slice(0, 3), ['id', 'title', 'spanishTitle']);
+  // Un borrador PUEDE traerlo (lo pone Whakoom): no es la voz de Carlos.
+  const borrador = {
+    title: 'Obra', japaneseTitle: 'テスト', spanishTitle: 'Título español', genres: ['Comedia'],
+    description: 'x', fullSynopsis: 'x', chapters: '', volumes: '', author: '', hasAnime: false,
+    hasLightNovel: false, platforms: [], languages: [], image: '', category: '', rating: '',
+    ratingFinal: '', personalOpinion: '', personalOpinionFinal: '', doIRecommend: '', physicalStores: [],
+    _meta: { fuente: 'anilist', anilistIds: [999003], _revisar: [], _avisos: [] },
+  };
+  const datosManga = JSON.parse(readFileSync(resolve(RAIZ, 'public/data/manga.json'), 'utf8'));
+  const pub = promover(datosManga, borrador, { categoria: 'Leído', clave: 'manga' });
+  igual('promover acepta un borrador con spanishTitle', pub.ficha.spanishTitle, 'Título español');
+  debeFallar('pero sigue rechazando una opinión dentro',
+    () => promover(datosManga, { ...borrador, personalOpinion: 'x' }, { categoria: 'Leído', clave: 'manga' }),
+    400, 'sólo escribe Carlos');
+  // Clonar NO copia el título español: el de la edición del manga puede no ser
+  // el del anime.
+  const clon = clonar({ anime: { ...datosAnime, items: [{ ...datosAnime.items[0], spanishTitle: 'X' }] }, manga: datosManga },
+    { clave: 'anime', id: datosAnime.items[0].id, hermana: 'manga', categoria: 'Leído' }).ficha;
+  igual('clonar deja spanishTitle vacío', clon.spanishTitle, '');
+}
+
 // ======================================================= 7. operación inventada
 debeFallar('rechaza una operación desconocida',
   () => aplicar(datosAnime, { op: 'borrar.todo', id: 5 }, 'anime', CTX), 400, 'desconocida');
@@ -397,7 +424,7 @@ debeFallar('rechaza una operación desconocida',
   check('sin anilistIds: los del anime no son los del manga', !('anilistIds' in ficha));
   check('sin willReadSource: no existe en manga', !('willReadSource' in ficha));
   igual('las claves siguen el orden de manga', Object.keys(ficha), [
-    'id', 'title', 'japaneseTitle', 'category', 'image', 'description', 'genres', 'fullSynopsis',
+    'id', 'title', 'spanishTitle', 'japaneseTitle', 'category', 'image', 'description', 'genres', 'fullSynopsis',
     'chapters', 'volumes', 'author', 'hasAnime', 'hasLightNovel', 'related', 'doIRecommend',
     'platforms', 'languages', 'rating', 'ratingFinal', 'personalOpinion', 'personalOpinionFinal', 'physicalStores',
   ]);

@@ -71,7 +71,7 @@ for (const [fichero, tipo] of FICHEROS) {
     // se comprueba aquí es que no aparezca ningún campo fuera de esa lista.
     const GARANTIZADOS = [
       'genres', 'platforms', 'languages', 'openings', 'endings',
-      'physicalStores', 'entries', 'related',
+      'physicalStores', 'entries', 'related', 'spanishTitle',
     ];
     const nuevas = Object.keys(normalizada).filter((k) => !(k in original));
     igual(

@@ -444,7 +444,7 @@ def imprimir(series):
         for s in grupos["seguro"]:
             a = s["anilist"]
             extra = f"  \u00b7 hermana del anime \u00ab{s['hermanaAnime'][1]}\u00bb (ficha {s['hermanaAnime'][0]})" if s.get("hermanaAnime") else ""
-            print(f"    {s['serie']}  ->  --seccion {s['seccion']} --anilist-id {a['id']}  [{a['formato']}]  ({tomos(s)}){extra}")
+            print(f"    {s['serie']}  ->  --seccion {s['seccion']} --anilist-id {a['id']} --titulo-es \"{titulo_espanol(s['serie'])}\"  [{a['formato']}]  ({tomos(s)}){extra}")
     if grupos["dudoso"]:
         print(f"\n  DUDOSOS ({len(grupos['dudoso'])}) — elige a mano y lanza generar.py:")
         for s in grupos["dudoso"]:
@@ -466,6 +466,14 @@ def imprimir(series):
     print()
 
 
+def titulo_espanol(serie):
+    """El titulo de la edicion espanola tal como lo escribe Whakoom, sin lo que
+    no es titulo: prefijo de pack y sufijos de edicion. Es lo que va a
+    `spanishTitle`."""
+    variantes = variantes_de_busqueda(serie)
+    return variantes[1] if len(variantes) > 1 and variantes[1] != serie else serie
+
+
 def generar_seguros(series, con_ollama=False):
     hechos = []
     for s in series:
@@ -473,6 +481,7 @@ def generar_seguros(series, con_ollama=False):
             continue
         clave = s["seccion"]
         ficha = generar.construir_borrador_obra(s["anilist"]["id"], clave)
+        ficha["spanishTitle"] = titulo_espanol(s["serie"])
         if con_ollama:
             ficha, _ = generar.realzar_con_ollama(ficha)
         ruta, estado = generar.publicar_borrador(ficha, clave)

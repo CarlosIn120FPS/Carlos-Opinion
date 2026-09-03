@@ -244,6 +244,7 @@ async function abrirBorrador(resumen) {
     `¿Tiene ${ESQUEMA[h].nombre}?`, b[ESQUEMA[h].bandera] ? 'Sí' : 'No',
   ]);
   const datos = [
+    ['Título en español', b.spanishTitle],
     ...propios,
     ['Géneros', (b.genres ?? []).join(', ')],
     ...hermanasDe,
@@ -661,7 +662,10 @@ function pintarCampo(item, campo) {
     control = el('textarea', { value: valor });
     control.onblur = () => guardar(control);
   } else {
-    control = el('input', { type: 'text', value: valor, placeholder: 'p. ej. 9/10' });
+    control = el('input', {
+      type: 'text', value: valor,
+      placeholder: campo.clave.startsWith('rating') ? 'p. ej. 9/10' : '',
+    });
     control.onblur = () => guardar(control);
   }
 

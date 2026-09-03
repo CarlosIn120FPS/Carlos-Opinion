@@ -91,6 +91,9 @@ const MangaModal = ({ item, onClose, onOpenRelated }) => {
             <h2 className="text-2xl md:text-3xl font-black mt-4 text-center uppercase tracking-tighter" style={{ WebkitTextStroke: '1px black' }}>
               {item.title}
             </h2>
+            {item.spanishTitle && (
+              <p className="text-gray-800 dark:text-gray-200 font-bold text-center">{item.spanishTitle}</p>
+            )}
             <p className="text-gray-600 dark:text-gray-400 font-bold italic">{item.japaneseTitle}</p>
           </div>
 

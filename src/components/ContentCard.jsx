@@ -104,6 +104,13 @@ const ContentCard = ({ item, typeId, onSelect, isElastic = false }) => {
           >
             {item.title}
           </h3>
+          {/* El título de la edición española, si lo hay: es como él lo conoce
+              y como lo buscaría en la estantería. */}
+          {item.spanishTitle && (
+            <p className="text-sm font-semibold text-purple-700 dark:text-purple-200 mb-1.5 line-clamp-1" title={item.spanishTitle}>
+              {item.spanishTitle}
+            </p>
+          )}
           {item.description && (
             <p className="text-gray-600 dark:text-gray-400 text-sm mb-3 line-clamp-2">{item.description}</p>
           )}

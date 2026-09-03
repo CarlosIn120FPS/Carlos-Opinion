@@ -293,6 +293,25 @@ class Emparejar(unittest.TestCase):
         self.assertEqual(sorted(hechos), ["Chainsaw Man", "Spy x Family"])
         self.assertEqual(sorted(llamadas), [("obra 105778", "manga"), ("obra 108556", "manga")])
 
+    def test_titulo_espanol_y_spanish_title_en_el_borrador(self):
+        # El titulo de la edicion espanola es la serie de Whakoom sin lo que no
+        # es titulo; va al borrador como spanishTitle.
+        self.assertEqual(whakoom.titulo_espanol("Alya a veces me susurra en ruso"), "Alya a veces me susurra en ruso")
+        self.assertEqual(whakoom.titulo_espanol("Neon Genesis Evangelion - Edición Coleccionista"), "Neon Genesis Evangelion")
+        self.assertEqual(whakoom.titulo_espanol("Pack Lycoris Recoil"), "Lycoris Recoil")
+        self.assertEqual(whakoom.titulo_espanol("Re:ZeRo - Empezar de cero - Volumen 2"), "Re:ZeRo - Empezar de cero")
+        fichas = []
+        original = (whakoom.generar.construir_borrador_obra, whakoom.generar.publicar_borrador)
+        whakoom.generar.construir_borrador_obra = lambda aid, clave: {"title": "T", "spanishTitle": ""}
+        whakoom.generar.publicar_borrador = lambda ficha, clave: (fichas.append(ficha) or ("ruta", "publicado"))
+        try:
+            base = {"leidos": [], "filas": 1, "tipo": "", "autor": "", "editorial": "", "idiomas": [], "isbn": []}
+            whakoom.generar_seguros([{**base, "serie": "Sexy Cosplay Doll", "tomos": [1], "estado": "seguro",
+                                      "seccion": "manga", "anilist": {"id": 101583}}])
+        finally:
+            whakoom.generar.construir_borrador_obra, whakoom.generar.publicar_borrador = original
+        self.assertEqual(fichas[0]["spanishTitle"], "Sexy Cosplay Doll")
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=1)

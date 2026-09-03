@@ -170,6 +170,9 @@ const LightNovelModal = ({ item, onClose, onOpenRelated }) => {
               >
                 {item.title}
               </h2>
+              {item.spanishTitle && (
+                <p className="text-stone-700 dark:text-stone-300 font-serif mt-2">{item.spanishTitle}</p>
+              )}
               <p className="text-stone-500 dark:text-stone-400 font-serif italic mt-2">{item.japaneseTitle}</p>
               <div className="flex justify-center mt-6">
                 <div className="relative p-2 bg-white dark:bg-[#1a1714] shadow-lg rotate-1">

@@ -97,6 +97,13 @@ const AnimeModal = ({ item, onClose, onOpenRelated }) => {
               </div>
 
               <div className="space-y-2.5 md:space-y-3 text-gray-200">
+                {item.spanishTitle && (
+                  <div className={FILA}>
+                    <span className="text-purple-300 font-semibold">Título en español:</span>
+                    <span>{item.spanishTitle}</span>
+                  </div>
+                )}
+
                 <div className={FILA}>
                   <span className="text-purple-300 font-semibold">Título en Japonés:</span>
                   <span>{item.japaneseTitle}</span>

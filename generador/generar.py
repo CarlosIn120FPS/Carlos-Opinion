@@ -887,6 +887,7 @@ def construir_borrador_obra(anilist_id, clave):
     ficha = {
         "title": (media.get("title") or {}).get("english") or (media.get("title") or {}).get("romaji"),
         "japaneseTitle": titulo_japones(media),
+        "spanishTitle": "",   # el de la edicion espanola; lo trae Whakoom o lo pone Carlos
         "image": ((media.get("coverImage") or {}).get("extraLarge")
                   or (media.get("coverImage") or {}).get("large") or ""),
         "description": "",
@@ -944,6 +945,7 @@ def construir_borrador(anilist_id, con_temas=True, respaldo=None):
     ficha = {
         "title": (raiz.get("title") or {}).get("english") or (raiz.get("title") or {}).get("romaji"),
         "japaneseTitle": titulo_japones(raiz),
+        "spanishTitle": "",
         "image": ((raiz.get("coverImage") or {}).get("extraLarge")
                   or (raiz.get("coverImage") or {}).get("large") or ""),
         "description": "",   # la escribe Carlos; el LLM la propondra en la fase 2
@@ -1399,6 +1401,7 @@ def main():
                    help="proponer los anilistIds de las fichas que aún no los declaran")
     # Por defecto anime, para no romper nada de lo que ya funciona: la pasada
     # nocturna (esperar-y-generar.sh) llama a este script sin --seccion.
+    p.add_argument("--titulo-es", help="titulo de la edicion espanola (spanishTitle)")
     p.add_argument("--seccion", choices=list(SECCIONES), default="anime",
                    help="qué se está generando (por defecto anime)")
     args = p.parse_args()
@@ -1452,6 +1455,9 @@ def main():
     else:
         # Manga y novelas: una obra es una obra, sin franquicia ni temas.
         ficha = construir_borrador_obra(anilist_id, clave)
+
+    if args.titulo_es:
+        ficha["spanishTitle"] = args.titulo_es.strip()
 
     if not args.sin_ollama:
         ficha, estado = realzar_con_ollama(ficha)

@@ -14,6 +14,9 @@ const mal = (m) => {
   throw new ErrorPanel(400, m);
 };
 
+// Campos editables desde el panel que NO son la voz de Carlos.
+const OBJETIVOS = ['category', 'spanishTitle'];
+
 /**
  * Qué le falta a un borrador para poder publicarse. Devuelve una lista de
  * motivos, vacía si está listo. Se usa también para pintar la lista del panel:
@@ -69,7 +72,10 @@ export function promover(datos, borrador, { categoria, clave }) {
 
   // La máquina no escribe la voz de Carlos. El generador ya los deja vacíos,
   // pero esa garantía vive allí: aquí se comprueba en la puerta.
-  const intrusos = clavesDeCarlos(clave).filter((c) => c !== 'category' && ficha[c]);
+  // `category` y `spanishTitle` se editan desde el panel pero no son su voz:
+  // la categoría la pone aquí mismo, y el título español es un dato (el de la
+  // edición) que Whakoom o él pueden traer ya puesto.
+  const intrusos = clavesDeCarlos(clave).filter((c) => !OBJETIVOS.includes(c) && ficha[c]);
   if (intrusos.length) {
     mal(`el borrador trae campos que sólo escribe Carlos: ${intrusos.join(', ')}.`);
   }
