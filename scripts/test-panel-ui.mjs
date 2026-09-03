@@ -118,6 +118,9 @@ const BORRADORES = [
   { id: '999002', seccion: 'anime', title: 'Obra completa', japaneseTitle: 'テスト',
     episodes: '1 temporada/12', fuente: 'anilist', falta: [], revisar: [], avisos: [],
     yaPublicado: false },
+  // Un borrador de MANGA: la vista no puede preguntarle «¿tiene manga?».
+  { id: '117195', seccion: 'manga', title: 'OSHI NO KO BORRADOR', japaneseTitle: '推しの子',
+    episodes: '', fuente: 'anilist', falta: [], revisar: [], avisos: [], yaPublicado: false },
 ];
 const DETALLE = {
   101280: { title: 'Tensei shitara Slime Datta Ken', japaneseTitle: '転生したらスライムだった件',
@@ -125,6 +128,8 @@ const DETALLE = {
     openings: [{ name: 'a' }, { name: 'b' }], endings: [], description: 'DESCRIPCION PROPUESTA' },
   999002: { title: 'Obra completa', japaneseTitle: 'テスト', episodes: '1 temporada/12',
     genres: ['Comedia'], hasManga: true, hasLightNovel: false, openings: [], endings: [] },
+  117195: { title: 'OSHI NO KO BORRADOR', japaneseTitle: '推しの子', chapters: '166 (finalizada)',
+    volumes: '16', author: 'AUTOR DE PRUEBA', genres: ['Drama'], hasAnime: true, hasLightNovel: false },
 };
 
 // Respuesta fija de AniList: la ficha 8 (Alya) con 2 episodios vistos.
@@ -172,11 +177,11 @@ globalThis.fetch = async (ruta, opciones = {}) => {
     delete REVISAR.anime;
     return { ok: true, json: async () => ({ ok: true, revisar: REVISAR }) };
   }
-  const mDetalle = ruta.match(/^\/api\/borradores\/anime\/(\d+)$/);
+  const mDetalle = ruta.match(/^\/api\/borradores\/(?:anime|manga)\/(\d+)$/);
   if (mDetalle) return { ok: true, json: async () => DETALLE[mDetalle[1]] };
   const cuerpo =
     ruta === '/api/borradores'
-      ? { borradores: BORRADORES, categorias: { anime: ANIME.categories, manga: [], lightnovel: [] } }
+      ? { borradores: BORRADORES, categorias: { anime: ANIME.categories, manga: ['Leído', 'Leyendo'], lightnovel: [] } }
       : ruta === '/api/secciones'
       ? { modo: 'servidor', anilist: 'carlostest', secciones: [
           { clave: 'anime', etiqueta: 'Anime', campos: [
@@ -386,14 +391,27 @@ if (conDiario) {
   check('hay un botón de borradores en la barra lateral', Boolean(bBorradores));
 
   if (bBorradores) {
-    igual('y dice cuántos hay pendientes', bBorradores.textContent, 'Borradores (2)');
+    igual('y dice cuántos hay pendientes', bBorradores.textContent, 'Borradores (3)');
 
     await bBorradores.onclick();
     await new Promise((r) => setImmediate(r));
 
     const filasB = raiz.querySelector('#lista').buscarTodos('.fila');
     igual('lista los borradores', filasB.map((f) => f.buscarTodos('.t')[0]?.textContent),
-      ['Tensei shitara Slime Datta Ken', 'Obra completa']);
+      ['Tensei shitara Slime Datta Ken', 'Obra completa', 'OSHI NO KO BORRADOR']);
+
+    // El borrador de manga: sus campos, sus hermanas, y NUNCA «¿tiene manga?».
+    await filasB[2].onclick();
+    await new Promise((r) => setImmediate(r));
+    const detM = raiz.querySelector('#detalle').textContent;
+    check('manga: enseña capítulos, volúmenes y autor',
+      detM.includes('166 (finalizada) / 16') && detM.includes('AUTOR DE PRUEBA'), detM.slice(0, 400));
+    check('manga: pregunta por anime y novela ligera',
+      detM.includes('¿Tiene anime?') && detM.includes('¿Tiene novela ligera?'), detM.slice(0, 400));
+    check('manga: NO pregunta «¿tiene manga?» ni pinta episodios ni openings',
+      !detM.includes('¿Tiene manga?') && !detM.includes('Episodios') && !detM.includes('Openings'), detM.slice(0, 400));
+    check('manga: la categoría se elige entre las de manga',
+      raiz.querySelector('#detalle').buscarTodos('select')[0]?.children.some((o) => o.textContent === 'Leído'));
     // Lo importante: avisa de que está incompleto ANTES de pulsar publicar.
     check('marca el que está incompleto',
       filasB[0].buscarTodos('.pendiente').length === 1, filasB[0].textContent);

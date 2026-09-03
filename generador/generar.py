@@ -466,8 +466,21 @@ FORMATOS_MANGA = {"MANGA", "ONE_SHOT"}
 FORMATOS_NOVELA = {"NOVEL"}
 
 
+# Que relaciones de AniList significan "la MISMA historia en otro medio". Un
+# PREQUEL o un SIDE_STORY en formato novela es un spin-off, no "la novela de":
+# [Oshi no Ko] tiene dos novelas spin-off y salia con hasLightNovel a si, y
+# Carlos, con razon: "es un manga". Lo que cuenta es la adaptacion, la fuente,
+# la version alternativa, o la obra madre de la que esto deriva.
+MISMA_HISTORIA = {"ADAPTATION", "SOURCE", "ALTERNATIVE", "PARENT"}
+
+
+def _misma_historia(arista):
+    return (arista.get("relationType") or "").upper() in MISMA_HISTORIA
+
+
 def tiene_fuente(obras):
-    """hasManga / hasLightNovel: mira `source` Y las relaciones no-anime."""
+    """hasManga / hasLightNovel: mira `source` Y las relaciones no-anime que sean
+    la misma historia (ver MISMA_HISTORIA)."""
     manga = novela = False
     for m in obras:
         s = (m.get("source") or "").upper()
@@ -477,7 +490,7 @@ def tiene_fuente(obras):
             novela = True
         for arista in m.get("relations", {}).get("edges", []):
             nodo = arista.get("node") or {}
-            if nodo.get("type") != "MANGA":
+            if nodo.get("type") != "MANGA" or not _misma_historia(arista):
                 continue
             if nodo.get("format") in FORMATOS_MANGA:
                 manga = True
@@ -840,9 +853,11 @@ def autoria(media):
 
 
 def relacionada_con(media, tipo, formatos=None):
+    """hasAnime / hasManga / hasLightNovel de una obra: solo relaciones que sean
+    la misma historia en otro medio (MISMA_HISTORIA), no spin-offs."""
     for arista in (media.get("relations") or {}).get("edges", []):
         nodo = arista.get("node") or {}
-        if nodo.get("type") != tipo:
+        if nodo.get("type") != tipo or not _misma_historia(arista):
             continue
         if formatos is None or nodo.get("format") in formatos:
             return True

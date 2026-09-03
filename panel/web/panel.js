@@ -231,13 +231,25 @@ async function abrirBorrador(resumen) {
 
   // Lo que trae la máquina, para que decida si le vale.
   trozos.push(el('h3', { textContent: 'Lo que ha encontrado la máquina' }));
+  // Lo que se enseña depende de la sección del borrador. Antes esto era la
+  // lista de anime para todos: a un manga le decía «Episodios: —» y «¿Tiene
+  // manga? No», que es mentira por construcción.
+  const sec = resumen.seccion;
+  const propios = sec === 'anime'
+    ? [['Episodios', b.episodes]]
+    : sec === 'manga'
+      ? [['Capítulos / volúmenes', [b.chapters, b.volumes].filter(Boolean).join(' / ')], ['Autor', b.author]]
+      : [['Volúmenes', b.volumes], ['Autor', b.author], ['Ilustrador', b.illustrator]];
+  const hermanasDe = (ESQUEMA[sec]?.hermanas ?? []).map((h) => [
+    `¿Tiene ${ESQUEMA[h].nombre}?`, b[ESQUEMA[h].bandera] ? 'Sí' : 'No',
+  ]);
   const datos = [
-    ['Episodios', b.episodes],
+    ...propios,
     ['Géneros', (b.genres ?? []).join(', ')],
-    ['¿Tiene manga?', b.hasManga ? 'Sí' : 'No'],
-    ['¿Tiene novela?', b.hasLightNovel ? 'Sí' : 'No'],
-    ['Openings', `${(b.openings ?? []).length}`],
-    ['Endings', `${(b.endings ?? []).length}`],
+    ...hermanasDe,
+    ...(sec === 'anime'
+      ? [['Openings', `${(b.openings ?? []).length}`], ['Endings', `${(b.endings ?? []).length}`]]
+      : []),
     ['Fuente', resumen.fuente],
   ];
   for (const [k, v] of datos) {
