@@ -243,21 +243,26 @@ function App() {
   };
 
   return (
-    <div className="min-h-screen p-8 transition-colors duration-300 dark:bg-[#0f172a]">
+    // En modo claro el fondo era el blanco por defecto, y las tarjetas y botones
+    // «cristal» (bg-white/…, backdrop-blur) no se distinguían de él. Un fondo
+    // con un degradado tenue es lo que hace que el cristal se lea como cristal.
+    // El oscuro no cambia. Y el relleno de 32 px a todos los anchos se comía
+    // media pantalla de móvil.
+    <div className="min-h-screen p-4 sm:p-6 md:p-8 transition-colors duration-300 bg-gradient-to-b from-indigo-50 via-slate-50 to-purple-50 dark:bg-none dark:bg-[#0f172a]">
       {/* Header */}
       <motion.header
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6 }}
-        className="text-center mb-12"
+        className="text-center mb-8 md:mb-10"
       >
         <button
           onClick={() => setIsNavOpen(true)}
           aria-haspopup="dialog"
           aria-expanded={isNavOpen}
-          className="hover:scale-105 transition-transform duration-300 relative group mb-4 rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-500"
+          className="hover:scale-105 transition-transform duration-300 relative group mb-2 md:mb-4 rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-500"
         >
-          <h1 className="text-5xl md:text-6xl font-bold pb-2 bg-gradient-to-r from-purple-400 via-blue-400 to-indigo-400 bg-clip-text text-transparent">
+          <h1 className="text-4xl md:text-6xl font-bold tracking-tight pb-2 bg-gradient-to-r from-purple-400 via-blue-400 to-indigo-400 bg-clip-text text-transparent">
             {type.pageTitle}
           </h1>
         </button>
@@ -266,7 +271,7 @@ function App() {
             pulsar el título, y la pista era opacity-0 group-hover: en un móvil no
             aparece nunca, así que dos tercios de la web no existían para quien
             llegaba desde un enlace. Ahora se ven las tres siempre. */}
-        <nav aria-label="Secciones" className="flex justify-center gap-2 flex-wrap mt-6">
+        <nav aria-label="Secciones" className="flex justify-center gap-2 flex-wrap mt-3 md:mt-6">
           {CONTENT_TYPE_ORDER.map((typeId) => {
             const section = CONTENT_TYPES[typeId];
             const isCurrent = section.id === type.id;
@@ -275,7 +280,7 @@ function App() {
                 key={section.id}
                 onClick={() => goToSection(section.id)}
                 aria-current={isCurrent ? 'page' : undefined}
-                className={`px-5 py-2 rounded-full font-semibold transition-all duration-300 ${
+                className={`px-4 md:px-5 py-1.5 md:py-2 text-sm md:text-base rounded-full font-semibold transition-all duration-300 ${
                   isCurrent
                     ? 'bg-gradient-to-r from-purple-500 to-blue-500 text-white shadow-lg shadow-purple-500/40'
                     : 'bg-white dark:bg-gray-800/60 shadow-sm backdrop-blur-md border border-gray-200 dark:border-gray-700 text-purple-600 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700'
@@ -287,12 +292,15 @@ function App() {
           })}
         </nav>
 
-        <p className="text-xl text-gray-800 dark:text-gray-300 mt-6 max-w-2xl mx-auto relative z-10">
+        {/* En móvil, la frase de presentación y la línea decorativa empujaban
+            las portadas fuera de la primera pantalla; quien llega desde un
+            enlace compartido viene a ver una ficha, no un subtítulo. */}
+        <p className="hidden md:block text-lg text-gray-700 dark:text-gray-300 mt-5 max-w-2xl mx-auto relative z-10">
           {type.pageDescription}
         </p>
 
         {/* Decorative line */}
-        <div className="mt-6 h-1 w-64 mx-auto bg-gradient-to-r from-transparent via-purple-500 to-transparent rounded-full" />
+        <div className="hidden md:block mt-5 h-1 w-64 mx-auto bg-gradient-to-r from-transparent via-purple-500 to-transparent rounded-full" />
       </motion.header>
 
       {/* Category Filter */}
@@ -300,10 +308,10 @@ function App() {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6, delay: 0.2 }}
-        className="max-w-7xl mx-auto mb-12"
+        className="max-w-7xl mx-auto mb-8 md:mb-12"
       >
         {/* Search Bar */}
-        <div className="mb-6 flex justify-center">
+        <div className="mb-4 md:mb-6 flex justify-center">
           <div className="relative w-full max-w-md">
             <input
               type="search"
@@ -311,7 +319,7 @@ function App() {
               placeholder={type.searchPlaceholder}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full px-6 py-3 pl-12 rounded-lg bg-white shadow-sm dark:bg-gray-800/50 backdrop-blur-md border border-gray-200 dark:border-gray-700 text-purple-800 dark:text-purple-100 placeholder-purple-400 dark:placeholder-purple-300/50 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-300"
+              className="w-full px-6 py-2.5 md:py-3 pl-12 rounded-lg bg-white shadow-sm dark:bg-gray-800/50 backdrop-blur-md border border-gray-200 dark:border-gray-700 text-purple-800 dark:text-purple-100 placeholder-purple-400 dark:placeholder-purple-300/50 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-300"
             />
             <svg
               className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-purple-400 dark:text-purple-300/70 pointer-events-none"
@@ -337,13 +345,13 @@ function App() {
         </div>
 
         {/* Category Buttons */}
-        <div className="flex justify-center gap-4 flex-wrap items-center relative">
+        <div className="flex justify-center gap-2 md:gap-4 flex-wrap items-center relative">
           {['Todos', ...categories].map((category) => (
             <button
               key={category}
               onClick={() => setActiveCategory(category)}
               aria-pressed={activeCategory === category}
-              className={`px-6 py-3 rounded-lg font-semibold transition-all duration-300 ${
+              className={`px-4 md:px-6 py-2 md:py-3 text-sm md:text-base rounded-lg font-semibold transition-all duration-300 ${
                 activeCategory === category
                   ? 'bg-gradient-to-r from-purple-500 to-blue-500 text-white shadow-lg shadow-purple-500/50'
                   : 'bg-white dark:bg-gray-800/60 shadow-sm dark:shadow-none backdrop-blur-md border border-gray-200 dark:border-gray-700 text-purple-600 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700'
@@ -361,7 +369,7 @@ function App() {
             <button
               onClick={() => setOnlyUnrated((value) => !value)}
               aria-pressed={onlyUnrated}
-              className={`px-6 py-3 rounded-lg font-semibold transition-all duration-300 ${
+              className={`px-4 md:px-6 py-2 md:py-3 text-sm md:text-base rounded-lg font-semibold transition-all duration-300 ${
                 onlyUnrated
                   ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-lg shadow-amber-500/40'
                   : 'bg-white dark:bg-gray-800/60 shadow-sm dark:shadow-none backdrop-blur-md border border-dashed border-amber-400/70 text-amber-600 dark:text-amber-300 hover:bg-amber-50 dark:hover:bg-gray-700'
@@ -507,19 +515,19 @@ function App() {
                     key={category}
                     className="mb-12"
                   >
-                    <h2 className="text-3xl font-bold text-purple-500 dark:text-purple-300 mb-6 flex items-center gap-3">
-                      <span className="w-2 h-8 bg-gradient-to-b from-purple-500 to-blue-500 rounded-full" />
+                    <h2 className="text-2xl md:text-3xl font-bold text-purple-600 dark:text-purple-300 mb-4 md:mb-6 flex items-center gap-3">
+                      <span className="w-2 h-7 md:h-8 bg-gradient-to-b from-purple-500 to-blue-500 rounded-full" />
                       {category}
                     </h2>
 
                     <div
-                      className="grid gap-6 items-start"
+                      className="grid gap-4 md:gap-6 items-start"
                       style={{ gridTemplateColumns: `repeat(${effectiveColumns}, minmax(0, 1fr))` }}
                     >
                       {Array.from({ length: effectiveColumns }).map((_, colIndex) => {
                         const columnItems = categoryItems.filter((_, idx) => idx % effectiveColumns === colIndex);
                         return (
-                          <div key={colIndex} className="flex flex-col gap-6">
+                          <div key={colIndex} className="flex flex-col gap-4 md:gap-6">
                             <AnimatePresence>
                               {columnItems.map((item) => (
                                 <ContentCard
