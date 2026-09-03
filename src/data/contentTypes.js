@@ -1,7 +1,6 @@
 import AnimeModal from '../components/AnimeModal';
 import MangaModal from '../components/MangaModal';
 import LightNovelModal from '../components/LightNovelModal';
-import { esquemaDe } from './niveles';
 
 // Registro de tipos de contenido. Añadir una sección nueva (películas, doujinshi,
 // lo que sea) es: un JSON en public/data/, un modal, y una entrada aquí. Nada más.
@@ -44,14 +43,6 @@ export const CONTENT_TYPES = {
     Modal: LightNovelModal,
   },
 };
-
-// Cada tipo lleva colgado cómo se llaman sus niveles de opinión (temporadas y
-// episodios, volúmenes y capítulos). Se engancha aquí en vez de escribirlo en
-// cada entrada para que niveles.js siga siendo cargable desde node: este fichero
-// importa los modales .jsx y aquél no.
-for (const type of Object.values(CONTENT_TYPES)) {
-  type.schema = esquemaDe(type.id);
-}
 
 // Orden en el que aparecen en el modal de navegación.
 export const CONTENT_TYPE_ORDER = ['anime', 'manga', 'lightnovel'];

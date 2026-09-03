@@ -206,16 +206,39 @@ const texto = (html) =>
     );
     // Y sigue pintando la ficha de siempre.
     check(`${nombre}: la ficha sigue ahí`, plano.includes('FICHA DE PRUEBA'));
+    // Contraparte de la comprobación de abajo: con diario, la viñeta SÍ sale.
+    // Sin esto, aquella pasaría aunque el panel no se pintase nunca.
+    if (tipo === 'manga') {
+      check(`${nombre}: con diario sí sale su viñeta`, html.includes('bg-green-50'));
+    }
   }
 
-  // Sin diario, ninguno de los tres debe enseñar la cabecera.
+  // Sin diario, ninguno de los tres debe enseñar la cabecera. Y una fila a medias
+  // —lo que deja el panel si guarda sin escribir— cuenta como "sin diario": no
+  // puede colar un marco vacío alrededor de nada.
+  const vacios = [
+    ['sin el campo', []],
+    ['con una fila a medias', [{ text: '   ' }]],
+  ];
   for (const [nombre, tipo] of modales) {
     const Modal = await compilar(`src/components/${nombre}.jsx`, `${nombre}.mjs`);
-    const plano = texto(
-      renderToStaticMarkup(createElement(Modal, { item: { ...comun, entries: [] }, onClose() {} })),
-    );
-    check(`${nombre}: sin diario no enseña la cabecera`, !plano.includes(ESQUEMA[tipo].diaryTitle));
-    check(`${nombre}: pero la ficha se pinta igual`, plano.includes('FICHA DE PRUEBA'));
+    for (const [caso, entries] of vacios) {
+      const html = renderToStaticMarkup(
+        createElement(Modal, { item: { ...comun, entries }, onClose() {} }),
+      );
+      const plano = texto(html);
+      check(`${nombre} ${caso}: no enseña la cabecera`, !plano.includes(ESQUEMA[tipo].diaryTitle));
+      check(`${nombre} ${caso}: la ficha se pinta igual`, plano.includes('FICHA DE PRUEBA'));
+      // El marco del manga es suyo, no del bloque: si se cuela, se ve vacío.
+      // bg-green-50 es sólo de esa viñeta (las otras son yellow/blue/purple).
+      if (tipo === 'manga') {
+        check(
+          `${nombre} ${caso}: no deja un panel vacío`,
+          !html.includes('bg-green-50'),
+          'quedó la viñeta del diario sin contenido',
+        );
+      }
+    }
   }
 }
 

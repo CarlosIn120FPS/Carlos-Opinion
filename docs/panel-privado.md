@@ -129,6 +129,11 @@ la serie, no parte de una página en blanco: parte de sus doce entradas.
 
 ## Forma propuesta
 
+> **SUPERADO (2026-09-03).** El campo existe ya, pero se llama `entries` y sus
+> claves son `season`/`episode`, `volume`/`chapter`, `text`, `rating`, `date`.
+> **El panel debe escribir contra `docs/esquema-ficha.md`**, no contra el ejemplo
+> de aquí abajo.
+
 Un campo nuevo opcional, **solo se añade, nunca se reescribe**:
 
 ```json

@@ -14,7 +14,6 @@ export const ESQUEMA = {
     // Deliberadamente distinto de "Rating (mientras lo veo)", que es el campo de
     // obra de toda la vida. Son dos cosas y no pueden llamarse igual.
     diaryTitle: 'Diario de visionado',
-    diaryEmpty: 'Todavía no hay notas de episodios.',
     countLabel: (n) => `${n} ${n === 1 ? 'nota' : 'notas'}`,
     levels: [
       { key: 'season', label: 'Temporada' },
@@ -23,7 +22,6 @@ export const ESQUEMA = {
   },
   manga: {
     diaryTitle: 'Diario de lectura',
-    diaryEmpty: 'Todavía no hay notas de volúmenes.',
     countLabel: (n) => `${n} ${n === 1 ? 'nota' : 'notas'}`,
     levels: [
       { key: 'volume', label: 'Volumen' },
@@ -32,7 +30,6 @@ export const ESQUEMA = {
   },
   lightnovel: {
     diaryTitle: 'Diario de lectura',
-    diaryEmpty: 'Todavía no hay notas de volúmenes.',
     countLabel: (n) => `${n} ${n === 1 ? 'nota' : 'notas'}`,
     // Un solo nivel a propósito: en novelas se opina por volumen, no por capítulo.
     levels: [{ key: 'volume', label: 'Volumen' }],

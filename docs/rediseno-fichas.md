@@ -49,6 +49,12 @@ modal lo viste con su estética (cristal, viñeta, libro). Igual que se hizo con
 
 ## Forma propuesta de los datos
 
+> **SUPERADO (2026-09-03).** Lo de abajo era la propuesta; la forma real está en
+> **`docs/esquema-ficha.md`** y es distinta: una lista **plana** `entries` con
+> claves localizadoras (`season`/`episode`, `volume`/`chapter`), no `temporadas`
+> anidando `episodios`. Las cuatro decisiones que quedaban abiertas están
+> resueltas allí. Se deja este apartado como registro del razonamiento.
+
 Una sola figura, repetida en cada nivel. **Solo se añade, nunca se reescribe.**
 
 ```json
