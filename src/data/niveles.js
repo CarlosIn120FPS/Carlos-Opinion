@@ -36,9 +36,12 @@ export const ESQUEMA = {
     nombre: 'manga',
     genero: 'm',
     bandera: 'hasManga',
-    // Sólo anime: las fichas de manga no llevan hasLightNovel (0 de 1 lo tiene),
-    // así que ofrecer «¿Tiene novela ligera?» aquí sería inventar un campo.
-    hermanas: ['anime'],
+    // El mapa tiene que ser SIMÉTRICO: si novela dice que manga es su hermana,
+    // manga tiene que decir lo mismo, porque enlazar escribe en las dos fichas
+    // (y el test de related lo comprueba). Las fichas de manga no traían
+    // hasLightNovel; ahora lo declara el orden de claves del panel y lo rellena
+    // el generador, igual que ya hacía con hasAnime.
+    hermanas: ['anime', 'lightnovel'],
     diaryTitle: 'Diario de lectura',
     countLabel: (n) => `${n} ${n === 1 ? 'nota' : 'notas'}`,
     levels: [

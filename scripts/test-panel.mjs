@@ -323,9 +323,26 @@ debeFallar('rechaza una operación desconocida',
   igual('desde manga: manga apunta al anime', desdeManga.datos.manga.items[1].related, { anime: 3 });
   igual('y el anime al manga', desdeManga.datos.anime.items[1].related, { manga: 5 });
 
+  // Novela -> manga, el caso real que viene (Mushoku Tensei tiene manga). El
+  // lado del manga recibe hasLightNovel y related EN SU SITIO del orden, no
+  // colgando al final como una clave desconocida.
+  const novela = { categories: ['Leída'], items: [
+    { id: 1, title: 'N1', category: 'Leída', hasAnime: true, hasManga: true, doIRecommend: 'sí' },
+  ] };
+  const mangaConNovela = { categories: ['Leído'], items: [
+    { id: 1, title: 'M1', category: 'Leído', hasAnime: true, doIRecommend: 'sí' },
+  ] };
+  const nm = enlazar({ lightnovel: novela, manga: mangaConNovela },
+    { clave: 'lightnovel', id: 1, hermana: 'manga', hermanaId: 1 });
+  igual('novela -> manga: la novela apunta al manga', nm.datos.lightnovel.items[0].related, { manga: 1 });
+  igual('y el manga a la novela', nm.datos.manga.items[0].related, { lightnovel: 1 });
+  igual('el manga gana hasLightNovel y related donde los declara su orden',
+    Object.keys(nm.datos.manga.items[0]),
+    ['id', 'title', 'category', 'hasAnime', 'hasLightNovel', 'related', 'doIRecommend']);
+
   // Lo que se rechaza.
-  debeFallar('una hermana que la sección no declara (manga no tiene novela) es 400',
-    () => enlazar({ manga, lightnovel: { items: [] } }, { clave: 'manga', id: 1, hermana: 'lightnovel', hermanaId: 1 }),
+  debeFallar('una hermana que la sección no declara es 400',
+    () => enlazar({ anime, anime2: { items: [] } }, { clave: 'anime', id: 2, hermana: 'anime', hermanaId: 3 }),
     400, 'no es una sección hermana');
   debeFallar('una hermana que no existe es 404',
     () => enlazar({ anime, manga }, { clave: 'anime', id: 2, hermana: 'manga', hermanaId: 999 }),

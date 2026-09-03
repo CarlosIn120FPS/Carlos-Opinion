@@ -55,7 +55,8 @@ export const SECCIONES = {
     ],
     orden: [
       'id', 'title', 'japaneseTitle', 'category', 'image', 'description', 'genres',
-      'fullSynopsis', 'chapters', 'volumes', 'author', 'hasAnime', 'related', 'doIRecommend',
+      'fullSynopsis', 'chapters', 'volumes', 'author', 'hasAnime', 'hasLightNovel', 'related',
+      'doIRecommend',
       'platforms', 'languages', 'rating', 'ratingFinal', 'personalOpinion',
       'personalOpinionFinal', 'physicalStores', 'entries', 'anilistIds',
     ],

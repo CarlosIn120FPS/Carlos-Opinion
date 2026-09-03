@@ -884,6 +884,9 @@ def construir_borrador_obra(anilist_id, clave):
         ficha["volumes"] = volumenes
         ficha["author"] = autor
         ficha["hasAnime"] = relacionada_con(media, "ANIME")
+        # Manga y novela son hermanas en las dos direcciones (src/data/niveles.js):
+        # sin esto, la ficha de manga diria "No" por omision.
+        ficha["hasLightNovel"] = relacionada_con(media, "MANGA", FORMATOS_NOVELA)
     else:
         ficha["volumes"] = volumenes
         ficha["author"] = autor

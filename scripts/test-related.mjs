@@ -70,8 +70,21 @@ igual('sin related ni bandera: no existe',
 
 // ------------------------------------------------ qué hermanas ofrece cada sección
 igual('anime propone manga y novela', hermanas({}, 'anime').map((h) => h.seccion), ['manga', 'lightnovel']);
-igual('manga propone sólo anime', hermanas({}, 'manga').map((h) => h.seccion), ['anime']);
+igual('manga propone anime y novela', hermanas({}, 'manga').map((h) => h.seccion), ['anime', 'lightnovel']);
 igual('novelas proponen anime y manga', hermanas({}, 'lightnovel').map((h) => h.seccion), ['anime', 'manga']);
+
+// SIMETRÍA: enlazar escribe en las dos fichas, así que si A dice que B es su
+// hermana, B tiene que decir lo mismo de A. Si no, el lado B recibiría un
+// `related.A` que su propio modal nunca pintaría ni su panel dejaría deshacer.
+{
+  const { ESQUEMA } = await import(pathToFileURL(resolve(RAIZ, 'src/data/niveles.js')).href);
+  for (const [clave, s] of Object.entries(ESQUEMA)) {
+    for (const h of s.hermanas) {
+      check(`simetría: ${h} declara a ${clave} como hermana`, ESQUEMA[h].hermanas.includes(clave));
+      check(`${clave}.${ESQUEMA[h].bandera}: la bandera de ${h} existe`, typeof ESQUEMA[h].bandera === 'string');
+    }
+  }
+}
 
 // -------------------------------------------------------------------- bordes
 igual('una sección desconocida no revienta, da []', hermanas({}, 'invento'), []);
