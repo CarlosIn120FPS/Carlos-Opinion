@@ -1,26 +1,30 @@
 #!/usr/bin/env node
 /**
- * Promociona un borrador de la rama `borradores` a public/data/anime.json.
+ * Promociona un borrador de la rama `borradores` a public/data/<sección>.json.
  *
  *   git fetch casa
  *   node scripts/promote.mjs 162804 --categoria "Viendo"
+ *   node scripts/promote.mjs 105778 --seccion manga --categoria "Leyendo"
  *
  * Lee el borrador con `git show`, NO con checkout: así no te queda un directorio
  * drafts/ en el índice de main esperando a que un `git add .` distraído lo suba.
+ *
+ * La lógica de promoción vive en panel/lib/promover.mjs, compartida con el panel.
+ * Antes estaba aquí duplicada, y dos caminos que escriben lo mismo acaban
+ * divergiendo.
  */
 
 import { execFileSync } from 'node:child_process';
 import { readFileSync, writeFileSync, renameSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { promover } from '../panel/lib/promover.mjs';
+import { seccion, CLAVES } from '../panel/lib/secciones.mjs';
+import { serializar } from '../panel/lib/aplicar.mjs';
 
 const RAIZ = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const DESTINO = resolve(RAIZ, 'public/data/anime.json');
 const REMOTO = process.env.CO_REMOTO || 'casa';
 const RAMA = 'borradores';
-
-// Las categorías salen del propio JSON, no de una lista repetida aquí.
-const CATEGORIAS = JSON.parse(readFileSync(DESTINO, 'utf8')).categories;
 
 const morir = (msg) => {
   console.error(`\n  ERROR: ${msg}\n`);
@@ -28,29 +32,41 @@ const morir = (msg) => {
 };
 
 // ---------------------------------------------------------------- argumentos
+// La sección se lee ANTES que nada: de ella salen el fichero de destino, la
+// carpeta de borradores y las categorías válidas. Antes el destino estaba fijado
+// a anime.json en la línea 18 y las categorías se leían al cargar el módulo,
+// antes incluso de mirar los argumentos.
 const args = process.argv.slice(2);
+const valor = (bandera) => {
+  const i = args.indexOf(bandera);
+  return i >= 0 ? args[i + 1] : null;
+};
+
 const anilistId = args.find((a) => /^\d+$/.test(a));
-const iCat = args.indexOf('--categoria');
-const categoria = iCat >= 0 ? args[iCat + 1] : null;
+const clave = valor('--seccion') || 'anime';
+const categoria = valor('--categoria');
+
+if (!CLAVES.includes(clave)) {
+  morir(`sección "${clave}" desconocida. Válidas: ${CLAVES.join(', ')}.`);
+}
+
+const s = seccion(clave);
+const DESTINO = resolve(RAIZ, s.fichero);
 
 if (!anilistId) {
+  const categorias = JSON.parse(readFileSync(DESTINO, 'utf8')).categories ?? [];
   console.error(`
-  Uso: node scripts/promote.mjs <idAniList> --categoria "<categoría>"
+  Uso: node scripts/promote.mjs <idAniList> [--seccion ${CLAVES.join('|')}] --categoria "<categoría>"
 
-  Categorías válidas: ${CATEGORIAS.map((c) => `"${c}"`).join(', ')}
+  Sección actual: ${clave} -> ${s.fichero}
+  Categorías válidas: ${categorias.map((c) => `"${c}"`).join(', ')}
 
   Para ver qué borradores hay pendientes:
     git fetch ${REMOTO} && git show ${REMOTO}/${RAMA}:drafts/PENDIENTES.md
+
+  O ábrelos en el panel, que además los enseña con lo que propuso la máquina.
 `);
   process.exit(1);
-}
-
-// La categoría es obligatoria a propósito. Sin ella habría que inventarse un
-// "No visto" provisional que miente, o dejarla vacía y que la ficha desaparezca
-// en silencio de la web. Es la primera decisión, y es tuya.
-if (!categoria) morir('falta --categoria. Es tuya: nadie puede deducir si lo has visto.');
-if (!CATEGORIAS.includes(categoria)) {
-  morir(`categoría "${categoria}" desconocida. Válidas: ${CATEGORIAS.join(', ')}`);
 }
 
 // ---------------------------------------------------------------- el borrador
@@ -58,101 +74,48 @@ let borrador;
 try {
   const crudo = execFileSync(
     'git',
-    ['show', `${REMOTO}/${RAMA}:drafts/anime/${anilistId}.json`],
+    ['show', `${REMOTO}/${RAMA}:${s.drafts}/${anilistId}.json`],
     { cwd: RAIZ, encoding: 'utf8' },
   );
   borrador = JSON.parse(crudo);
 } catch {
   morir(
-    `no hay borrador para ${anilistId} en ${REMOTO}/${RAMA}.\n` +
+    `no hay borrador para ${anilistId} en ${REMOTO}/${RAMA} (${s.drafts}/).\n` +
       `         ¿Has hecho 'git fetch ${REMOTO}'?\n` +
       `         Pendientes: git show ${REMOTO}/${RAMA}:drafts/PENDIENTES.md`,
   );
 }
 
-// ---------------------------------------------------------------- validación
+// ---------------------------------------------- promoción (compartida con el panel)
 const datos = JSON.parse(readFileSync(DESTINO, 'utf8'));
 
-// Idempotencia por FRANQUICIA, no por anime: si ya publicaste la temporada 1,
-// la 2 no crea una ficha nueva.
-const idsBorrador = new Set(borrador._meta?.anilistIds ?? [Number(anilistId)]);
-const yaEsta = datos.items.find((it) =>
-  (it.anilistIds ?? []).some((id) => idsBorrador.has(id)),
-);
-if (yaEsta) {
-  morir(
-    `esta franquicia ya está en la web como «${yaEsta.title}» (id ${yaEsta.id}).\n` +
-      `         Si querías actualizarla, edítala a mano: promote.mjs solo añade.`,
-  );
+let resultado;
+try {
+  resultado = promover(datos, borrador, { categoria, clave });
+} catch (e) {
+  morir(e.message);
 }
 
-for (const campo of ['title', 'japaneseTitle', 'genres']) {
-  if (!borrador[campo] || borrador[campo].length === 0) {
-    morir(`el borrador no tiene ${campo}. Revísalo antes de promocionarlo.`);
-  }
-}
-
-// ---------------------------------------------------------------- inserción
-const { _meta, ...ficha } = borrador;
-
-// Esto copia al JSON público TODO lo que el borrador traiga. Hoy el generador es
-// limpio —fuerza a vacío los campos de Carlos y no emite `entries`—, pero esa
-// garantía vive en generar.py y aquí no se comprueba. La regla que no se negocia
-// es que la máquina no escribe la voz de Carlos, así que se comprueba en la
-// puerta: si un borrador trae algo aquí, es un fallo del generador y hay que
-// verlo, no absorberlo en silencio.
-const CAMPOS_DE_CARLOS = [
-  'rating', 'ratingFinal', 'personalOpinion', 'personalOpinionFinal',
-  'doIRecommend', 'willReadSource',
-];
-const intrusos = CAMPOS_DE_CARLOS.filter((c) => ficha[c]);
-if (intrusos.length) {
-  morir(
-    `el borrador trae campos que sólo escribe Carlos: ${intrusos.join(', ')}.\n` +
-      `         Eso es un fallo del generador. Revísalo antes de promocionar.`,
-  );
-}
-if ('entries' in ficha) {
-  morir('el borrador trae un diario (`entries`). La máquina no escribe ahí, nunca.');
-}
-
-// App.jsx ordena con (a.id - b.id): tiene que ser número, no cadena.
-ficha.id = Math.max(0, ...datos.items.map((i) => Number(i.id) || 0)) + 1;
-ficha.category = categoria;
-ficha.anilistIds = _meta.anilistIds;
-
-// Orden de claves estable, para que el diff de git sea legible.
-const ORDEN = [
-  'id', 'title', 'japaneseTitle', 'category', 'image', 'description', 'genres',
-  'fullSynopsis', 'episodes', 'hasManga', 'hasLightNovel', 'willReadSource',
-  'doIRecommend', 'platforms', 'languages', 'rating', 'ratingFinal',
-  'personalOpinion', 'personalOpinionFinal', 'openings', 'endings', 'entries',
-  'anilistIds',
-];
-const ordenada = {};
-for (const k of ORDEN) if (k in ficha) ordenada[k] = ficha[k];
-for (const k of Object.keys(ficha)) if (!(k in ordenada)) ordenada[k] = ficha[k];
-
-datos.items.push(ordenada);
-
-// Escritura atómica: si esto se corta a la mitad, no quieres un anime.json roto.
+// Escritura atómica: si esto se corta a la mitad, no quieres un JSON roto.
 const tmp = `${DESTINO}.tmp`;
-writeFileSync(tmp, `${JSON.stringify(datos, null, 2)}\n`, 'utf8');
+writeFileSync(tmp, serializar(resultado.datos), 'utf8');
 renameSync(tmp, DESTINO);
 
 // ---------------------------------------------------------------- resumen
-const vacios = ['rating', 'ratingFinal', 'personalOpinion', 'personalOpinionFinal',
-  'doIRecommend', 'willReadSource'].filter((c) => !ordenada[c]);
+const { ficha, revisar, avisos } = resultado;
+const vacios = s.campos
+  .map((c) => c.clave)
+  .filter((c) => c !== 'category' && !ficha[c]);
 
 console.log(`
-  Añadida «${ordenada.title}» como ficha ${ordenada.id}, categoría "${categoria}".
+  Añadida «${ficha.title}» como ficha ${ficha.id} de ${clave}, categoría "${categoria}".
 
   Revisar (la máquina no puede saberlo):
-    ${(_meta._revisar ?? []).join(', ')}
-${(_meta._avisos ?? []).length ? `\n  Avisos del generador:\n    ${_meta._avisos.join('\n    ')}` : ''}
+    ${revisar.join(', ') || '(nada)'}
+${avisos.length ? `\n  Avisos del generador:\n    ${avisos.join('\n    ')}\n` : ''}
   Te toca escribir:
     ${vacios.join(', ')}
 
   Cuando lo tengas:
-    git add public/data/anime.json && git commit && git push casa main
+    npm run deploy
 `);

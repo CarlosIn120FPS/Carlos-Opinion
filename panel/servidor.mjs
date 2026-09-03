@@ -23,6 +23,7 @@ import { randomUUID } from 'node:crypto';
 import { aplicar, serializar, ErrorPanel } from './lib/aplicar.mjs';
 import { SECCIONES, CLAVES, seccion } from './lib/secciones.mjs';
 import { repoGit } from './lib/repo.mjs';
+import { promover, loQueFalta } from './lib/promover.mjs';
 
 const RAIZ = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const WEB = resolve(RAIZ, 'panel/web');
@@ -52,8 +53,12 @@ if (MODO === 'servidor') {
 
 // En modo servidor el panel es otro cliente de git: commitea lo que escribe. En
 // local escribe en el árbol de trabajo y ya; Carlos commitea cuando quiere.
-const repo = MODO === 'servidor' ? repoGit(RAIZ) : null;
-const REMOTO_PUSH = process.env.CO_PANEL_REMOTO || 'origin';
+//
+// `git` existe en los dos modos, porque los borradores del generador se leen de
+// la rama `borradores` también en local (allí el remoto se llama "casa").
+const git = repoGit(RAIZ);
+const repo = MODO === 'servidor' ? git : null;
+const REMOTO = process.env.CO_PANEL_REMOTO || (MODO === 'servidor' ? 'origin' : 'casa');
 
 // Los tres módulos que el navegador comparte con la web pública. Allowlist
 // literal: si se sirviera un directorio raíz, dentro está .git/ — con el
@@ -193,6 +198,78 @@ const servidor = createServer(async (req, res) => {
     // y acabaría buscando una sección llamada "estado".
     if (ruta === '/api/estado' && req.method === 'GET') {
       return json(res, 200, { modo: MODO, pendientes: repo ? await repo.pendientes() : 0 });
+    }
+
+    // --- los borradores que va dejando el generador --------------------------
+    // Esto es la otra mitad del panel: sin ella, las fichas que la máquina deja
+    // a medias sólo se veían con `git show` desde el PC.
+    if (ruta === '/api/borradores' && req.method === 'GET') {
+      const categorias = {};
+      const lista = await enSerie(async () => {
+        await git.traerBorradores(REMOTO);
+        const salida = [];
+        for (const clave of CLAVES) {
+          const s = seccion(clave);
+          const datos = await leerSeccion(clave).catch(() => ({ items: [] }));
+          // Cada sección tiene las suyas ("Visto/Viendo" en anime, "Leído" en
+          // manga), y el borrador puede no ser de la sección que esté abierta.
+          categorias[clave] = datos.categories ?? [];
+          const publicados = new Set(
+            (datos.items ?? []).flatMap((i) => i.anilistIds ?? []),
+          );
+          for (const id of await git.listarBorradores(REMOTO, s.drafts)) {
+            const b = await git.leerBorrador(REMOTO, s.drafts, id).catch(() => null);
+            if (!b) continue;
+            const ids = b._meta?.anilistIds ?? [];
+            salida.push({
+              id,
+              seccion: clave,
+              title: b.title ?? '(sin título)',
+              japaneseTitle: b.japaneseTitle ?? '',
+              episodes: b.episodes ?? '',
+              fuente: b._meta?.fuente ?? '?',
+              // Lo que le falta para poder publicarse, dicho ANTES de que pulse
+              // el botón en vez de después.
+              falta: loQueFalta(b),
+              revisar: b._meta?._revisar ?? [],
+              avisos: b._meta?._avisos ?? [],
+              yaPublicado: ids.some((x) => publicados.has(x)),
+            });
+          }
+        }
+        return salida;
+      });
+      return json(res, 200, { borradores: lista, categorias });
+    }
+
+    const mBorrador = ruta.match(/^\/api\/borradores\/([a-z]+)\/([\w-]+)$/);
+    if (mBorrador && req.method === 'GET') {
+      const [, clave, id] = mBorrador;
+      if (!CLAVES.includes(clave)) return json(res, 404, { error: 'sección desconocida' });
+      const b = await git.leerBorrador(REMOTO, seccion(clave).drafts, id)
+        .catch(() => null);
+      if (!b) return json(res, 404, { error: `no hay borrador ${id} en ${clave}` });
+      return json(res, 200, b);
+    }
+
+    const mPromo = ruta.match(/^\/api\/borradores\/([a-z]+)\/([\w-]+)\/promocionar$/);
+    if (mPromo && req.method === 'POST') {
+      const [, clave, id] = mPromo;
+      if (!CLAVES.includes(clave)) return json(res, 404, { error: 'sección desconocida' });
+      const { categoria } = await cuerpoDe(req);
+      const resultado = await enSerie(async () => {
+        if (repo) await repo.sincronizar();
+        await git.traerBorradores(REMOTO);
+        const borrador = await git.leerBorrador(REMOTO, seccion(clave).drafts, id);
+        const datos = await leerSeccion(clave);
+        const { datos: nuevos, ficha, revisar } = promover(datos, borrador, { categoria, clave });
+        await guardarSeccion(clave, nuevos);
+        if (repo) {
+          await repo.commitear(`Panel: publicar «${ficha.title}» (${categoria})`, [seccion(clave).fichero]);
+        }
+        return { ficha, revisar };
+      });
+      return json(res, 200, { ok: true, ...resultado });
     }
 
     // Una sección que no existe es un 404 con su motivo, no un 500 sin explicar:

@@ -22,7 +22,11 @@ const el = (tag, props = {}, hijos = []) => {
   return n;
 };
 
-const estado = { secciones: [], clave: null, datos: null, fichaId: null, filtro: '' };
+const estado = {
+  secciones: [], clave: null, datos: null, fichaId: null, filtro: '',
+  // Los borradores son una vista aparte: no son fichas publicadas todavía.
+  enBorradores: false, borradores: [], borradorId: null, categorias: {},
+};
 
 function avisar(mensaje) {
   const a = $('#aviso');
@@ -82,28 +86,186 @@ async function arrancar() {
       dataset: { clave: s.clave },
     }));
   }
+  // La otra mitad del panel: lo que el generador ha dejado a medias.
+  botonBorradores = el('button', {
+    textContent: 'Borradores',
+    onclick: () => abrirBorradores(),
+    dataset: { clave: '__borradores' },
+  });
+  caja.append(el('div', { style: 'height:14px' }), botonBorradores);
+
   await abrirSeccion(info.secciones[0].clave);
   refrescarEstado();
+  contarBorradores();
   setInterval(refrescarEstado, 30000);
+}
+
+let botonBorradores = null;
+
+async function contarBorradores() {
+  try {
+    const { borradores, categorias } = await api('/api/borradores');
+    estado.borradores = borradores;
+    estado.categorias = categorias;
+    const pendientes = borradores.filter((b) => !b.yaPublicado).length;
+    botonBorradores.textContent = pendientes ? `Borradores (${pendientes})` : 'Borradores';
+  } catch { /* si falla, el botón se queda sin número y ya */ }
+}
+
+function marcarSeccion(clave) {
+  for (const b of document.querySelectorAll('#secciones button')) {
+    b.setAttribute('aria-current', String(b.dataset.clave === clave));
+  }
 }
 
 async function abrirSeccion(clave) {
   estado.clave = clave;
   estado.fichaId = null;
+  estado.enBorradores = false;
   estado.datos = await api(`/api/${clave}`);
-  for (const b of document.querySelectorAll('#secciones button')) {
-    b.setAttribute('aria-current', String(b.dataset.clave === clave));
-  }
+  marcarSeccion(clave);
   $('#detalle').replaceChildren(el('p', { className: 'vacio', textContent: 'Elige una ficha de la izquierda.' }));
   pintarLista();
 }
 
 const seccionActual = () => estado.secciones.find((s) => s.clave === estado.clave);
 
+// ----------------------------------------------------------------- borradores
+async function abrirBorradores() {
+  estado.enBorradores = true;
+  estado.borradorId = null;
+  marcarSeccion('__borradores');
+  $('#detalle').replaceChildren(
+    el('p', { className: 'vacio', textContent: 'Cargando borradores...' }),
+  );
+  const { borradores, categorias } = await api('/api/borradores');
+  estado.borradores = borradores;
+  estado.categorias = categorias;
+  pintarLista();
+  $('#detalle').replaceChildren(el('p', {
+    className: 'vacio',
+    textContent: borradores.length
+      ? 'Elige un borrador para revisarlo y publicarlo.'
+      : 'No hay borradores. Los deja el generador en la rama «borradores».',
+  }));
+}
+
+function pintarListaBorradores(lista) {
+  const filtro = estado.filtro.toLowerCase();
+  const items = estado.borradores.filter(
+    (b) => !filtro || `${b.title} ${b.japaneseTitle}`.toLowerCase().includes(filtro),
+  );
+
+  for (const b of items) {
+    const fila = el('div', { className: 'fila', onclick: () => abrirBorrador(b) },
+      [el('span', { className: 't', textContent: b.title })]);
+    fila.setAttribute('aria-current', String(b.id === estado.borradorId));
+    if (b.yaPublicado) {
+      fila.append(el('span', { className: 'pin diario', textContent: 'ya está' }));
+    } else if (b.falta.length) {
+      // Decirlo aquí, no al pulsar el botón.
+      fila.append(el('span', { className: 'pin pendiente', textContent: 'incompleto' }));
+    }
+    lista.append(fila);
+  }
+}
+
+async function abrirBorrador(resumen) {
+  estado.borradorId = resumen.id;
+  pintarLista();
+  const b = await api(`/api/borradores/${resumen.seccion}/${resumen.id}`);
+  const main = $('#detalle');
+
+  const aviso = (texto, clase) => el('div', {
+    className: 'nueva',
+    style: 'margin-bottom:14px',
+  }, [el('div', { className: clase, textContent: texto })]);
+
+  const trozos = [
+    el('h2', { textContent: b.title }),
+    el('div', { className: 'jp', textContent: b.japaneseTitle ?? '' }),
+  ];
+
+  if (resumen.yaPublicado) {
+    trozos.push(aviso('Esta franquicia ya está publicada en la web.', 'grupo'));
+  }
+  if (resumen.falta.length) {
+    trozos.push(aviso(
+      `Incompleto: le falta ${resumen.falta.join(', ')}. Suele pasar cuando se generó ` +
+      'con AniList caído. Vuelve a generarlo antes de publicarlo.', 'grupo'));
+  }
+  if (resumen.revisar.length) {
+    trozos.push(aviso(`Revisa lo que propuso la máquina: ${resumen.revisar.join(', ')}`, 'grupo'));
+  }
+  for (const a of resumen.avisos ?? []) trozos.push(aviso(a, 'grupo'));
+
+  // Lo que trae la máquina, para que decida si le vale.
+  trozos.push(el('h3', { textContent: 'Lo que ha encontrado la máquina' }));
+  const datos = [
+    ['Episodios', b.episodes],
+    ['Géneros', (b.genres ?? []).join(', ')],
+    ['¿Tiene manga?', b.hasManga ? 'Sí' : 'No'],
+    ['¿Tiene novela?', b.hasLightNovel ? 'Sí' : 'No'],
+    ['Openings', `${(b.openings ?? []).length}`],
+    ['Endings', `${(b.endings ?? []).length}`],
+    ['Fuente', resumen.fuente],
+  ];
+  for (const [k, v] of datos) {
+    trozos.push(el('div', { className: 'campo' }, [
+      el('label', { textContent: k }),
+      el('div', { textContent: v || '—' }),
+    ]));
+  }
+  if (b.description) {
+    trozos.push(el('div', { className: 'campo' }, [
+      el('label', { textContent: 'Descripción propuesta' }),
+      el('div', { textContent: b.description }),
+    ]));
+  }
+
+  // Publicar. La categoría es suya: nadie puede deducir si lo ha visto.
+  trozos.push(el('h3', { textContent: 'Publicarlo' }));
+  // Las de la sección DEL BORRADOR, que puede no ser la que está abierta:
+  // "Visto/Viendo" en anime no valen para manga, que usa "Leído/Leyendo".
+  const cats = estado.categorias?.[resumen.seccion] ?? [];
+  const selector = el('select');
+  selector.append(el('option', { value: '', textContent: '¿En qué categoría?' }));
+  for (const c of cats) selector.append(el('option', { value: c, textContent: c }));
+
+  const boton = el('button', { className: 'principal', textContent: 'Publicar ficha' });
+  boton.onclick = async () => {
+    if (!selector.value) return avisar('Elige una categoría: eso no lo puede saber la máquina.');
+    boton.disabled = true;
+    try {
+      const r = await api(`/api/borradores/${resumen.seccion}/${resumen.id}/promocionar`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ categoria: selector.value }),
+      });
+      await contarBorradores();
+      await abrirSeccion(resumen.seccion);
+      abrirFicha(r.ficha.id);
+      refrescarEstado();
+    } catch (e) {
+      avisar(e.message);
+      boton.disabled = false;
+    }
+  };
+
+  trozos.push(el('div', { className: 'nueva' }, [
+    selector,
+    el('div', { style: 'margin-top:10px' }, [boton]),
+  ]));
+
+  main.replaceChildren(...trozos);
+}
+
 // ---------------------------------------------------------------------- lista
 function pintarLista() {
   const lista = $('#lista');
   for (const n of [...lista.children]) if (n.id !== 'buscador') n.remove();
+
+  if (estado.enBorradores) return pintarListaBorradores(lista);
 
   const filtro = estado.filtro.toLowerCase();
   const items = estado.datos.items.filter(

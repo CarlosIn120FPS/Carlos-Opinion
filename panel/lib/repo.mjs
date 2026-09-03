@@ -84,5 +84,31 @@ export function repoGit(dir) {
       const { stdout } = await git('rev-parse', 'HEAD');
       return stdout.trim();
     },
+
+    // --- los borradores del generador -------------------------------------
+    // Viven en una rama aparte y NUNCA se sacan con checkout: se leen con
+    // `git show`. Así no queda un directorio drafts/ en el árbol de trabajo
+    // esperando a que un `git add .` distraído lo publique.
+
+    async traerBorradores(remoto) {
+      await git('fetch', '--quiet', remoto, 'borradores').catch(() => {});
+    },
+
+    /** Los ids de borrador que hay en una carpeta, o [] si no hay rama. */
+    async listarBorradores(remoto, carpeta) {
+      try {
+        const { stdout } = await git('ls-tree', '--name-only', `${remoto}/borradores:${carpeta}`);
+        return stdout.split('\n').map((f) => f.trim())
+          .filter((f) => f.endsWith('.json'))
+          .map((f) => f.replace(/\.json$/, ''));
+      } catch {
+        return [];
+      }
+    },
+
+    async leerBorrador(remoto, carpeta, id) {
+      const { stdout } = await git('show', `${remoto}/borradores:${carpeta}/${id}.json`);
+      return JSON.parse(stdout);
+    },
   };
 }

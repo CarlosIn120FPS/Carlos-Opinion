@@ -43,13 +43,26 @@ class Nodo {
     return this._texto || this.hijos.map((h) => (typeof h === 'string' ? h : h.textContent)).join('');
   }
   set textContent(v) { this._texto = String(v); this.hijos = []; }
-  append(...cosas) { for (const c of cosas) if (c != null) this.hijos.push(c); }
+  append(...cosas) {
+    for (const c of cosas) {
+      if (c == null) continue;
+      if (c instanceof Nodo) c.padre = this;
+      this.hijos.push(c);
+    }
+  }
   replaceChildren(...cosas) { this.hijos = []; this.append(...cosas); }
   setAttribute(k, v) { this.atributos[k] = String(v); }
   getAttribute(k) { return this.atributos[k]; }
   addEventListener() {}
   get children() { return this.hijos.filter((h) => h instanceof Nodo); }
-  remove() {}
+  // Tiene que desengancharse de verdad. Cuando era un no-op, la lista no se
+  // limpiaba entre vistas y el test enseñaba fichas y borradores juntos — un
+  // fallo inventado por el stub, que es peor que no tener test.
+  remove() {
+    if (!this.padre) return;
+    this.padre.hijos = this.padre.hijos.filter((h) => h !== this);
+    this.padre = null;
+  }
   // Búsqueda simple: por id (#x) o por clase (.x), recursiva.
   querySelector(sel) { return this.buscarTodos(sel)[0] ?? null; }
   buscarTodos(sel) {
@@ -96,11 +109,33 @@ ANIME.items[0] = { ...ANIME.items[0], entries: [
   { id: 'e2', date: '2026-09-02', season: 2, episode: 4, text: 'SEGUNDA' },
 ] };
 
+// Dos borradores: uno completo y uno del respaldo de animethemes, sin géneros —
+// que es exactamente el estado de los 28 que hay hoy.
+const BORRADORES = [
+  { id: '101280', seccion: 'anime', title: 'Tensei shitara Slime Datta Ken',
+    japaneseTitle: '転生したらスライムだった件', episodes: '6 temporadas', fuente: 'animethemes',
+    falta: ['genres'], revisar: ['episodes'], avisos: [], yaPublicado: false },
+  { id: '999002', seccion: 'anime', title: 'Obra completa', japaneseTitle: 'テスト',
+    episodes: '1 temporada/12', fuente: 'anilist', falta: [], revisar: [], avisos: [],
+    yaPublicado: false },
+];
+const DETALLE = {
+  101280: { title: 'Tensei shitara Slime Datta Ken', japaneseTitle: '転生したらスライムだった件',
+    episodes: '6 temporadas', genres: [], hasManga: false, hasLightNovel: false,
+    openings: [{ name: 'a' }, { name: 'b' }], endings: [], description: 'DESCRIPCION PROPUESTA' },
+  999002: { title: 'Obra completa', japaneseTitle: 'テスト', episodes: '1 temporada/12',
+    genres: ['Comedia'], hasManga: true, hasLightNovel: false, openings: [], endings: [] },
+};
+
 const llamadas = [];
 globalThis.fetch = async (ruta, opciones = {}) => {
   llamadas.push({ ruta, metodo: opciones.method ?? 'GET', cabeceras: opciones.headers ?? {} });
+  const mDetalle = ruta.match(/^\/api\/borradores\/anime\/(\d+)$/);
+  if (mDetalle) return { ok: true, json: async () => DETALLE[mDetalle[1]] };
   const cuerpo =
-    ruta === '/api/secciones'
+    ruta === '/api/borradores'
+      ? { borradores: BORRADORES, categorias: { anime: ANIME.categories, manga: [], lightnovel: [] } }
+      : ruta === '/api/secciones'
       ? { modo: 'servidor', secciones: [
           { clave: 'anime', etiqueta: 'Anime', campos: [
             { clave: 'category', tipo: 'categoria', etiqueta: 'Categoría' },
@@ -163,13 +198,16 @@ check('y no deja un aviso de error', !aviso.textContent.includes('No se pudo arr
   aviso.textContent);
 
 const secciones = raiz.querySelector('#secciones');
+const botonesSeccion = secciones.children.filter(
+  (b) => b.dataset.clave && b.dataset.clave !== '__borradores',
+);
 igual('pinta las tres secciones en la barra lateral',
-  secciones.children.map((b) => b.textContent), ['Anime', 'Manga', 'Novelas ligeras']);
+  botonesSeccion.map((b) => b.textContent), ['Anime', 'Manga', 'Novelas ligeras']);
 check('marca la sección activa',
   secciones.children.some((b) => b.getAttribute('aria-current') === 'true'));
 // El fallo original: dataset se asignaba encima y reventaba aquí.
 igual('guarda la clave de la sección en dataset',
-  secciones.children.map((b) => b.dataset.clave), ['anime', 'manga', 'lightnovel']);
+  botonesSeccion.map((b) => b.dataset.clave), ['anime', 'manga', 'lightnovel']);
 
 const lista = raiz.querySelector('#lista');
 const filas = lista.buscarTodos('.fila');
@@ -202,6 +240,50 @@ if (conDiario) {
   check('enseña la nota de la entrada', plano.includes('8/10'), plano);
   const inputs = detalle.buscarTodos('input');
   check('el formulario de nueva entrada tiene sus niveles', inputs.length >= 3, `${inputs.length}`);
+}
+
+// --- los borradores: la mitad del panel que faltaba --------------------------
+{
+  const botones = secciones.children;
+  const bBorradores = botones.find((b) => b.dataset.clave === '__borradores');
+  check('hay un botón de borradores en la barra lateral', Boolean(bBorradores));
+
+  if (bBorradores) {
+    igual('y dice cuántos hay pendientes', bBorradores.textContent, 'Borradores (2)');
+
+    await bBorradores.onclick();
+    await new Promise((r) => setImmediate(r));
+
+    const filasB = raiz.querySelector('#lista').buscarTodos('.fila');
+    igual('lista los borradores', filasB.map((f) => f.buscarTodos('.t')[0]?.textContent),
+      ['Tensei shitara Slime Datta Ken', 'Obra completa']);
+    // Lo importante: avisa de que está incompleto ANTES de pulsar publicar.
+    check('marca el que está incompleto',
+      filasB[0].buscarTodos('.pendiente').length === 1, filasB[0].textContent);
+    check('y no marca el que está completo',
+      filasB[1].buscarTodos('.pendiente').length === 0);
+
+    await filasB[0].onclick();
+    await new Promise((r) => setImmediate(r));
+
+    const det = raiz.querySelector('#detalle').textContent;
+    check('al abrirlo enseña el título', det.includes('Tensei shitara Slime'), det.slice(0, 120));
+    check('avisa de que le falta genres', det.includes('genres'), det.slice(0, 400));
+    check('dice qué revisar de lo que propuso la máquina',
+      det.includes('episodes'), det.slice(0, 400));
+    check('enseña lo que ha encontrado la máquina',
+      det.includes('Lo que ha encontrado la máquina'), det.slice(0, 300));
+    check('y la descripción propuesta',
+      det.includes('DESCRIPCION PROPUESTA'), det.slice(0, 500));
+
+    const selects = raiz.querySelector('#detalle').buscarTodos('select');
+    igual('hay un selector de categoría', selects.length, 1);
+    const opciones = selects[0]?.children.map((o) => o.textContent) ?? [];
+    check('con las categorías de anime, no las de manga',
+      opciones.includes('Viendo') && opciones.includes('Visto'), JSON.stringify(opciones));
+    check('y la primera opción obliga a elegir',
+      opciones[0]?.includes('categoría'), JSON.stringify(opciones));
+  }
 }
 
 // -------------------------------------------------------------------- resultado

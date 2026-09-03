@@ -15,6 +15,7 @@ import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { aplicar, serializar, ErrorPanel } from '../panel/lib/aplicar.mjs';
 import { SECCIONES, seccion, ordenar, clavesDeCarlos, CLAVES } from '../panel/lib/secciones.mjs';
+import { promover, loQueFalta } from '../panel/lib/promover.mjs';
 
 const RAIZ = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -199,6 +200,66 @@ const datosAnime = JSON.parse(readFileSync(resolve(RAIZ, 'public/data/anime.json
 // ======================================================= 7. operación inventada
 debeFallar('rechaza una operación desconocida',
   () => aplicar(datosAnime, { op: 'borrar.todo', id: 5 }, 'anime', CTX), 400, 'desconocida');
+
+// ============================================ 8. promocionar borradores
+{
+  const completo = () => ({
+    title: 'Obra de prueba', japaneseTitle: 'テスト', genres: ['Comedia'],
+    description: 'x', fullSynopsis: 'x', episodes: '1 temporada/12 episodios',
+    hasManga: false, hasLightNovel: false, platforms: [], languages: [],
+    image: '', openings: [], endings: [],
+    category: '', rating: '', ratingFinal: '', personalOpinion: '',
+    personalOpinionFinal: '', doIRecommend: '', willReadSource: '',
+    _meta: { fuente: 'anilist', anilistIds: [999001], _revisar: ['episodes'], _avisos: [] },
+  });
+
+  const { ficha, revisar } = promover(datosAnime, completo(), { categoria: 'Viendo', clave: 'anime' });
+  igual('promover pone el id siguiente', ficha.id,
+    Math.max(...datosAnime.items.map((i) => i.id)) + 1);
+  igual('promover pone la categoría', ficha.category, 'Viendo');
+  igual('promover guarda los anilistIds', ficha.anilistIds, [999001]);
+  igual('promover devuelve lo que hay que revisar', revisar, ['episodes']);
+  check('promover quita _meta', !('_meta' in ficha));
+  igual('promover ordena las claves', Object.keys(ficha)[0], 'id');
+  check('promover NO muta los datos de entrada',
+    datosAnime.items.every((i) => i.title !== 'Obra de prueba'));
+
+  debeFallar('promover exige categoría',
+    () => promover(datosAnime, completo(), { clave: 'anime' }), 400, 'falta la categoría');
+  debeFallar('promover rechaza una categoría inventada',
+    () => promover(datosAnime, completo(), { categoria: 'Regulero', clave: 'anime' }), 400, 'desconocida');
+
+  // Este es el caso REAL de los 28 borradores de hoy: salieron del respaldo de
+  // animethemes con AniList caído, y vienen sin géneros.
+  const sinGeneros = { ...completo(), genres: [] };
+  debeFallar('promover rechaza un borrador sin géneros',
+    () => promover(datosAnime, sinGeneros, { categoria: 'Viendo', clave: 'anime' }),
+    400, 'genres');
+  igual('loQueFalta lo dice antes de pulsar el botón', loQueFalta(sinGeneros), ['genres']);
+  igual('y de uno completo no dice nada', loQueFalta(completo()), []);
+
+  // La máquina no escribe la voz de Carlos, ni por accidente.
+  debeFallar('promover rechaza un borrador con opinión dentro',
+    () => promover(datosAnime, { ...completo(), personalOpinion: 'me ha gustado' },
+      { categoria: 'Viendo', clave: 'anime' }), 400, 'sólo escribe Carlos');
+  debeFallar('promover rechaza un borrador con diario dentro',
+    () => promover(datosAnime, { ...completo(), entries: [] },
+      { categoria: 'Viendo', clave: 'anime' }), 400, 'diario');
+
+  // Idempotencia por FRANQUICIA: publicar dos veces no duplica.
+  const unaVez = promover(datosAnime, completo(), { categoria: 'Viendo', clave: 'anime' }).datos;
+  debeFallar('promover no publica dos veces la misma franquicia',
+    () => promover(unaVez, completo(), { categoria: 'Viendo', clave: 'anime' }),
+    400, 'ya está publicada');
+
+  // Cada sección tiene sus categorías: "Viendo" no vale para manga.
+  const datosManga2 = JSON.parse(readFileSync(resolve(RAIZ, 'public/data/manga.json'), 'utf8'));
+  debeFallar('las categorías de anime no valen en manga',
+    () => promover(datosManga2, completo(), { categoria: 'Viendo', clave: 'manga' }),
+    400, 'desconocida');
+  check('pero las suyas sí',
+    promover(datosManga2, completo(), { categoria: 'Leyendo', clave: 'manga' }).ficha.category === 'Leyendo');
+}
 
 // -------------------------------------------------------------------- resultado
 console.log(`\n  ${pasan} comprobaciones del panel pasan, ${fallos.length} fallan\n`);
