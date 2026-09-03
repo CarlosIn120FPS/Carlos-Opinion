@@ -8,16 +8,16 @@
 
 ## Resumen
 
-**Hecho: 23 de 27** de las cosas concretas que piden los cinco documentos
+**Hecho: 24 de 27** de las cosas concretas que piden los cinco documentos
 (fichas hermanas y portadas locales se cerraron la tarde de la auditoría). Lo
-que falta son **4 piezas de la web pública y del panel**, y ninguna bloquea a
+que falta son **3 piezas de la web pública y del panel**, y ninguna bloquea a
 otra.
 
 | Documento | Hecho | Falta |
 |---|---|---|
 | `esquema-ficha.md` | 8 / 8 | — |
 | `rediseno-fichas.md` | 5 / 6 | Whakoom (investigado, no construido) |
-| `panel-privado.md` | 7 / 9 | `_revisar` tras publicar · "clonar a manga" |
+| `panel-privado.md` | 8 / 9 | "clonar a manga" |
 | `integracion-jellyfin.md` | 9 / 10 | OG tags |
 | `VERSION-2.md` | 5 / 5 piezas | — |
 
