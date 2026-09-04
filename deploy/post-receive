@@ -9,11 +9,17 @@
 
 set -euo pipefail
 
-BASE="/home/carlosalexei/carlos-opinion"
-REPO="$BASE/repo.git"
+BASE="${CO_BASE:-/home/carlosalexei/carlos-opinion}"
+REPO="${CO_REPO:-$BASE/repo.git}"
 BUILD="$BASE/build"
 SITE="$BASE/site"
 BRANCH="main"
+
+# Aviso por ntfy cuando NO se publica. Hace falta porque git ignora el código de
+# salida de este hook: un push desde el PC lo enseña en pantalla, pero el timer
+# del panel no tiene a nadie mirando. El del panel trae su URL en el entorno;
+# un push desde el PC no trae nada y usa el tema de casa.
+NTFY="${CO_PANEL_NTFY:-http://192.168.50.148:8090/carlos-opinion}"
 
 # Durante un hook, git deja GIT_DIR apuntando al repo bare. Si no lo quitamos,
 # los comandos de git dentro de $BUILD creerían que su repo es el bare.
@@ -38,6 +44,11 @@ fallo() {
   echo "  ERROR: $*" >&2
   echo "  >>> NO se ha publicado nada. La web sigue con la versión anterior."
   printf '%s\n%s\n' "$REV_ACTUAL" "$*" > "$BASE/.deploy-fail" || true
+  # `|| true`: estamos bajo set -e y el aviso no puede tapar el motivo real.
+  [ -n "$NTFY" ] && curl -s -m 5 -o /dev/null \
+    -H "Title: Carlos' Opinion: NO se ha publicado" \
+    -d "Despliegue de ${REV_ACTUAL:0:7} fallido: $*. La web sigue con la versión anterior." \
+    "$NTFY" || true
   exit 1
 }
 
