@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 /**
  * Tras `vite build`: una copia de dist/index.html por sección y por ficha, con
- * sus etiquetas Open Graph. Lo llama `npm run build` (y build:pages con --base).
+ * sus etiquetas Open Graph, más sitemap.xml, feed.xml (RSS) y robots.txt. Lo
+ * llama `npm run build` (y build:pages con --base).
  *
  *   node scripts/og.mjs [--dist dist] [--base /] [--sitio https://...]
  *
@@ -18,7 +19,9 @@ import { mkdirSync } from 'node:fs';
 import { resolve, dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { build } from 'esbuild';
-import { metasDe, inyectar, rutaSalida, SITIO_POR_DEFECTO } from './lib/og.mjs';
+import {
+  metasDe, inyectar, rutaSalida, enlazarFeed, sitemap, feed, robots, absoluta, SITIO_POR_DEFECTO,
+} from './lib/og.mjs';
 
 const RAIZ = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -60,20 +63,36 @@ export async function generar({ dist, base = '/', sitio = SITIO_POR_DEFECTO, tip
   const plantilla = await readFile(resolve(dist, 'index.html'), 'utf8');
   if (!plantilla.includes('</head>')) throw new Error(`${dist}/index.html no parece el index compilado`);
   const escritas = [];
+  const escribir = async (ruta, contenido) => {
+    const destino = resolve(dist, ruta);
+    await mkdir(dirname(destino), { recursive: true });
+    await writeFile(destino, contenido, 'utf8');
+    escritas.push(ruta);
+  };
+
+  const secciones = [];
   for (const tipo of tipos) {
     const paginas = [[rutaSalida(tipo), metasDe({ tipo, sitio, base })]];
     const datos = await leerDatos(tipo.file);
+    secciones.push([tipo, datos]);
     for (const item of datos.items ?? []) {
       if (item?.id === undefined || item?.id === null || !item.title) continue;
       paginas.push([rutaSalida(tipo, item), metasDe({ tipo, item, sitio, base })]);
     }
-    for (const [ruta, metas] of paginas) {
-      const destino = resolve(dist, ruta);
-      await mkdir(dirname(destino), { recursive: true });
-      await writeFile(destino, inyectar(plantilla, metas), 'utf8');
-      escritas.push(ruta);
-    }
+    for (const [ruta, metas] of paginas) await escribir(ruta, inyectar(plantilla, metas));
   }
+
+  // Lo que hace que la web se pueda encontrar y seguir: sitemap, feed y robots.
+  // El index.html enlaza /feed.xml; con otra base hay que hacerlo absoluto ahí también.
+  const urlFeed = absoluta(sitio, base, 'feed.xml');
+  const portada = enlazarFeed(plantilla, urlFeed);
+  if (portada !== plantilla) await writeFile(resolve(dist, 'index.html'), portada, 'utf8');
+  const principal = tipos[0] ?? {};
+  await escribir('sitemap.xml', sitemap(secciones, { sitio, base }));
+  await escribir('feed.xml', feed(secciones, {
+    sitio, base, titulo: principal.pageTitle ?? "Carlos' Opinion", descripcion: principal.pageDescription ?? '',
+  }));
+  await escribir('robots.txt', robots({ sitio, base }));
   return escritas;
 }
 
@@ -84,5 +103,5 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
   const tipos = await cargarTipos();
   const leerDatos = async (file) => JSON.parse(await readFile(resolve(dist, 'data', file), 'utf8'));
   const escritas = await generar({ dist, base, sitio, tipos, leerDatos });
-  console.log(`  OG: ${escritas.length} páginas con vista previa en ${dist} (${sitio}${base})`);
+  console.log(`  OG: ${escritas.length - 3} páginas con vista previa, sitemap, feed y robots en ${dist} (${sitio}${base})`);
 }

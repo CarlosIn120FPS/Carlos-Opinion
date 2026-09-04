@@ -48,6 +48,7 @@ export function recortar(texto, largo = LARGO_DESCRIPCION) {
  * pageDescription).
  */
 export function metasDe({ tipo, item = null, sitio = SITIO_POR_DEFECTO, base = '/' }) {
+  const feed = absoluta(sitio, base, 'feed.xml');
   if (!item) {
     return {
       title: tipo.pageTitle,
@@ -55,6 +56,7 @@ export function metasDe({ tipo, item = null, sitio = SITIO_POR_DEFECTO, base = '
       url: absoluta(sitio, base, tipo.slug),
       image: '',
       type: 'website',
+      feed,
     };
   }
   return {
@@ -63,6 +65,7 @@ export function metasDe({ tipo, item = null, sitio = SITIO_POR_DEFECTO, base = '
     url: absoluta(sitio, base, `${tipo.slug}/${item.id}`),
     image: absoluta(sitio, base, item.image),
     type: 'article',
+    feed,
   };
 }
 
@@ -96,5 +99,105 @@ export function inyectar(html, m) {
   }
   extra.push(`<link rel="canonical" href="${escapar(m.url)}" />`);
   salida = salida.replace('</head>', `${extra.join('')}</head>`);
+  if (m.feed) salida = enlazarFeed(salida, m.feed);
   return salida;
 }
+
+/**
+ * El index.html lleva `<link rel="alternate" ... href="/feed.xml">`. Aquí se
+ * vuelve absoluto (con la base que toque: el dominio propio o GitHub Pages).
+ * Sustituye lo que haya, sea lo que sea: así se puede pasar dos veces.
+ */
+export const enlazarFeed = (html, urlFeed) =>
+  html.replace(/(<link\s+rel="alternate"[^>]*href=")[^"]*(")/, `$1${escapar(urlFeed)}$2`);
+
+// ------------------------------------------------------------ sitemap y feed
+// Lo que hace que un buscador indexe las fichas y que alguien pueda seguir la
+// web sin visitarla. Salen del mismo build que las páginas por ficha.
+
+const FECHA = /^\d{4}-\d{2}-\d{2}$/;
+
+/**
+ * La fecha de una ficha: la última del diario. Las fichas no llevan fecha de
+ * alta, y no se inventa: sin diario, sin fecha (sin lastmod, sin pubDate).
+ * Irá llenándose sola según Carlos escriba.
+ */
+export function fechaDe(item) {
+  const fechas = (item?.entries ?? [])
+    .map((e) => String(e?.date ?? ''))
+    .filter((d) => FECHA.test(d));
+  return fechas.length ? fechas.sort().at(-1) : '';
+}
+
+/**
+ * Las fichas de todas las secciones, listas para el feed y el sitemap: con
+ * fecha las primeras (la más reciente arriba), después el resto por id de
+ * mayor a menor (lo último que se dio de alta). `secciones` es [[tipo, datos]].
+ */
+export function fichasDe(secciones, { sitio = SITIO_POR_DEFECTO, base = '/' } = {}) {
+  const salida = [];
+  for (const [tipo, datos] of secciones) {
+    for (const item of datos?.items ?? []) {
+      if (item?.id === undefined || item?.id === null || !item.title) continue;
+      salida.push({
+        tipo,
+        item,
+        url: absoluta(sitio, base, `${tipo.slug}/${item.id}`),
+        fecha: fechaDe(item),
+      });
+    }
+  }
+  return salida.sort((a, b) =>
+    (b.fecha || '').localeCompare(a.fecha || '') || Number(b.item.id) - Number(a.item.id));
+}
+
+const etiqueta = (nombre, valor) => (valor ? `<${nombre}>${escapar(valor)}</${nombre}>` : '');
+
+/** sitemap.xml: la portada, cada sección y cada ficha. */
+export function sitemap(secciones, { sitio = SITIO_POR_DEFECTO, base = '/' } = {}) {
+  const urls = [{ loc: absoluta(sitio, base, '/'), fecha: '' }];
+  for (const [tipo] of secciones) urls.push({ loc: absoluta(sitio, base, tipo.slug), fecha: '' });
+  for (const f of fichasDe(secciones, { sitio, base })) urls.push({ loc: f.url, fecha: f.fecha });
+  const cuerpo = urls
+    .map((u) => `  <url>${etiqueta('loc', u.loc)}${etiqueta('lastmod', u.fecha)}</url>`)
+    .join('\n');
+  return `<?xml version="1.0" encoding="UTF-8"?>\n`
+    + `<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${cuerpo}\n</urlset>\n`;
+}
+
+/** Una fecha YYYY-MM-DD en el formato que exige RSS (RFC 822). */
+export const fechaRss = (fecha) =>
+  FECHA.test(fecha) ? new Date(`${fecha}T12:00:00Z`).toUTCString() : '';
+
+/**
+ * feed.xml (RSS 2.0): una entrada por ficha, con su opinión si la hay. La
+ * opinión es la que ya está publicada en la web: aquí no se escribe nada.
+ */
+export function feed(secciones, { sitio = SITIO_POR_DEFECTO, base = '/', titulo, descripcion, maximo = 50 } = {}) {
+  const portada = absoluta(sitio, base, '/');
+  const propio = absoluta(sitio, base, 'feed.xml');
+  const items = fichasDe(secciones, { sitio, base }).slice(0, maximo).map((f) => {
+    const { item, tipo } = f;
+    const nombre = item.spanishTitle && item.spanishTitle !== item.title
+      ? `${item.title} (${item.spanishTitle})` : item.title;
+    const texto = recortar(item.personalOpinion || item.description || tipo.pageDescription, 400);
+    return '  <item>'
+      + etiqueta('title', `${nombre} · ${tipo.pageTitle}`)
+      + etiqueta('link', f.url)
+      + `<guid isPermaLink="true">${escapar(f.url)}</guid>`
+      + etiqueta('description', texto)
+      + (item.category ? etiqueta('category', item.category) : '')
+      + etiqueta('pubDate', fechaRss(f.fecha))
+      + '</item>';
+  });
+  return `<?xml version="1.0" encoding="UTF-8"?>\n`
+    + `<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">\n<channel>\n`
+    + `  ${etiqueta('title', titulo)}\n  ${etiqueta('link', portada)}\n  ${etiqueta('description', descripcion)}\n`
+    + `  <language>es</language>\n`
+    + `  <atom:link href="${escapar(propio)}" rel="self" type="application/rss+xml" />\n`
+    + `${items.join('\n')}\n</channel>\n</rss>\n`;
+}
+
+/** robots.txt: todo abierto y dónde está el sitemap. */
+export const robots = ({ sitio = SITIO_POR_DEFECTO, base = '/' } = {}) =>
+  `User-agent: *\nAllow: /\n\nSitemap: ${absoluta(sitio, base, 'sitemap.xml')}\n`;

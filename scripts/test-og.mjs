@@ -2,14 +2,18 @@
 /**
  * Comprueba las vistas previas (Open Graph): node scripts/test-og.mjs
  *
- * Puro contra scripts/lib/og.mjs, y luego el generador entero sobre un dist
- * temporal con datos sintéticos y los tipos REALES de contentTypes.js.
+ * Puro contra scripts/lib/og.mjs (vistas previas, sitemap, feed, robots), y
+ * luego el generador entero sobre un dist temporal con datos sintéticos y los
+ * tipos REALES de contentTypes.js.
  */
 
 import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
-import { escapar, absoluta, recortar, metasDe, inyectar, rutaSalida } from './lib/og.mjs';
+import {
+  escapar, absoluta, recortar, metasDe, inyectar, rutaSalida,
+  enlazarFeed, fechaDe, fichasDe, sitemap, feed, fechaRss, robots,
+} from './lib/og.mjs';
 import { cargarTipos, generar } from './og.mjs';
 
 let pasan = 0;
@@ -64,6 +68,7 @@ const PLANTILLA = `<!doctype html><html lang="es"><head><meta charset="UTF-8" />
 <meta property="og:title" content="Carlos' Opinion" />
 <meta property="og:description" content="generica" />
 <meta name="twitter:card" content="summary_large_image" />
+<link rel="alternate" type="application/rss+xml" title="Carlos' Opinion" href="/feed.xml" />
 <script type="module" src="/assets/index-abc.js"></script></head><body><div id="root"></div></body></html>`;
 {
   const item = { id: 3, title: 'Rascal "Bunny" & <Senpai>', description: 'Desc', image: 'covers/anime-3.webp' };
@@ -84,6 +89,64 @@ const PLANTILLA = `<!doctype html><html lang="es"><head><meta charset="UTF-8" />
     seccion.includes('name="twitter:card" content="summary"') && !seccion.includes('og:image'));
 }
 
+// ------------------------------------------------ sitemap, feed y robots
+{
+  const MANGA = { slug: 'manga', file: 'manga.json', pageTitle: "Carlos' Manga Opinion", pageDescription: 'Mangas.' };
+  const conDiario = { id: 1, title: 'A & B', description: 'desc', entries: [
+    { date: '2026-09-01', episode: 1 }, { date: '2026-09-03', episode: 2 }, { episode: 3 }, { date: 'ayer' },
+  ] };
+  const sinDiario = { id: 5, title: 'Sin diario', description: 'nada', personalOpinion: 'Mi "opinión" <cruda>' };
+  const manga = { id: 2, title: 'M', spanishTitle: 'Eme', description: 'm', category: 'Leído', entries: [{ date: '2026-09-02' }] };
+  const secciones = [[TIPO, { items: [sinDiario, conDiario] }], [MANGA, { items: [manga] }]];
+
+  igual('fechaDe: la última fecha válida del diario', fechaDe(conDiario), '2026-09-03');
+  igual('fechaDe: sin diario, sin fecha (no se inventa)', fechaDe(sinDiario), '');
+  igual('fechaDe: fechas que no lo son se ignoran', fechaDe({ entries: [{ date: 'ayer' }] }), '');
+  igual('fichasDe: con fecha primero (la más reciente arriba), luego por id de mayor a menor',
+    fichasDe(secciones, { sitio: SITIO }).map((f) => f.url),
+    [`${SITIO}/anime/1`, `${SITIO}/manga/2`, `${SITIO}/anime/5`]);
+
+  const sm = sitemap(secciones, { sitio: SITIO });
+  check('sitemap: portada, secciones y fichas',
+    sm.includes(`<loc>${SITIO}/</loc>`) && sm.includes(`<loc>${SITIO}/anime</loc>`)
+    && sm.includes(`<loc>${SITIO}/manga</loc>`) && sm.includes(`<loc>${SITIO}/manga/2</loc>`), sm);
+  check('sitemap: lastmod sólo donde hay fecha',
+    sm.includes(`<loc>${SITIO}/anime/1</loc><lastmod>2026-09-03</lastmod>`)
+    && /anime\/5<\/loc><\/url>/.test(sm), sm);
+  igual('sitemap: una url por página', (sm.match(/<url>/g) ?? []).length, 6);
+  check('sitemap: xml bien formado por fuera', sm.startsWith('<?xml') && sm.trim().endsWith('</urlset>'));
+
+  const rss = feed(secciones, { sitio: SITIO, titulo: "Carlos' Opinion", descripcion: 'Opiniones & más' });
+  check('feed: cabecera del canal escapada',
+    rss.includes("<title>Carlos' Opinion</title>") && rss.includes('<description>Opiniones &amp; más</description>'), rss.slice(0, 400));
+  check('feed: enlace a sí mismo', rss.includes(`href="${SITIO}/feed.xml" rel="self"`));
+  check('feed: el título de la ficha va escapado y con la sección',
+    rss.includes("<title>A &amp; B · Carlos' Opinion</title>"), rss);
+  check('feed: el título en español acompaña al de AniList', rss.includes("<title>M (Eme) · Carlos' Manga Opinion</title>"), rss);
+  check('feed: la opinión publicada es la descripción, escapada',
+    rss.includes('<description>Mi &quot;opinión&quot; &lt;cruda&gt;</description>'), rss);
+  check('feed: guid permanente = url de la ficha',
+    rss.includes(`<guid isPermaLink="true">${SITIO}/anime/1</guid>`), rss);
+  check('feed: pubDate RFC 822 sólo con fecha',
+    rss.includes('<pubDate>Thu, 03 Sep 2026 12:00:00 GMT</pubDate>') && (rss.match(/<pubDate>/g) ?? []).length === 2, rss);
+  check('feed: la categoría de Carlos va como category', rss.includes('<category>Leído</category>'));
+  igual('feed: un item por ficha', (rss.match(/<item>/g) ?? []).length, 3);
+  igual('feed: maximo recorta', (feed(secciones, { sitio: SITIO, maximo: 2 }).match(/<item>/g) ?? []).length, 2);
+  igual('fechaRss: formato RSS', fechaRss('2026-01-05'), 'Mon, 05 Jan 2026 12:00:00 GMT');
+  igual('fechaRss: vacío si no hay fecha', fechaRss(''), '');
+
+  igual('robots: abierto y con el sitemap', robots({ sitio: SITIO }),
+    `User-agent: *\nAllow: /\n\nSitemap: ${SITIO}/sitemap.xml\n`);
+  check('robots: con base, el sitemap cuelga de la base',
+    robots({ sitio: SITIO, base: '/Carlos-Opinion/' }).includes(`Sitemap: ${SITIO}/Carlos-Opinion/sitemap.xml`));
+
+  const conFeed = enlazarFeed(PLANTILLA, `${SITIO}/x/feed.xml`);
+  check('enlazarFeed: vuelve absoluto el enlace del feed', conFeed.includes(`href="${SITIO}/x/feed.xml"`) && !conFeed.includes('href="/feed.xml"'));
+  igual('enlazarFeed: sin enlace, no toca nada', enlazarFeed('<head></head>', 'x'), '<head></head>');
+  const ficha = inyectar(PLANTILLA, metasDe({ tipo: TIPO, item: conDiario, sitio: SITIO, base: '/b/' }));
+  check('inyectar: las páginas por ficha llevan el feed absoluto', ficha.includes(`href="${SITIO}/b/feed.xml"`), ficha);
+}
+
 // -------------------------------------- el generador, con los tipos reales
 {
   const tipos = await cargarTipos();
@@ -99,8 +162,17 @@ const PLANTILLA = `<!doctype html><html lang="es"><head><meta charset="UTF-8" />
   };
   try {
     const escritas = await generar({ dist, sitio: SITIO, tipos, leerDatos: async (f) => datos[f] });
-    igual('una página por sección y por ficha',
-      escritas, ['anime.html', 'anime/1.html', 'anime/2.html', 'manga.html', 'manga/1.html', 'novelas.html']);
+    igual('una página por sección y por ficha, más sitemap, feed y robots',
+      escritas, ['anime.html', 'anime/1.html', 'anime/2.html', 'manga.html', 'manga/1.html', 'novelas.html',
+        'sitemap.xml', 'feed.xml', 'robots.txt']);
+    const sm = readFileSync(resolve(dist, 'sitemap.xml'), 'utf8');
+    check('el sitemap lista las tres secciones reales y las fichas',
+      sm.includes(`<loc>${SITIO}/novelas</loc>`) && sm.includes(`<loc>${SITIO}/manga/1</loc>`), sm);
+    const rss = readFileSync(resolve(dist, 'feed.xml'), 'utf8');
+    check('el feed lleva el título real de la web y las fichas',
+      rss.includes("<title>Carlos' Opinion</title>") && rss.includes(`${SITIO}/anime/1</guid>`), rss.slice(0, 300));
+    check('el index.html enlaza el feed absoluto',
+      readFileSync(resolve(dist, 'index.html'), 'utf8').includes(`href="${SITIO}/feed.xml"`));
     check('los ficheros existen', escritas.every((r) => existsSync(resolve(dist, r))));
     const a1 = readFileSync(resolve(dist, 'anime/1.html'), 'utf8');
     check('la ficha lleva su portada', a1.includes(`content="${SITIO}/covers/anime-1.jpg"`));
@@ -113,6 +185,10 @@ const PLANTILLA = `<!doctype html><html lang="es"><head><meta charset="UTF-8" />
     const p = readFileSync(resolve(dist, 'anime/1.html'), 'utf8');
     check('con --base, url e imagen cuelgan de la base',
       p.includes(`content="${SITIO}/Carlos-Opinion/anime/1"`) && p.includes(`content="${SITIO}/Carlos-Opinion/covers/anime-1.jpg"`), p.slice(0, 400));
+    check('con --base, el index.html enlaza el feed absoluto',
+      readFileSync(resolve(dist, 'index.html'), 'utf8').includes(`href="${SITIO}/Carlos-Opinion/feed.xml"`));
+    check('con --base, robots apunta al sitemap de la base',
+      readFileSync(resolve(dist, 'robots.txt'), 'utf8').includes(`${SITIO}/Carlos-Opinion/sitemap.xml`));
   } finally {
     rmSync(dist, { recursive: true, force: true });
   }
