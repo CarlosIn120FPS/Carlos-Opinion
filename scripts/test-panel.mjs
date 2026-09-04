@@ -19,6 +19,11 @@ import { promover, loQueFalta } from '../panel/lib/promover.mjs';
 import { enlazar } from '../panel/lib/hermanas.mjs';
 import { anotar, quitar, de, serializarRevisar } from '../panel/lib/revisar.mjs';
 import { clonar, esqueleto, COMUNES } from '../panel/lib/clonar.mjs';
+import {
+  pedido, argumentosDe, resumenDe, candidatosDe, resultadoDe, recortarSalida, sobrantes,
+  LIMITE_POR_DEFECTO, LIMITE_MAXIMO, MAX_HECHOS,
+} from '../panel/lib/cola.mjs';
+import { decidirRespaldo, anotarFallo, leerFallo, ESPERA_TRAS_FALLO_MS } from '../panel/lib/respaldo.mjs';
 
 const RAIZ = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -455,6 +460,101 @@ debeFallar('rechaza una operación desconocida',
   debeFallar('ficha inexistente', () => clonar({ anime, manga }, { clave: 'anime', id: 999, hermana: 'manga', categoria: 'Leído' }), 404);
   debeFallar('sección que no es hermana', () => clonar({ anime, anime2: anime }, { clave: 'anime', id: 2, hermana: 'anime', categoria: 'Visto' }), 400, 'no es una sección hermana');
   igual('esqueleto no trae id ni category', ['id' in esqueleto(origen, 'anime', 'manga'), 'category' in esqueleto(origen, 'anime', 'manga')], [false, false]);
+}
+
+// ============================= 12. pedir un borrador: la cola del generador
+{
+  const ctx = { claves: CLAVES, id: 'abc12345', hoy: '2026-09-04T10:00:00.000Z' };
+
+  const porId = pedido({ modo: 'id', seccion: 'manga', anilistId: '117195', tituloEs: ' Oshi no Ko ' }, ctx);
+  igual('pedido por id: normalizado, con el id del servidor y la fecha',
+    porId, { id: 'abc12345', modo: 'id', pedido: ctx.hoy, seccion: 'manga', anilistId: 117195, tituloEs: 'Oshi no Ko' });
+  igual('pedido por id: sin título en español no lleva la clave',
+    'tituloEs' in pedido({ modo: 'id', seccion: 'anime', anilistId: 5 }, ctx), false);
+  igual('pedido por título', pedido({ modo: 'titulo', seccion: 'anime', titulo: ' Alya ' }, ctx),
+    { id: 'abc12345', modo: 'titulo', pedido: ctx.hoy, seccion: 'anime', titulo: 'Alya' });
+  igual('pedido jellyfin: siempre anime, límite por defecto', pedido({ modo: 'jellyfin' }, ctx),
+    { id: 'abc12345', modo: 'jellyfin', pedido: ctx.hoy, seccion: 'anime', limite: LIMITE_POR_DEFECTO });
+  igual('pedido jellyfin: límite propio', pedido({ modo: 'jellyfin', limite: '5' }, ctx).limite, 5);
+
+  debeFallar('modo desconocido', () => pedido({ modo: 'todo' }, ctx), 400, 'modo');
+  debeFallar('sección desconocida', () => pedido({ modo: 'id', seccion: 'peliculas', anilistId: 1 }, ctx), 400, 'sección');
+  debeFallar('id de AniList que no es entero positivo', () => pedido({ modo: 'id', seccion: 'anime', anilistId: '12a' }, ctx), 400, 'entero');
+  debeFallar('id de AniList negativo', () => pedido({ modo: 'id', seccion: 'anime', anilistId: -3 }, ctx), 400);
+  debeFallar('título vacío', () => pedido({ modo: 'titulo', seccion: 'anime', titulo: '   ' }, ctx), 400, 'título');
+  debeFallar('título demasiado largo', () => pedido({ modo: 'titulo', seccion: 'anime', titulo: 'x'.repeat(201) }, ctx), 400);
+  debeFallar('límite fuera de rango', () => pedido({ modo: 'jellyfin', limite: LIMITE_MAXIMO + 1 }, ctx), 400, 'límite');
+  debeFallar('límite que no es entero', () => pedido({ modo: 'jellyfin', limite: 2.5 }, ctx), 400);
+  debeFallar('sin id del servidor', () => pedido({ modo: 'jellyfin' }, { ...ctx, id: '' }), 500);
+
+  // Los argumentos con los que se lanza generar.py: SIEMPRE a la rama.
+  igual('argumentos por id', argumentosDe(porId),
+    ['--seccion', 'manga', '--anilist-id', '117195', '--a-borradores', '--titulo-es', 'Oshi no Ko']);
+  igual('argumentos por título', argumentosDe({ modo: 'titulo', seccion: 'lightnovel', titulo: 'Mushoku Tensei' }),
+    ['--seccion', 'lightnovel', '--titulo', 'Mushoku Tensei', '--a-borradores']);
+  igual('argumentos jellyfin: con el anime.json publicado y el límite',
+    argumentosDe({ modo: 'jellyfin', limite: 2 }, { anime: '/tmp/anime.json' }),
+    ['--pendientes', '/tmp/anime.json', '--generar', '--limite', '2']);
+  check('argumentos jellyfin sin anime.json: se niega',
+    (() => { try { argumentosDe({ modo: 'jellyfin', limite: 2 }); return false; } catch { return true; } })());
+  check('los argumentos nunca pasan por una shell: el título va tal cual, con comillas y todo',
+    argumentosDe({ modo: 'titulo', seccion: 'anime', titulo: 'a "b" ; rm -rf /' })[3] === 'a "b" ; rm -rf /');
+
+  igual('resumen por id', resumenDe(porId), 'manga #117195');
+  igual('resumen por título', resumenDe({ modo: 'titulo', seccion: 'lightnovel', titulo: 'X' }), 'novela ligera «X»');
+  igual('resumen jellyfin', resumenDe({ modo: 'jellyfin', limite: 3 }), 'Lo nuevo de Jellyfin (hasta 3)');
+
+  // Lo que dice generar.py cuando hay varios candidatos, tal cual lo imprime.
+  const salidaVarios = [
+    'AniList devuelve 2 resultados para «Mushoku Tensei». Elige uno con --anilist-id:',
+    '',
+    '  --anilist-id 85470    Mushoku Tensei: Jobless Reincarnation  [NOVEL, 2014]',
+    '  --anilist-id 108465   Mushoku Tensei: Dasoku-hen  [NOVEL]',
+  ].join('\n');
+  igual('candidatosDe saca id y título de la salida del generador', candidatosDe(salidaVarios), [
+    { anilistId: 85470, titulo: 'Mushoku Tensei: Jobless Reincarnation  [NOVEL, 2014]' },
+    { anilistId: 108465, titulo: 'Mushoku Tensei: Dasoku-hen  [NOVEL]' },
+  ]);
+  igual('candidatosDe: sin candidatos, lista vacía', candidatosDe('# publicado: drafts/anime/1.json'), []);
+
+  const r = resultadoDe({ id: 'x', modo: 'titulo', seccion: 'lightnovel', titulo: 'Mushoku Tensei' },
+    { codigo: 1, salida: salidaVarios, empezado: 'a', terminado: 'b' });
+  igual('resultadoDe: error con candidatos', [r.estado, r.codigo, r.candidatos.length, r.empezado, r.terminado], ['error', 1, 2, 'a', 'b']);
+  const ok = resultadoDe({ id: 'y', modo: 'id', seccion: 'anime', anilistId: 1 }, { codigo: 0, salida: 'bien', terminado: 'c' });
+  igual('resultadoDe: ok sin candidatos ni motivo', [ok.estado, ok.candidatos, 'motivo' in ok], ['ok', [], false]);
+  const roto = resultadoDe({ id: 'z', modo: 'id', seccion: 'anime', anilistId: 1 }, { codigo: 1, salida: '', motivo: 'se paró' });
+  igual('resultadoDe: conserva el motivo', roto.motivo, 'se paró');
+
+  const larga = Array.from({ length: 100 }, (_, i) => `línea ${i}`).join('\n');
+  igual('recortarSalida: se queda con las últimas 40 líneas', recortarSalida(larga).split('\n').length, 40);
+  check('recortarSalida: y la última de verdad', recortarSalida(larga).endsWith('línea 99'));
+  check('recortarSalida: acota los caracteres', recortarSalida('x'.repeat(10000)).length <= 4001);
+  igual('recortarSalida: sin líneas vacías ni \\r', recortarSalida('a\r\n\n\nb\r\n'), 'a\nb');
+
+  const hechos = Array.from({ length: MAX_HECHOS + 3 }, (_, i) => ({ id: i, terminado: `2026-09-04T00:${String(i).padStart(2, '0')}` }));
+  igual('sobrantes: los más antiguos por encima del máximo', sobrantes(hechos).map((h) => h.id), [2, 1, 0]);
+  igual('sobrantes: con pocos no sobra nada', sobrantes(hechos.slice(0, 3)), []);
+}
+
+// ============================= 13. la copia en GitHub: cuándo se intenta
+{
+  const ahora = 1_800_000_000_000;
+  igual('sin nada publicado no se empuja', decidirRespaldo({ publicado: '', respaldado: '', fallo: null, ahora }).empujar, false);
+  igual('al día: no se empuja (y no hay red)', decidirRespaldo({ publicado: 'aaa', respaldado: 'aaa', fallo: null, ahora }), { empujar: false, motivo: 'al día' });
+  igual('primera copia', decidirRespaldo({ publicado: 'aaa', respaldado: '', fallo: null, ahora }), { empujar: true, motivo: 'primera copia' });
+  igual('commits nuevos', decidirRespaldo({ publicado: 'bbb', respaldado: 'aaa', fallo: null, ahora }).empujar, true);
+  const fallo = anotarFallo('bbb', ahora - 60_000, 'Permission denied (publickey)');
+  const reciente = decidirRespaldo({ publicado: 'bbb', respaldado: 'aaa', fallo, ahora });
+  check('tras un fallo reciente se espera, y se dice cuánto',
+    reciente.empujar === false && /reintenta en \d+ min/.test(reciente.motivo), JSON.stringify(reciente));
+  igual('un rev nuevo tampoco salta la espera (si no, sería un aviso por cada commit)',
+    decidirRespaldo({ publicado: 'ccc', respaldado: 'aaa', fallo, ahora }).empujar, false);
+  igual('pasada la espera se reintenta',
+    decidirRespaldo({ publicado: 'bbb', respaldado: 'aaa', fallo, ahora: ahora + ESPERA_TRAS_FALLO_MS }).empujar, true);
+  igual('un fallo mal apuntado no bloquea', decidirRespaldo({ publicado: 'bbb', respaldado: '', fallo: { rev: 'bbb' }, ahora }).empujar, true);
+  igual('leerFallo: lee lo que escribió anotarFallo', leerFallo(JSON.stringify(fallo)), fallo);
+  igual('leerFallo: basura es "sin fallo"', [leerFallo(''), leerFallo('{'), leerFallo('{"rev":1}')], [null, null, null]);
+  igual('anotarFallo acota el motivo', anotarFallo('a', 1, 'x'.repeat(1000)).motivo.length, 500);
 }
 
 // -------------------------------------------------------------------- resultado

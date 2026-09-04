@@ -1,0 +1,44 @@
+# Atiende los pedidos de borrador que deja el panel (panel/generar.mjs).
+# Lo dispara carlos-opinion-generar.path cuando la cola deja de estar vacía.
+#
+# Va aparte del escritor a propósito: ese servicio no tiene salida a internet
+# (IPAddressDeny=any) ni memoria (96 MB) para el generador, que habla con
+# AniList y animethemes y espera a Ollama durante minutos.
+
+[Unit]
+Description=Carlos' Opinion — generar los borradores pedidos desde el panel
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=carlosalexei
+Group=carlosalexei
+WorkingDirectory=/home/carlosalexei/carlos-opinion/panel-work
+ExecStart=/usr/bin/node panel/generar.mjs
+
+Environment=HOME=/home/carlosalexei
+Environment=CO_PANEL_BASE=/home/carlosalexei/carlos-opinion
+Environment=CO_PANEL_NTFY=http://192.168.50.148:8090/carlos-opinion
+
+# Un pedido tarda minutos; «lo nuevo de Jellyfin» son varios seguidos. El
+# propio script para al generador a los 45 min (CO_GENERAR_TIMEOUT_MS) sin
+# matar nada a medias; este timeout es la red de seguridad por encima.
+TimeoutStartSec=2h
+
+# La regla del nodo son 100 MB por servicio. Aquí corre python con el JSON de
+# AniList y el clon de git del generador: MemoryHigh estrangula antes de que
+# MemoryMax mate. Tras las primeras ejecuciones reales, mirar
+#   systemctl show carlos-opinion-generar -p MemoryPeak
+# y ajustar. Un OOM aquí no rompe nada: el pedido sale como fallido y se avisa.
+MemoryHigh=96M
+MemoryMax=192M
+
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/home/carlosalexei/carlos-opinion
+
+[Install]
+WantedBy=multi-user.target

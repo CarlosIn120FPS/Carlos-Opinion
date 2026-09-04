@@ -31,6 +31,8 @@ const estado = {
   enPendientes: false, anilist: '', bandeja: null,
   // Lo que propuso la máquina al publicar y aún no se ha mirado (panel/revisar.json).
   revisar: {},
+  // Pedir borradores al generador (sólo en Pavilion): la cola y sus resultados.
+  generar: false, generacion: null,
 };
 
 function avisar(mensaje) {
@@ -110,11 +112,15 @@ async function arrancar() {
     caja.append(botonPendientes);
   }
 
+  // Sólo donde está el generador (Pavilion). En local no se ofrece.
+  estado.generar = Boolean(info.generar);
+
   await cargarRevisar();
   await abrirSeccion(info.secciones[0].clave);
   refrescarEstado();
   contarBorradores();
   setInterval(refrescarEstado, 30000);
+  if (estado.generar) setInterval(vigilarGeneracion, 15000);
 }
 
 async function cargarRevisar() {
@@ -172,12 +178,172 @@ async function abrirBorradores() {
   estado.borradores = borradores;
   estado.categorias = categorias;
   pintarLista();
-  $('#detalle').replaceChildren(el('p', {
+  const texto = el('p', {
     className: 'vacio',
     textContent: borradores.length
       ? 'Elige un borrador para revisarlo y publicarlo.'
       : 'No hay borradores. Los deja el generador en la rama «borradores».',
-  }));
+  });
+  if (!estado.generar) return $('#detalle').replaceChildren(texto);
+  // Con generador a mano: pedir uno nuevo desde aquí, y ver cómo va.
+  texto.style = 'margin-top:20px';
+  await cargarGeneracion();
+  $('#detalle').replaceChildren(
+    el('h2', { textContent: 'Borradores' }),
+    el('div', { className: 'jp', textContent: 'La máquina rellena los datos; la categoría, la nota y la opinión son tuyas.' }),
+    pintarPedido(),
+    el('div', { id: 'generacion' }, pintarGeneracion()),
+    texto,
+  );
+}
+
+// ------------------------------------------------- pedir un borrador nuevo
+// El panel no genera nada: deja un pedido en una cola de Pavilion y otra unidad
+// lanza el generador (panel/generar.mjs). Por eso aquí se dice «en unos
+// minutos» y no «ya está»: AniList, animethemes, Ollama y verificar enlaces.
+async function cargarGeneracion() {
+  try {
+    estado.generacion = await api('/api/generar');
+  } catch (e) {
+    estado.generacion = { disponible: false, cola: [], enmarcha: [], hechos: [], error: e.message };
+  }
+}
+
+async function pedirBorrador(cuerpo) {
+  await api('/api/generar', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(cuerpo),
+  });
+  await cargarGeneracion();
+  const caja = $('#generacion');
+  if (caja) caja.replaceChildren(...pintarGeneracion());
+}
+
+function pintarPedido() {
+  const seccion = el('select');
+  for (const s of estado.secciones) seccion.append(el('option', { value: s.clave, textContent: s.etiqueta }));
+  const que = el('input', { type: 'text', placeholder: 'título en AniList, o su id' });
+  const es = el('input', { type: 'text', placeholder: 'título en español (opcional)' });
+  const pedir = el('button', { className: 'principal', textContent: 'Generar borrador' });
+  pedir.onclick = async () => {
+    const texto = que.value.trim();
+    if (!texto) return avisar('Di qué generar: un título o un id de AniList.');
+    pedir.disabled = true;
+    try {
+      // Un número es un id; lo demás se busca por título (y si AniList devuelve
+      // varios, el resultado lo dirá y se elige aquí).
+      const base = { seccion: seccion.value, tituloEs: es.value.trim() };
+      await pedirBorrador(/^\d+$/.test(texto)
+        ? { modo: 'id', anilistId: Number(texto), ...base }
+        : { modo: 'titulo', titulo: texto, ...base });
+      que.value = '';
+      es.value = '';
+      avisar('Pedido. Tarda unos minutos; avisa por ntfy cuando esté.');
+    } catch (e) {
+      avisar(`No se pudo pedir: ${e.message}`);
+    } finally {
+      pedir.disabled = false;
+    }
+  };
+
+  // Lo nuevo de Jellyfin: lo que hay en la biblioteca y no en la web ni en
+  // borradores. Con límite, porque cada anime son minutos.
+  const limite = el('input', { type: 'number', min: '1', max: '10', value: '3', style: 'width:70px' });
+  const jellyfin = el('button', { className: 'fantasma', textContent: 'Buscar lo nuevo en Jellyfin' });
+  jellyfin.onclick = async () => {
+    jellyfin.disabled = true;
+    try {
+      await pedirBorrador({ modo: 'jellyfin', limite: Number(limite.value) || 3 });
+      avisar('Pedido. Mira en Jellyfin lo que falte y genera hasta ese número.');
+    } catch (e) {
+      avisar(`No se pudo pedir: ${e.message}`);
+    } finally {
+      jellyfin.disabled = false;
+    }
+  };
+
+  return el('div', { className: 'nueva', id: 'pedido' }, [
+    el('h3', { style: 'margin-top:0', textContent: 'Pedir un borrador nuevo' }),
+    el('div', { className: 'linea' }, [
+      el('div', { style: 'flex:0 0 150px' }, [el('label', { textContent: 'Sección' }), seccion]),
+      el('div', { style: 'flex:1' }, [el('label', { textContent: 'Qué' }), que]),
+    ]),
+    el('div', { className: 'linea' }, [
+      el('div', { style: 'flex:1' }, [el('label', { textContent: 'Título en español' }), es]),
+      el('div', { style: 'flex:0 0 auto;align-self:flex-end' }, [pedir]),
+    ]),
+    el('div', { className: 'linea', style: 'margin-top:10px' }, [
+      el('div', { style: 'flex:0 0 auto' }, [el('label', { textContent: 'Como mucho' }), limite]),
+      el('div', { style: 'flex:0 0 auto;align-self:flex-end' }, [jellyfin]),
+    ]),
+  ]);
+}
+
+const RESUMEN_MODO = { anime: 'anime', manga: 'manga', lightnovel: 'novela ligera' };
+function resumenPedido(t) {
+  if (t.modo === 'jellyfin') return `Lo nuevo de Jellyfin (hasta ${t.limite})`;
+  const que = RESUMEN_MODO[t.seccion] ?? t.seccion;
+  return t.modo === 'id' ? `${que} #${t.anilistId}` : `${que} «${t.titulo}»`;
+}
+
+function pintarGeneracion() {
+  const g = estado.generacion;
+  if (!g) return [];
+  if (g.error) return [el('div', { className: 'grupo', textContent: `No se pudo leer la cola: ${g.error}` })];
+  const trozos = [];
+  for (const t of g.enmarcha ?? []) {
+    trozos.push(el('div', { className: 'grupo generando', textContent: `Generando ${resumenPedido(t)}…` }));
+  }
+  for (const t of g.cola ?? []) {
+    trozos.push(el('div', { className: 'grupo encola', textContent: `En cola: ${resumenPedido(t)}` }));
+  }
+  // Los últimos resultados; los más antiguos los poda el propio servicio.
+  for (const h of (g.hechos ?? []).slice(0, 5)) {
+    const caja = el('div', { className: `resultado ${h.estado}` });
+    if (h.estado === 'ok') {
+      caja.append(el('div', { textContent: `Listo: ${resumenPedido(h)}. Está en la lista de la izquierda.` }));
+    } else if (h.candidatos?.length) {
+      caja.append(el('div', { textContent: `${resumenPedido(h)}: AniList devuelve varios. ¿Cuál es?` }));
+      for (const c of h.candidatos) {
+        const b = el('button', { className: 'fantasma', textContent: `#${c.anilistId} ${c.titulo}` });
+        b.onclick = async () => {
+          b.disabled = true;
+          try {
+            await pedirBorrador({ modo: 'id', seccion: h.seccion, anilistId: c.anilistId, tituloEs: h.tituloEs ?? '' });
+            avisar('Pedido con ese id.');
+          } catch (e) {
+            avisar(`No se pudo pedir: ${e.message}`);
+            b.disabled = false;
+          }
+        };
+        caja.append(b);
+      }
+    } else {
+      caja.append(
+        el('div', { textContent: `Falló: ${resumenPedido(h)}${h.motivo ? ` — ${h.motivo}` : ''}` }),
+        ...(h.salida ? [el('pre', { textContent: h.salida })] : []),
+      );
+    }
+    trozos.push(caja);
+  }
+  return trozos;
+}
+
+// Mientras haya algo pedido, mirar cómo va; al terminar, la lista de
+// borradores cambia sola. Cada 15 s, y sólo con la vista de borradores abierta.
+async function vigilarGeneracion() {
+  if (!estado.enBorradores || !estado.generacion) return;
+  const antes = (estado.generacion.cola?.length ?? 0) + (estado.generacion.enmarcha?.length ?? 0);
+  if (!antes) return;
+  await cargarGeneracion();
+  const caja = $('#generacion');
+  if (caja) caja.replaceChildren(...pintarGeneracion());
+  const ahora = (estado.generacion.cola?.length ?? 0) + (estado.generacion.enmarcha?.length ?? 0);
+  if (ahora < antes) {
+    await contarBorradores();
+    if (estado.enBorradores) pintarLista();
+  }
 }
 
 function pintarListaBorradores(lista) {

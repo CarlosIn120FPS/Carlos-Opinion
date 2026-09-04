@@ -25,6 +25,9 @@ Environment=CO_PANEL_IP=192.168.50.148
 Environment=CO_PANEL_PUERTO=8099
 # El token vive aquí, fuera del repositorio (que es público en GitHub).
 EnvironmentFile=/home/carlosalexei/carlos-opinion/panel.env
+# La cola de borradores pedidos desde el panel. Este proceso sólo escribe el
+# pedido; lo atiende carlos-opinion-generar.service. Sin esto no se ofrece.
+Environment=CO_PANEL_GENERAR=/home/carlosalexei/carlos-opinion/generar
 
 # Regla permanente del nodo: todo servicio nuevo por debajo de 100 MB.
 # MemoryHigh estrangula antes de que MemoryMax mate, porque dentro de este

@@ -35,6 +35,8 @@ class Nodo {
     this._dataset = {};
     this._texto = '';
     this.className = '';
+    // Como en un navegador: un control recién creado tiene value '' y no undefined.
+    if (['INPUT', 'TEXTAREA', 'SELECT'].includes(this.tagName)) this.value = '';
   }
   // Sólo getter, igual que en un navegador de verdad. Asignarle encima tiene que
   // reventar: es el fallo que esta prueba existe para cazar.
@@ -148,6 +150,13 @@ const MANGA = { categories: ['Leído'], items: [{ id: 41, title: 'MANGA HERMANO'
 // Novelas: sin fichas, para poder crear una desde el anime.
 const NOVELA = { categories: ['Leída', 'Leyendo'], items: [] };
 
+const GENERACION = { disponible: true, cola: [], enmarcha: [{ id: 'm1', modo: 'jellyfin', limite: 3 }], hechos: [
+  { id: 'h1', modo: 'titulo', seccion: 'lightnovel', titulo: 'Mushoku Tensei', estado: 'error', codigo: 1,
+    salida: 'AniList devuelve 2 resultados', terminado: '2026-09-04T10:00',
+    candidatos: [{ anilistId: 85470, titulo: 'Mushoku Tensei: Jobless Reincarnation [NOVEL, 2014]' }, { anilistId: 108465, titulo: 'Dasoku-hen [NOVEL]' }] },
+  { id: 'h2', modo: 'id', seccion: 'anime', anilistId: 162804, estado: 'ok', codigo: 0, salida: '', candidatos: [], terminado: '2026-09-04T09:00' },
+  { id: 'h3', modo: 'id', seccion: 'manga', anilistId: 1, estado: 'error', codigo: 1, salida: 'ErrorFuente: AniList 500', candidatos: [], motivo: '', terminado: '2026-09-04T08:00' },
+] };
 const REVISAR = { anime: { 8: { campos: ['episodes', 'genres'], avisos: ['AVISO DEL GENERADOR'], fuente: 'anilist', fecha: '2026-09-03' } } };
 
 const llamadas = [];
@@ -171,6 +180,17 @@ globalThis.fetch = async (ruta, opciones = {}) => {
     NOVELA.items.push(ficha);
     return { ok: true, json: async () => ({ ok: true, ficha, seccion }) };
   }
+  // La cola del generador: un resultado con candidatos (hay que elegir) y uno ok.
+  if (ruta === '/api/generar' && (opciones.method ?? 'GET') === 'GET') {
+    return { ok: true, json: async () => GENERACION };
+  }
+  if (ruta === '/api/generar' && opciones.method === 'POST') {
+    const cuerpo = JSON.parse(opciones.body);
+    if (cuerpo.modo === 'titulo' && !cuerpo.titulo) return { ok: false, status: 400, json: async () => ({ error: 'falta el título' }) };
+    const trabajo = { id: 'nuevo1', ...cuerpo };
+    GENERACION.cola.push(trabajo);
+    return { ok: true, json: async () => ({ ok: true, trabajo }) };
+  }
   // Lo que propuso la máquina para la ficha 8 y aún no se ha mirado.
   if (ruta === '/api/revisar') return { ok: true, json: async () => REVISAR };
   if (ruta === '/api/anime/revisar/8/hecho') {
@@ -183,7 +203,7 @@ globalThis.fetch = async (ruta, opciones = {}) => {
     ruta === '/api/borradores'
       ? { borradores: BORRADORES, categorias: { anime: ANIME.categories, manga: ['Leído', 'Leyendo'], lightnovel: [] } }
       : ruta === '/api/secciones'
-      ? { modo: 'servidor', anilist: 'carlostest', secciones: [
+      ? { modo: 'servidor', anilist: 'carlostest', generar: true, secciones: [
           { clave: 'anime', etiqueta: 'Anime', campos: [
             { clave: 'category', tipo: 'categoria', etiqueta: 'Categoría' },
             { clave: 'rating', tipo: 'texto', etiqueta: 'Nota' },
@@ -438,6 +458,68 @@ if (conDiario) {
       opciones.includes('Viendo') && opciones.includes('Visto'), JSON.stringify(opciones));
     check('y la primera opción obliga a elegir',
       opciones[0]?.includes('categoría'), JSON.stringify(opciones));
+  }
+}
+
+// --- pedir un borrador desde el panel -----------------------------------------
+{
+  const bBorradores = secciones.children.find((b) => b.dataset.clave === '__borradores');
+  await bBorradores.onclick();
+  await new Promise((r) => setImmediate(r));
+  await new Promise((r) => setImmediate(r));
+  const detalle = raiz.querySelector('#detalle');
+  const pedidoCaja = detalle.querySelector('#pedido');
+  check('con generador disponible, la vista de borradores ofrece pedir uno', Boolean(pedidoCaja), detalle.textContent.slice(0, 200));
+  const selects = pedidoCaja?.buscarTodos('select') ?? [];
+  igual('el selector de sección ofrece las tres', selects[0]?.children.map((o) => o.textContent), ['Anime', 'Manga', 'Novelas ligeras']);
+  const botones = pedidoCaja?.buscarTodos('button') ?? [];
+  const generar = botones.find((b) => b.textContent.includes('Generar'));
+  const jellyfin = botones.find((b) => b.textContent.includes('Jellyfin'));
+  check('hay botón de generar y de buscar en Jellyfin', Boolean(generar) && Boolean(jellyfin));
+
+  const estadoTxt = raiz.querySelector('#generacion')?.textContent ?? '';
+  check('enseña lo que está en marcha', estadoTxt.includes('Generando Lo nuevo de Jellyfin (hasta 3)'), estadoTxt);
+  check('enseña el resultado ok', estadoTxt.includes('Listo: anime #162804'), estadoTxt);
+  check('enseña el fallo con su salida', estadoTxt.includes('Falló: manga #1') && estadoTxt.includes('AniList 500'), estadoTxt);
+  check('cuando hay varios candidatos, pregunta cuál', estadoTxt.includes('¿Cuál es?'), estadoTxt);
+  const candidato = raiz.querySelector('#generacion').buscarTodos('button').find((b) => b.textContent.startsWith('#85470'));
+  check('y ofrece cada candidato como botón', Boolean(candidato));
+
+  if (generar && selects[0]) {
+    const inputs = pedidoCaja.buscarTodos('input');
+    const antes = llamadas.length;
+    await generar.onclick();
+    check('sin texto no pide nada y avisa',
+      !llamadas.slice(antes).some((l) => l.ruta === '/api/generar' && l.metodo === 'POST') && aviso.textContent.includes('título'));
+    inputs[0].value = '117195';
+    inputs[1].value = 'Oshi no Ko';
+    selects[0].value = 'manga';
+    await generar.onclick();
+    await new Promise((r) => setImmediate(r));
+    let enviada = llamadas.filter((l) => l.ruta === '/api/generar' && l.metodo === 'POST').at(-1);
+    igual('un número se pide por id, con la sección y el título en español',
+      enviada && JSON.parse(enviada.cuerpo), { modo: 'id', anilistId: 117195, seccion: 'manga', tituloEs: 'Oshi no Ko' });
+    check('y vacía el formulario', inputs[0].value === '' && inputs[1].value === '');
+    check('y lo enseña en cola', (raiz.querySelector('#generacion')?.textContent ?? '').includes('En cola: manga #117195'));
+    inputs[0].value = 'Alya';
+    selects[0].value = 'anime';
+    await generar.onclick();
+    await new Promise((r) => setImmediate(r));
+    enviada = llamadas.filter((l) => l.ruta === '/api/generar' && l.metodo === 'POST').at(-1);
+    igual('un texto se pide por título', enviada && JSON.parse(enviada.cuerpo), { modo: 'titulo', titulo: 'Alya', seccion: 'anime', tituloEs: '' });
+  }
+  if (candidato) {
+    await candidato.onclick();
+    await new Promise((r) => setImmediate(r));
+    const enviada = llamadas.filter((l) => l.ruta === '/api/generar' && l.metodo === 'POST').at(-1);
+    igual('elegir un candidato es pedir por id en la misma sección',
+      enviada && JSON.parse(enviada.cuerpo), { modo: 'id', seccion: 'lightnovel', anilistId: 85470, tituloEs: '' });
+  }
+  if (jellyfin) {
+    await jellyfin.onclick();
+    await new Promise((r) => setImmediate(r));
+    const enviada = llamadas.filter((l) => l.ruta === '/api/generar' && l.metodo === 'POST').at(-1);
+    igual('lo nuevo de Jellyfin va con límite', enviada && JSON.parse(enviada.cuerpo), { modo: 'jellyfin', limite: 3 });
   }
 }
 

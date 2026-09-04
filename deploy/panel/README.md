@@ -17,9 +17,16 @@ recién visto el episodio, que es de lo que iba todo esto.
         │  ~/carlos-opinion/panel-work
         ▼
    carlos-opinion-push.timer (2 min)   ← EMPUJA. Dispara el hook de siempre.
-        │
+        │                              y después RESPALDA en GitHub (origin/main → v2)
         ▼
    ~/carlos-opinion/repo.git  ──►  post-receive  ──►  la web publicada
+
+   ~/carlos-opinion/generar/cola/     ← el panel deja aquí un pedido de borrador
+        │
+   carlos-opinion-generar.path        ← lo ve y arranca…
+        ▼
+   carlos-opinion-generar.service     ← …panel/generar.mjs: lanza generar.py,
+                                        deja el resultado en hecho/, avisa por ntfy
 ```
 
 **Escribir y publicar están separados a propósito.** Empujar dispara el hook, que
@@ -49,11 +56,43 @@ printf 'CO_PANEL_TOKEN=%s\n' "$(openssl rand -hex 24)" > ~/carlos-opinion/panel.
 chmod 600 ~/carlos-opinion/panel.env
 
 # 3. Las unidades
-sudo cp deploy/panel/carlos-opinion-*.{service,timer} /etc/systemd/system/
+sudo cp deploy/panel/carlos-opinion-*.{service,timer,path} /etc/systemd/system/
 sudo systemctl daemon-reload
 sudo systemctl enable --now carlos-opinion-panel.service
 sudo systemctl enable --now carlos-opinion-push.timer
+sudo systemctl enable --now carlos-opinion-generar.path
+
+# 4. La cola de borradores (el panel escribe, generar.service lee)
+mkdir -p ~/carlos-opinion/generar/{cola,enmarcha,hecho}
+
+# 5. La copia en GitHub: una clave SOLO para este repositorio
+ssh-keygen -t ed25519 -N "" -C "carlos-opinion@pavilion (deploy key, solo este repo)" \
+  -f ~/.ssh/carlos-opinion-github
+ssh-keyscan -t ed25519,rsa github.com >> ~/.ssh/known_hosts   # el timer no puede escribirlo (ProtectHome)
+cd ~/carlos-opinion/panel-work
+git remote add github git@github.com:CarlosIn120FPS/Carlos-Opinion.git
+git config core.sshCommand "ssh -i ~/.ssh/carlos-opinion-github -o IdentitiesOnly=yes -o BatchMode=yes -o ConnectTimeout=15 -o StrictHostKeyChecking=yes"
+cat ~/.ssh/carlos-opinion-github.pub    # esto se registra en GitHub, ver abajo
 ```
+
+`panel.env` lleva además `CO_ANILIST_USUARIO` (la bandeja de pendientes) y el
+escritor recibe `CO_PANEL_GENERAR=/home/carlosalexei/carlos-opinion/generar`
+en su unidad: sin esa variable el panel no ofrece pedir borradores.
+
+## El otro paso que hace Carlos: la clave en GitHub
+
+El timer empuja lo publicado a `github/v2` con la clave de arriba. GitHub tiene
+que conocerla: en el repositorio, **Settings → Deploy keys → Add deploy key**,
+pega el contenido de `~/.ssh/carlos-opinion-github.pub` y marca **Allow write
+access**. Es una clave de despliegue, no la de tu cuenta: solo abre este
+repositorio, y si un día Pavilion se pierde se borra de ahí y ya.
+
+Hasta que esté registrada, cada intento falla con «Permission denied
+(publickey)»: el timer lo apunta en `~/carlos-opinion/.github-fallo`, avisa por
+ntfy y no vuelve a intentarlo hasta pasadas 3 horas. En cuanto la registres,
+el siguiente ciclo (o `sudo systemctl start carlos-opinion-push`) la usa y la
+copia se pone al día sola. Comprobar: `journalctl -u carlos-opinion-push -n 20`
+debe decir «GitHub: v2 al día en …».
 
 ## El paso que hace Carlos: el Proxy Host
 
@@ -104,6 +143,12 @@ ssh pavilion 'cd ~/carlos-opinion/panel-work && git fetch origin main && git reb
   && sudo systemctl restart carlos-opinion-panel && systemctl is-active carlos-opinion-panel'
 ```
 
+`empujar.mjs` y `generar.mjs` no necesitan reinicio: son `oneshot`, cada
+ejecución carga el fichero que haya en `panel-work`. Un cambio en una unidad
+(`deploy/panel/*.service|timer|path`) sí: `sudo cp` a `/etc/systemd/system/`,
+`daemon-reload` y `restart` de esa unidad. Y un cambio en `generador/generar.py`
+se copia a mano a `~/carlos-opinion/generador/generador/` (no es un checkout).
+
 Si se olvida, el panel sigue funcionando con el código anterior y una ruta
 nueva contesta `{"error":"ruta desconocida"}` — que es justo lo que pasó la
 primera vez.
@@ -113,16 +158,22 @@ primera vez.
 ```bash
 systemctl status carlos-opinion-panel.service
 systemctl list-timers carlos-opinion-push.timer
+systemctl status carlos-opinion-generar.path       # debe estar active (waiting)
 journalctl -u carlos-opinion-panel -n 40
 journalctl -u carlos-opinion-push -n 40
+journalctl -u carlos-opinion-generar -n 40         # lo que dijo el generador
+ls ~/carlos-opinion/generar/{cola,enmarcha,hecho}  # la cola de borradores
 
 # Cuánta RAM consume de verdad (la regla del nodo son 100 MB)
 systemctl show carlos-opinion-panel -p MemoryCurrent
 ```
 
-Si un despliegue se cae, llega un aviso por **ntfy** al tema `carlos-opinion`.
+Si un despliegue se cae, llega un aviso por **ntfy** al tema `carlos-opinion`,
+desde el propio hook y, si el push vino del panel, también desde `empujar.mjs`.
 Hace falta porque git **ignora el código de salida de `post-receive`**: un build
-roto da un push con éxito y una web sin actualizar, en silencio.
+roto da un push con éxito y una web sin actualizar, en silencio. Por el mismo
+tema llegan «Borrador listo», «Borrador: hay que elegir» y «Borrador fallido»
+del generador, y el aviso de que la copia en GitHub no se pudo hacer.
 
 ## Decisiones que parecen olvidos y no lo son
 
@@ -143,6 +194,16 @@ roto da un push con éxito y una web sin actualizar, en silencio.
   siempre y en silencio.
 - **Un timer y no un hook sobre `.git/logs/HEAD`**: ese fichero lo escriben
   también el fetch y el rebase del propio escritor, así que se autoalimentaría.
+- **El generador no lo lanza el escritor**, aunque esté en la misma máquina:
+  el escritor no tiene salida a internet ni memoria para ello, y un pedido son
+  minutos. Deja un fichero en `generar/cola/` y una unidad `.path` arranca otro
+  servicio. Y ese servicio **saca el pedido de la cola antes de tocarlo**, pase
+  lo que pase: `DirectoryNotEmpty` vuelve a disparar mientras la cola no esté
+  vacía, y un pedido roto que se quedara dentro sería un bucle sin fin.
+- **La copia en GitHub se hace desde el timer y con `origin/main`**, nunca con
+  HEAD: si el push a casa falló, HEAD lleva commits que la web no tiene. Sin
+  cambios no hay red (se comparan dos referencias locales), y tras un fallo se
+  esperan 3 horas para no avisar cada dos minutos.
 - **El token va en `X-Panel-Token`, no en `Authorization: Bearer`.** La Access
   List usa `auth_basic`: el navegador ya tiene un `Authorization: Basic` para
   este origen y mandar un Bearer encima haría que nginx devolviera 401 sin llegar
@@ -154,7 +215,8 @@ roto da un push con éxito y una web sin actualizar, en silencio.
 ## Volver atrás
 
 ```bash
-sudo systemctl disable --now carlos-opinion-panel.service carlos-opinion-push.timer
+sudo systemctl disable --now carlos-opinion-panel.service carlos-opinion-push.timer \
+  carlos-opinion-generar.path
 ```
 
 La web pública no se entera: son servicios independientes. Y el panel local

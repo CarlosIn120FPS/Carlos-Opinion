@@ -27,11 +27,19 @@ import { promover, loQueFalta } from './lib/promover.mjs';
 import { enlazar } from './lib/hermanas.mjs';
 import { clonar } from './lib/clonar.mjs';
 import { anotar, quitar, serializarRevisar, FICHERO_REVISAR } from './lib/revisar.mjs';
+import { pedido } from './lib/cola.mjs';
 
 const RAIZ = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const WEB = resolve(RAIZ, 'panel/web');
 const COPIAS = resolve(RAIZ, 'panel/.copias');
 const PUERTO = Number(process.env.CO_PANEL_PUERTO || 8099);
+
+// La cola de borradores pedidos desde el panel (panel/lib/cola.mjs). Este
+// proceso sólo escribe el pedido; lo atiende carlos-opinion-generar.service,
+// que tiene salida a internet. Sin CO_PANEL_GENERAR (modo local, tests) no hay
+// cola y el panel no ofrece el botón: el generador vive en Pavilion.
+const GENERAR = process.env.CO_PANEL_GENERAR || '';
+const CARPETAS_COLA = { cola: 'cola', enmarcha: 'enmarcha', hechos: 'hecho' };
 
 // Escucha explícita. En node, listen(puerto) a secas abre en :: / 0.0.0.0, y el
 // criterio del nodo (deploy/docker-compose.yml:15) es no abrir nunca en 0.0.0.0.
@@ -203,6 +211,7 @@ const servidor = createServer(async (req, res) => {
       return json(res, 200, {
         modo: MODO,
         anilist: ANILIST_USUARIO,
+        generar: Boolean(GENERAR),
         secciones: CLAVES.map((c) => ({
           clave: c,
           etiqueta: SECCIONES[c].etiqueta,
@@ -325,6 +334,44 @@ const servidor = createServer(async (req, res) => {
         return nuevo;
       });
       return json(res, 200, { ok: true, revisar: registro });
+    }
+
+    // --- pedir un borrador al generador ----------------------------------
+    // Antes que la ruta de sección: /api/generar también encaja en /^\/api\/(\w+)$/.
+    // GET: la cola, lo que está en marcha y los últimos resultados. POST: un
+    // pedido nuevo. Este proceso no genera nada; deja el fichero y contesta.
+    if (ruta === '/api/generar' && req.method === 'GET') {
+      if (!GENERAR) return json(res, 200, { disponible: false, cola: [], enmarcha: [], hechos: [] });
+      const salida = { disponible: true };
+      for (const [clave, carpeta] of Object.entries(CARPETAS_COLA)) {
+        const dir = join(GENERAR, carpeta);
+        const nombres = (await readdir(dir).catch(() => [])).filter((n) => n.endsWith('.json')).sort();
+        const lista = [];
+        for (const n of nombres) {
+          const t = await readFile(join(dir, n), 'utf8').then(JSON.parse).catch(() => null);
+          if (t) lista.push(t);
+        }
+        salida[clave] = lista;
+      }
+      // Los resultados, del más reciente al más antiguo: lo que acaba de pasar arriba.
+      salida.hechos.sort((a, b) => String(b.terminado ?? '').localeCompare(String(a.terminado ?? '')));
+      return json(res, 200, salida);
+    }
+    if (ruta === '/api/generar' && req.method === 'POST') {
+      if (!GENERAR) return json(res, 501, { error: 'el generador sólo está en Pavilion; desde aquí no se puede pedir' });
+      const cuerpo = await cuerpoDe(req);
+      // El id lo pone el servidor: es el nombre del fichero y no viene del cliente.
+      const trabajo = pedido(cuerpo, {
+        claves: CLAVES, id: randomUUID().slice(0, 8), hoy: new Date().toISOString(),
+      });
+      const dir = join(GENERAR, CARPETAS_COLA.cola);
+      await mkdir(dir, { recursive: true });
+      // Escritura atómica: la unidad .path dispara en cuanto ve algo en la cola,
+      // y no puede leer un pedido a medio escribir.
+      const tmp = join(dir, `.${trabajo.id}.tmp`);
+      await writeFile(tmp, `${JSON.stringify(trabajo, null, 2)}\n`, 'utf8');
+      await rename(tmp, join(dir, `${trabajo.id}.json`));
+      return json(res, 200, { ok: true, trabajo });
     }
 
     // Una sección que no existe es un 404 con su motivo, no un 500 sin explicar:

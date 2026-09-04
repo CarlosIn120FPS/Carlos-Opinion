@@ -85,6 +85,36 @@ export function repoGit(dir) {
       return stdout.trim();
     },
 
+    // --- la copia en GitHub -----------------------------------------------
+    // Ver panel/lib/respaldo.mjs. Aquí sólo git; la decisión está allí.
+
+    /** ¿Existe ese remoto en este clon? En local y en los tests, no. */
+    async tieneRemoto(nombre) {
+      return git('remote', 'get-url', nombre).then(() => true, () => false);
+    },
+
+    /** La revisión a la que apunta una referencia, o '' si no existe. */
+    async revDe(ref) {
+      return git('rev-parse', '--verify', '--quiet', `${ref}^{commit}`)
+        .then(({ stdout }) => stdout.trim(), () => '');
+    },
+
+    /** Pone al día origin/main sin tocar el árbol (file://, milisegundos). */
+    async traerPublicado() {
+      await git('fetch', '--quiet', 'origin', 'main');
+    },
+
+    /**
+     * Empuja una referencia local a una rama de otro remoto, sin forzar nunca.
+     * Deja la referencia de seguimiento al día aunque git no la actualice sola.
+     */
+    async empujarA(remoto, ref, rama) {
+      const { stdout, stderr } = await git('push', '--quiet', remoto, `${ref}:refs/heads/${rama}`);
+      const rev = await this.revDe(ref);
+      if (rev) await git('update-ref', `refs/remotes/${remoto}/${rama}`, rev).catch(() => {});
+      return `${stdout}${stderr}`;
+    },
+
     // --- los borradores del generador -------------------------------------
     // Viven en una rama aparte y NUNCA se sacan con checkout: se leen con
     // `git show`. Así no queda un directorio drafts/ en el árbol de trabajo

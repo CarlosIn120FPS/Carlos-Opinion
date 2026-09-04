@@ -108,6 +108,17 @@
     position: fixed; bottom: 18px; right: 18px; padding: 11px 16px; border-radius: 8px;
     background: #7f1d1d; color: #fee2e2; max-width: 380px; display: none;
   }
+  /* Los pedidos de borrador al generador y sus resultados (panel/lib/cola.mjs). */
+  .grupo.generando { color: var(--amarillo); }
+  .grupo.encola { color: var(--suave); }
+  .resultado { border: 1px solid var(--borde); border-radius: 8px; padding: 10px 12px; margin: 8px 0; }
+  .resultado.ok { border-color: var(--verde); }
+  .resultado.error { border-color: #f87171; }
+  .resultado button { margin: 6px 6px 0 0; }
+  .resultado pre {
+    white-space: pre-wrap; word-break: break-word; font-size: 12px; color: var(--suave);
+    margin: 8px 0 0; max-height: 220px; overflow: auto;
+  }
 </style>
 </head>
 <body>

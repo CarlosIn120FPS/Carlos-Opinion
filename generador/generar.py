@@ -1129,8 +1129,14 @@ def pendientes(ruta_anime_json, generar=False, limite=None):
             print(f"    - {it.get('title')}")
         print("  Arreglalo con --backfill-ids (te propone el id y tu lo confirmas).")
 
+    # Lo que ya tiene borrador esperando en la rama tampoco se vuelve a generar:
+    # desde el panel se pide «lo nuevo» y lo nuevo no es lo que ya esta hecho.
+    con_borrador = ids_con_borrador()
+    if con_borrador:
+        print(f"Borradores ya generados: {len(con_borrador)} (no se repiten)")
+
     # Agrupar la biblioteca en franquicias, saltando las ya vistas.
-    vistos, grupos, hermanas = set(), [], []
+    vistos, grupos, hermanas, ya_generadas = set(), [], [], []
     for anilist_id in sorted(biblioteca):
         if anilist_id in vistos:
             continue
@@ -1144,6 +1150,9 @@ def pendientes(ruta_anime_json, generar=False, limite=None):
         vistos |= ids
         if ids & publicados:
             continue  # esta franquicia ya esta en la web
+        if ids & con_borrador:
+            ya_generadas.append(raiz_de_la_franquicia(obras))
+            continue  # ya hay borrador: se publica desde el panel, no se rehace
         raiz = raiz_de_la_franquicia(obras)
         # Si ya hay ficha del manga o de la novela, NO se salta: se anota. Son
         # obras hermanas, cada una con su opinion, no duplicados.
@@ -1165,6 +1174,13 @@ def pendientes(ruta_anime_json, generar=False, limite=None):
     if hermanas:
         print()
         print(f"({len(hermanas)} de estas ya tienen ficha hermana en otra seccion; se generan igual)")
+
+    if ya_generadas:
+        print()
+        print(f"CON BORRADOR YA HECHO: {len(ya_generadas)} franquicia(s), esperando en el panel")
+        for raiz in ya_generadas:
+            titulo = (raiz.get("title") or {}).get("english") or (raiz.get("title") or {}).get("romaji")
+            print(f"  #{raiz['id']:<8} {titulo}")
 
     if generar:
         objetivo = grupos[:limite] if limite else grupos
@@ -1241,6 +1257,21 @@ def _git(*args, cwd=WORK, permitir_fallo=False):
     if r.returncode != 0 and not permitir_fallo:
         raise ErrorFuente(f"git {' '.join(args)}: {r.stderr.strip()}")
     return r.stdout.strip()
+
+
+def ids_con_borrador(clave="anime"):
+    """Los ids de AniList que ya tienen borrador en la rama `borradores`.
+
+    Se leen del bare directamente, sin tocar el clon de trabajo: un `ls-tree`
+    no necesita checkout. Si la rama no existe, no hay borradores."""
+    carpeta = SECCIONES[clave]["carpeta"]
+    r = subprocess.run(
+        ["git", "--git-dir", REPO_BARE, "ls-tree", "--name-only",
+         f"{RAMA_BORRADORES}:drafts/{carpeta}"],
+        capture_output=True, text=True)
+    if r.returncode != 0:
+        return set()
+    return {int(n[:-5]) for n in r.stdout.split() if n.endswith(".json") and n[:-5].isdigit()}
 
 
 def publicar_borrador(ficha, clave="anime"):

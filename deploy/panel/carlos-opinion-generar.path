@@ -1,0 +1,19 @@
+# Cuando el panel deja un pedido en la cola, arranca el servicio que lo atiende.
+#
+# Un .path y no un timer: un pedido de borrador se hace una vez al mes y se
+# quiere atendido al momento, no dentro de dos minutos. DirectoryNotEmpty
+# vuelve a disparar el servicio cada vez que termina si la cola sigue con
+# algo — por eso panel/generar.mjs SACA cada pedido de la cola antes de tocarlo,
+# pase lo que pase: un pedido roto que se quedara dentro sería un bucle.
+
+[Unit]
+Description=Carlos' Opinion — vigilar la cola de borradores pedidos desde el panel
+
+[Path]
+DirectoryNotEmpty=/home/carlosalexei/carlos-opinion/generar/cola
+Unit=carlos-opinion-generar.service
+MakeDirectory=true
+DirectoryMode=0755
+
+[Install]
+WantedBy=multi-user.target
