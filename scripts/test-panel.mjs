@@ -20,7 +20,7 @@ import { enlazar } from '../panel/lib/hermanas.mjs';
 import { anotar, quitar, de, serializarRevisar } from '../panel/lib/revisar.mjs';
 import { clonar, esqueleto, COMUNES } from '../panel/lib/clonar.mjs';
 import {
-  pedido, argumentosDe, resumenDe, candidatosDe, resultadoDe, recortarSalida, sobrantes,
+  pedido, argumentosDe, resumenDe, candidatosDe, resultadoDe, recortarSalida, sobrantes, generadosDe,
   LIMITE_POR_DEFECTO, LIMITE_MAXIMO, MAX_HECHOS,
 } from '../panel/lib/cola.mjs';
 import { decidirRespaldo, anotarFallo, leerFallo, ESPERA_TRAS_FALLO_MS } from '../panel/lib/respaldo.mjs';
@@ -524,6 +524,14 @@ debeFallar('rechaza una operación desconocida',
   igual('resultadoDe: ok sin candidatos ni motivo', [ok.estado, ok.candidatos, 'motivo' in ok], ['ok', [], false]);
   const roto = resultadoDe({ id: 'z', modo: 'id', seccion: 'anime', anilistId: 1 }, { codigo: 1, salida: '', motivo: 'se paró' });
   igual('resultadoDe: conserva el motivo', roto.motivo, 'se paró');
+
+  // «Lo nuevo de Jellyfin» puede salir bien y no generar nada: hay que decirlo.
+  igual('generadosDe: cuenta lo que dijo el generador', generadosDe('PENDIENTES: 2\n\nGenerando 2 borrador(es)...\nx'), 2);
+  igual('generadosDe: cero es cero', generadosDe('Generando 0 borrador(es)...'), 0);
+  igual('generadosDe: sin la línea, null', generadosDe('ErrorFuente: AniList 500'), null);
+  const nada = resultadoDe({ id: 'j', modo: 'jellyfin', limite: 3 }, { codigo: 0, salida: 'Generando 0 borrador(es)...' });
+  igual('resultadoDe jellyfin: ok con generados 0', [nada.estado, nada.generados], ['ok', 0]);
+  igual('resultadoDe por id: no lleva generados', 'generados' in ok, false);
 
   const larga = Array.from({ length: 100 }, (_, i) => `línea ${i}`).join('\n');
   igual('recortarSalida: se queda con las últimas 40 líneas', recortarSalida(larga).split('\n').length, 40);

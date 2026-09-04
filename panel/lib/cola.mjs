@@ -129,6 +129,16 @@ export function candidatosDe(salida) {
   return candidatos;
 }
 
+/**
+ * Cuántos borradores generó «lo nuevo de Jellyfin». El generador imprime
+ * «Generando N borrador(es)...»; sin esa línea (no llegó ahí) es null. Con 0
+ * el pedido salió bien pero no había nada nuevo, y hay que decirlo así.
+ */
+export function generadosDe(salida) {
+  const m = String(salida ?? '').match(/Generando (\d+) borrador/);
+  return m ? Number(m[1]) : null;
+}
+
 /** Lo que se guarda en hecho/ al terminar. */
 export function resultadoDe(trabajo, { codigo, salida, empezado, terminado, motivo }) {
   const recortada = recortarSalida(salida);
@@ -140,6 +150,7 @@ export function resultadoDe(trabajo, { codigo, salida, empezado, terminado, moti
     ...(motivo ? { motivo } : {}),
     salida: recortada,
     candidatos: ok ? [] : candidatosDe(recortada),
+    ...(trabajo?.modo === 'jellyfin' && ok ? { generados: generadosDe(salida) } : {}),
     empezado: empezado ?? '',
     terminado: terminado ?? '',
   };

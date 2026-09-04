@@ -301,7 +301,9 @@ function pintarGeneracion() {
   // Los últimos resultados; los más antiguos los poda el propio servicio.
   for (const h of (g.hechos ?? []).slice(0, 5)) {
     const caja = el('div', { className: `resultado ${h.estado}` });
-    if (h.estado === 'ok') {
+    if (h.estado === 'ok' && h.generados === 0) {
+      caja.append(el('div', { textContent: 'Nada nuevo en Jellyfin: todo lo de la biblioteca ya está publicado o en borradores.' }));
+    } else if (h.estado === 'ok') {
       caja.append(el('div', { textContent: `Listo: ${resumenPedido(h)}. Está en la lista de la izquierda.` }));
     } else if (h.candidatos?.length) {
       caja.append(el('div', { textContent: `${resumenPedido(h)}: AniList devuelve varios. ¿Cuál es?` }));

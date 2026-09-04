@@ -70,14 +70,23 @@ async function pedidosEn(dir) {
   return nombres.map((n) => join(dir, n));
 }
 
-/** El anime.json PUBLICADO, sacado del bare: sin tocar ningún árbol de trabajo. */
-async function animePublicado(dirTemporal) {
-  const { stdout } = await ejecutar('git', ['--git-dir', REPO_BARE, 'show', 'main:public/data/anime.json'], {
-    encoding: 'utf8', maxBuffer: 20e6,
-  });
-  const ruta = join(dirTemporal, 'anime.json');
-  await writeFile(ruta, stdout, 'utf8');
-  return ruta;
+/**
+ * Los datos PUBLICADOS, sacados del bare sin tocar ningún árbol de trabajo.
+ * Los tres ficheros, no sólo anime.json: `--pendientes` busca manga.json y
+ * lightnovels.json al lado del anime.json que se le da, y si no están, calla y
+ * no avisa de las fichas hermanas. Devuelve la ruta del anime.json.
+ */
+async function datosPublicados(dirTemporal) {
+  let anime = '';
+  for (const fichero of ['anime.json', 'manga.json', 'lightnovels.json']) {
+    const { stdout } = await ejecutar('git', ['--git-dir', REPO_BARE, 'show', `main:public/data/${fichero}`], {
+      encoding: 'utf8', maxBuffer: 20e6,
+    });
+    const ruta = join(dirTemporal, fichero);
+    await writeFile(ruta, stdout, 'utf8');
+    if (fichero === 'anime.json') anime = ruta;
+  }
+  return anime;
 }
 
 async function generar(trabajo) {
@@ -87,7 +96,7 @@ async function generar(trabajo) {
   let salida = '';
   let motivo = '';
   try {
-    const anime = trabajo.modo === 'jellyfin' ? await animePublicado(dirTemporal) : undefined;
+    const anime = trabajo.modo === 'jellyfin' ? await datosPublicados(dirTemporal) : undefined;
     const args = [GENERADOR, ...argumentosDe(trabajo, { anime })];
     console.log(`Generando ${resumenDe(trabajo)}: ${PYTHON} ${args.join(' ')}`);
     try {
@@ -108,8 +117,9 @@ async function generar(trabajo) {
       if (e.killed || e.signal) {
         const tope = TIEMPO_MAXIMO_MS >= 60000 ? `${Math.round(TIEMPO_MAXIMO_MS / 60000)} min` : `${Math.round(TIEMPO_MAXIMO_MS / 1000)} s`;
         motivo = `el generador tardó más de ${tope} y se paró`;
+      } else if (!e.stdout && !e.stderr) {
+        motivo = e.message;
       }
-      else if (!e.stdout && !e.stderr) motivo = e.message;
     }
   } catch (e) {
     codigo = 1;
@@ -168,7 +178,9 @@ for (;;) {
   hechos += 1;
 
   const que = resumenDe(trabajo);
-  if (resultado.estado === 'ok') {
+  if (resultado.estado === 'ok' && resultado.generados === 0) {
+    await avisar('Nada nuevo en Jellyfin', 'Todo lo de la biblioteca ya está publicado o en borradores.');
+  } else if (resultado.estado === 'ok') {
     await avisar('Borrador listo', `${que}. Ya está en el panel, en Borradores.`);
   } else if (resultado.candidatos.length) {
     await avisar('Borrador: hay que elegir', `${que}: AniList devuelve ${resultado.candidatos.length} resultados. Elige uno en el panel.`);
