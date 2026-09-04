@@ -130,6 +130,11 @@ El hook **se niega a publicar** y deja la versión anterior en su sitio si:
 Usa `rsync --delay-updates`, que mueve todos los ficheros a su sitio al final,
 para que nadie pille la web a medio actualizar.
 
+Y cuando se niega, **avisa por ntfy** (tema `carlos-opinion`, con el motivo):
+git ignora el código de salida del hook, así que desde el timer del panel nadie
+vería el fallo. El hook admite `CO_BASE` y `CO_REPO` en el entorno para poder
+probarlo en un sandbox sin tocar el despliegue real.
+
 ---
 
 ## Operación
@@ -185,6 +190,12 @@ y se reinicia el contenedor: el hook sólo publica `dist/`. Si tras un cambio en
 
 El dominio absoluto sale de `CO_SITE_URL` o, por defecto, de
 `https://opinion.carlosin120fps.duckdns.org`.
+
+El mismo script deja en la raíz `sitemap.xml` (portada, secciones y fichas),
+`feed.xml` (RSS 2.0, una entrada por ficha con la opinión publicada) y
+`robots.txt` con la ruta del sitemap. La fecha de una ficha es la última de su
+diario; sin diario va sin fecha, no se inventa. `index.html` enlaza el feed con
+`rel="alternate"`.
 
 ## El panel
 

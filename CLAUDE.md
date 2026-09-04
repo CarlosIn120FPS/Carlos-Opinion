@@ -28,7 +28,9 @@ es el mapa entero (qué hay, dónde vive, cómo se publica, qué no se negocia).
   `~/carlos-opinion/panel-work` y `sudo systemctl restart carlos-opinion-panel`
   (`deploy/panel/README.md`). Un cambio en `deploy/nginx.conf` se copia a mano.
   Un cambio en `generador/generar.py` se copia a
-  `~/carlos-opinion/generador/generador/` (no es un checkout).
+  `~/carlos-opinion/generador/generador/` (no es un checkout). Un cambio en
+  `deploy/post-receive` se copia a `~/carlos-opinion/repo.git/hooks/`. Un
+  cambio en una unidad de `deploy/panel/` se copia a `/etc/systemd/system/`.
 - Para mirar diseño: `node scripts/captura.mjs salida.png <url> [ancho] [alto] [dark]`
   hace capturas reales con Chrome headless. No publiques un cambio visual sin
   haberlo visto.
@@ -42,9 +44,9 @@ es el mapa entero (qué hay, dónde vive, cómo se publica, qué no se negocia).
 |---|---|
 | Web (React + Vite + Tailwind) | `src/`, datos en `public/data/*.json`, portadas en `public/covers/` |
 | Registro de secciones y niveles | `src/data/contentTypes.js`, `src/data/niveles.js` (`ESQUEMA`) |
-| Panel privado (Node, sin deps) | `panel/`; lógica pura en `panel/lib/`, interfaz en `panel/web/` |
+| Panel privado (Node, sin deps) | `panel/`; lógica pura en `panel/lib/`, interfaz en `panel/web/`; `empujar.mjs` (timer: publica y respalda en GitHub) y `generar.mjs` (cola de borradores) corren en Pavilion |
 | Generador de borradores (Python) | `generador/generar.py`; Whakoom en `generador/whakoom.py` |
 | Despliegue | `deploy/` (hook, nginx, unidades systemd del panel), `scripts/deploy.mjs` |
-| Páginas Open Graph | `scripts/og.mjs`, tras `vite build` |
+| Páginas Open Graph, sitemap, feed RSS, robots | `scripts/og.mjs`, tras `vite build` |
 | Tests | `scripts/test-*.mjs`, `generador/test_whakoom.py` |
 | Documentos | `docs/` (`estado-v2.md` = estado; `registro-2026-09-03.md` = diario) |

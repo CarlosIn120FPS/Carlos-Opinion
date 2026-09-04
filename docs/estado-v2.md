@@ -124,10 +124,12 @@ registro menos, una clave de API menos, y calibrado contra las 8 fichas reales.
 Si algún día la traducción de Ollama molesta, TMDB sigue siendo la alternativa.
 
 **El generador no tiene timer.** La fase 3 del plan pedía una unidad de systemd
-nocturna. Hoy se dispara a mano (`esperar-y-generar.sh` fue una ejecución suelta).
-No se ha echado en falta: se añade ~1 anime al mes y el panel ya enseña los
-borradores pendientes, así que el buzón que el plan quería resolver con
-`PENDIENTES.md` ya está resuelto mejor.
+nocturna. Se dispara a petición: desde el 4-9-2026, desde el propio panel
+(«Pedir un borrador nuevo» y «Buscar lo nuevo en Jellyfin», que dejan un pedido
+en una cola que atiende `carlos-opinion-generar.service`). No se ha echado en
+falta un timer: se añade ~1 anime al mes y el panel ya enseña los borradores
+pendientes, así que el buzón que el plan quería resolver con `PENDIENTES.md`
+ya está resuelto mejor.
 
 **El "editor local" se convirtió en el panel alojado.** El propio
 `panel-privado.md` ya lo decía: *"su versión es mejor"*.

@@ -17,7 +17,7 @@ services:
       - "192.168.50.148:8098:80"
 
     volumes:
-      # El contenido lo deja aquí el despliegue desde GitHub Actions.
+      # El contenido lo deja aquí el hook post-receive de repo.git tras compilar.
       - ./site:/usr/share/nginx/html:ro
       - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
 

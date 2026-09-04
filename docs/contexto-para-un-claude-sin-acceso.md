@@ -199,7 +199,10 @@ public/texturas/           la textura de papel del libro
 panel/
   servidor.mjs             el servidor HTTP del panel (API + estáticos)
   empujar.mjs              lo que corre el timer en Pavilion: trae portadas
-                           externas, y hace fetch + rebase + push + verificación
+                           externas, hace fetch + rebase + push + verificación,
+                           y respalda lo publicado en GitHub (origin/main → v2)
+  generar.mjs              lo que corre carlos-opinion-generar.service: atiende
+                           la cola de borradores pedidos desde el panel
   lib/secciones.mjs        mapa de secciones: fichero, campos de Carlos, orden
   lib/aplicar.mjs          operaciones sobre una ficha (puro): field.set,
                            entry.add, entry.edit, entry.remove
@@ -211,7 +214,12 @@ panel/
   lib/portadas.mjs         traer portadas externas a public/covers (IO inyectado)
   lib/pendientes.mjs       la bandeja de AniList (puro): episodios vistos sin
                            comentar
-  lib/repo.mjs             git: sincronizar, commitear, empujar, leer borradores
+  lib/cola.mjs             pedir un borrador (puro): valida el pedido, lo
+                           traduce a argumentos de generar.py, lee su salida
+  lib/respaldo.mjs         la copia en GitHub (puro): cuándo se empuja y cuándo
+                           se espera tras un fallo
+  lib/repo.mjs             git: sincronizar, commitear, empujar, leer borradores,
+                           empujar a otro remoto
   web/index.html, panel.js la interfaz (importa módulos compartidos con la web)
   revisar.json             lo pendiente de revisar tras publicar
 
@@ -225,7 +233,7 @@ generador/
 scripts/
   deploy.mjs               publicar: push a casa y comprobar .deploy-ok
   og.mjs (+ lib/og.mjs)    tras el build, un HTML por sección y por ficha con
-                           Open Graph
+                           Open Graph, más sitemap.xml, feed.xml (RSS) y robots.txt
   portadas.mjs             traer portadas externas (lo usa también empujar.mjs)
   promote.mjs              publicar un borrador desde la línea de comandos
   captura.mjs              capturas reales de la web con Chrome headless (CDP)
@@ -302,11 +310,26 @@ Lo que hace:
   que no tiene salida a internet a propósito) qué episodios ha visto y no ha
   comentado, y ofrece una fila por episodio con nota y texto. Jellyfin marca
   los episodios en AniList mediante el plugin Ani-Sync.
+- **Pedir un borrador** (solo en Pavilion): en la vista de borradores, un
+  formulario con sección, «título en AniList o su id» y título español, más
+  «Buscar lo nuevo en Jellyfin» con un límite (3 por defecto, 10 como mucho).
+  El panel no genera nada: escribe un pedido (`~/carlos-opinion/generar/cola/`)
+  y una unidad `.path` de systemd arranca `panel/generar.mjs`, que mueve el
+  pedido a `enmarcha/`, lanza `generar.py --a-borradores` (o `--pendientes
+  --generar --limite N` con el anime.json publicado, leído del bare), deja el
+  resultado en `hecho/` y avisa por ntfy. Si AniList devuelve varios
+  candidatos, el resultado los enseña como botones y elegir uno es pedir por
+  id. Un pedido sale de la cola antes de tocarlo, pase lo que pase: la unidad
+  `.path` se vuelve a disparar mientras la cola no esté vacía. Lo que quedó en
+  `enmarcha/` tras un corte se da por interrumpido; nunca se relanza solo.
 
 API (todas bajo `/api`, cabecera `X-Panel-Token` en modo servidor): `GET
-/secciones`, `GET /estado`, `GET /revisar`, `GET /borradores`, `GET
-/borradores/:seccion/:id`, `POST /borradores/:seccion/:id/promocionar`, `GET
-/:seccion`, `POST /:seccion/op` (field.set, entry.add, entry.edit,
+/secciones` (incluye `generar: true/false`), `GET /estado`, `GET /revisar`,
+`GET /borradores`, `GET /borradores/:seccion/:id`, `POST
+/borradores/:seccion/:id/promocionar`, `GET /generar` (cola, en marcha, últimos
+resultados) y `POST /generar` (`{modo:'id'|'titulo'|'jellyfin', seccion,
+anilistId|titulo, tituloEs?, limite?}`; el id del pedido lo pone el servidor),
+`GET /:seccion`, `POST /:seccion/op` (field.set, entry.add, entry.edit,
 entry.remove), `POST /:seccion/hermana`, `POST /:seccion/clonar`, `POST
 /:seccion/revisar/:id/hecho`. Los módulos compartidos con la web se sirven bajo
 `/m/`.
@@ -373,10 +396,13 @@ saga *Rascal*), 7 sin resultado.
 - **Pavilion** (`192.168.50.148` por cable, `192.168.50.28` por WiFi; hostname
   `carlospaviliondv6`): Debian 13, un HP dv6 viejo. Aloja el repo bare
   (`~/carlos-opinion/repo.git`), el clon de build, el nginx en Docker, el
-  panel (dos unidades systemd: `carlos-opinion-panel.service`, el escritor,
+  panel (cuatro unidades systemd: `carlos-opinion-panel.service`, el escritor,
   con límite de 96 MB y sin salida a internet; `carlos-opinion-push.timer`, el
-  publicador, cada 2 min, sin límites porque corre el build), el generador
-  (copia manual en `~/carlos-opinion/generador/generador/`, no un checkout) y
+  publicador, cada 2 min, sin límites porque corre el build; y
+  `carlos-opinion-generar.path` + `.service`, que atienden los borradores
+  pedidos desde el panel, con MemoryHigh 96M / MemoryMax 192M y 45 min de tope
+  por pedido), el generador (copia manual en
+  `~/carlos-opinion/generador/generador/`, no un checkout) y
   Nginx Proxy Manager (HTTPS, dominios `*.carlosin120fps.duckdns.org`, Access
   List para el panel), además del resto del homelab (Jellyfin, Matrix, ntopng,
   crowdsec, AdGuard…). Regla del nodo: nada escucha en `0.0.0.0`; todo servicio
@@ -386,12 +412,24 @@ saga *Rascal*), 7 sin resultado.
 - **El PC de Carlos** (Windows, `192.168.50.162`): desde donde se desarrolla.
   Remotos git: `casa` (Pavilion) y `github`
   (`CarlosIn120FPS/Carlos-Opinion`, rama `v2`; `main` de GitHub está antiguo).
+- **La copia en GitHub también sale de Pavilion**: el timer del panel, haya o
+  no algo que publicar, compara `origin/main` con `github/v2` (referencias
+  locales, sin red) y si difieren empuja `origin/main` a `v2` con una clave de
+  despliegue propia (`~/.ssh/carlos-opinion-github`, en `core.sshCommand` del
+  clon `panel-work`, con `BatchMode` y `ConnectTimeout` porque el timer no
+  tiene timeout). Nunca fuerza. Si falla (la clave sin registrar en GitHub,
+  GitHub caído) apunta el fallo en `~/carlos-opinion/.github-fallo`, avisa por
+  ntfy y no reintenta hasta pasadas 3 horas. Así lo escrito desde el móvil ya
+  no vive solo en Pavilion.
 - **Circuito de publicación**: `git push casa main` → hook `post-receive`
   (`npm ci` si cambió el lock, `npm run build`, guardas: index.html y los tres
   JSON válidos, `rsync --delay-updates` a `site/`, escribe `.deploy-ok` con la
   revisión). Como git ignora el código de salida del hook, `scripts/deploy.mjs`
   compara `.deploy-ok` con lo empujado y avisa. Un fallo manda un aviso por
-  ntfy. Hook `update`: `main` no se puede reescribir.
+  ntfy desde el propio hook (`fallo()` hace `curl` al tema `carlos-opinion`) y,
+  si el push vino del panel, también desde `empujar.mjs`. Hook `update`:
+  `main` no se puede reescribir. El build deja además `sitemap.xml`,
+  `feed.xml` y `robots.txt` en la raíz de la web.
 - **Incidente del 3-9-2026**: al actualizar Pavilion al kernel 6.12.105, su
   adaptador de red USB (ASIX AX88179B, en una controladora USB3 Renesas sin
   firmware) dejó de recibir tramas mayores de ~1500 bytes con la MTU a 9000:
@@ -427,13 +465,19 @@ saga *Rascal*), 7 sin resultado.
 
 ## 12. Estado y lo que queda
 
-La auditoría del plan v2 está en 27 de 27. Hecho hoy: fichas hermanas,
-portadas locales, revisar tras publicar, Open Graph, clonar a manga,
+La auditoría del plan v2 está en 27 de 27. Hecho el 3-9-2026: fichas
+hermanas, portadas locales, revisar tras publicar, Open Graph, clonar a manga,
 importador de Whakoom calibrado, título español, rediseño (cabecera compacta,
-fondo claro, tarjetas, modales en móvil, navegación y tema).
+fondo claro, tarjetas, modales en móvil, navegación y tema). Hecho el 4-9-2026:
+copia en GitHub desde el timer de Pavilion, pedir borradores desde el panel,
+aviso por ntfy en el hook, sitemap + feed RSS + robots.
 
 En manos de Carlos:
 
+- **Registrar la clave de despliegue de Pavilion en GitHub** (repositorio →
+  Settings → Deploy keys → Add, con *Allow write access*; la clave pública
+  está en `~/.ssh/carlos-opinion-github.pub` de Pavilion). Hasta entonces la
+  copia falla y ntfy lo recuerda cada 3 horas.
 - Publicar los 28 borradores de manga y los 2 de novela desde el panel,
   eligiendo categoría (el informe de Whakoom sugiere una por serie).
 - Decidir los 20 dudosos y buscar a mano los 7 sin resultado de Whakoom.

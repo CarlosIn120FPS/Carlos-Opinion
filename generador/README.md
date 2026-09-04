@@ -190,12 +190,25 @@ Los tres campos marcados en `_meta._revisar` son exactamente donde conviene mira
 - **animethemes va por detrás en lo recién estrenado.** Para Mikadono devolvió 1
   ending y tú tienes 3.
 
+## Desde el panel
+
+Desde el 4-9-2026 no hace falta entrar por ssh: en el panel, en Borradores,
+«Pedir un borrador nuevo» (por título o id, con título español) y «Buscar lo
+nuevo en Jellyfin». El panel deja un pedido en `~/carlos-opinion/generar/cola/`
+y `carlos-opinion-generar.service` lanza esto con los mismos argumentos de
+arriba (`panel/lib/cola.mjs` los construye). Cuando la búsqueda por título
+devuelve varios candidatos, el panel los ofrece como botones.
+
+`--pendientes` **no repite lo que ya tiene borrador** en la rama `borradores`
+(lo lee del bare con `ls-tree`): «lo nuevo» es lo que no está ni publicado ni
+esperando en el panel. Lo que ya tiene borrador se lista aparte.
+
 ## Lo que falta
 
-- **Fase 3:** Jellyfin como disparador — que mire qué franquicias tienes en la
-  biblioteca y no en la web, en vez de decirle tú el título. Necesita una API key
-  de Jellyfin. Y un timer nocturno, no cada 15 minutos: para ~1 anime al mes,
-  sondear cada cuarto de hora son 2.900 ejecuciones para un acierto.
+- **Fase 3:** un disparador automático desde Jellyfin. Hoy `--pendientes` ya
+  mira la biblioteca (con `JELLYFIN_URL` y `JELLYFIN_KEY` en `.env`), pero lo
+  pide Carlos desde el panel. Un timer nocturno se descartó: para ~1 anime al
+  mes, un botón es mejor que 365 ejecuciones.
 
 Ver `../docs/integracion-jellyfin.md` para el plan completo.
 
