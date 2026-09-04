@@ -148,7 +148,7 @@ Salió de la verificación adversarial, y sin ello el resto sería frágil:
 - **`anilistIds` en las 10 fichas.** Sin ellos la comprobación de duplicados era
   un no-op y publicar *Rascal* o *My Dress-Up Darling* desde el panel habría
   creado una ficha repetida a un clic.
-- **783 comprobaciones automáticas** (eran 513 al escribir esta auditoría),
+- **854 comprobaciones automáticas más 18 de Python** (eran 513 al escribir esta auditoría, 783 al cerrarla),
   incluida una que arranca la interfaz del panel sobre un DOM mínimo. Existe
   porque se envió un panel que servía el JS perfectamente y moría en la primera
   línea al abrirlo.

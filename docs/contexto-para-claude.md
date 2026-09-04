@@ -60,7 +60,7 @@ Strix: Ollama (qwen3.5) para traducir sinopsis y proponer descripciones
   `deploy/panel/*.service|timer` son las unidades del panel.
 - **Open Graph**: `scripts/og.mjs` escribe un HTML por ficha tras el build;
   nginx los sirve con `try_files $uri $uri.html`.
-- **Tests**: `npm test` = 9 suites de Node más `test_whakoom.py`; 783
+- **Tests**: `npm test` = 9 suites de Node más `test_whakoom.py`; 854 + 18
   comprobaciones. Sin frameworks: scripts que montan los componentes de verdad
   (esbuild + `renderToStaticMarkup`) y la interfaz del panel sobre un DOM mínimo.
 

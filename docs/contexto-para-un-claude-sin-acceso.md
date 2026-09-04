@@ -1,7 +1,7 @@
 # Carlos' Opinion — contexto completo para un Claude sin acceso al repositorio ni a las máquinas
 
 > Este documento es autocontenido. Quien lo lea no puede abrir ficheros, ejecutar
-> comandos ni ver la web: todo lo que necesita saber está aquí. Estado a 3 de
+> comandos ni ver la web: todo lo que necesita saber está aquí. Estado a 4 de
 > septiembre de 2026.
 
 ---
@@ -65,7 +65,7 @@ están en español. Las claves de los datos van en inglés (`title`, `rating`).
   endings), Ollama (modelo `qwen3.5:9b`, en otra máquina de casa) para traducir
   sinopsis y proponer la descripción corta.
 - **Tests**: scripts propios de Node y un `unittest` de Python. Sin Jest ni
-  Vitest. 783 comprobaciones. Se corren con `npm test`.
+  Vitest. 854 comprobaciones más 18 de Python (4-9-2026). Se corren con `npm test`.
 
 ## 4. El modelo de datos
 

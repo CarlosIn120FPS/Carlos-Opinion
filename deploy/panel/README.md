@@ -195,7 +195,11 @@ printf 'CO_PANEL_NTFY_TOKEN=tk_...\n' >> ~/carlos-opinion/panel.env
 ```
 
 Y nada más: el hook lee `panel.env`, y las unidades del timer y del generador
-lo cargan con `EnvironmentFile=`. Comprobar:
+lo cargan con `EnvironmentFile=`. **`panel.env` tiene que seguir siendo
+`CLAVE=valor` a secas, una por línea, sin espacios ni comillas raras**: el hook
+lo carga con `.` bajo `set -e`, y una línea que no sea shell válido mataría el
+hook antes de `fallo()` — el push diría que todo fue bien sin haber publicado.
+Comprobar:
 
 ```bash
 . ~/carlos-opinion/panel.env && curl -s -H "Authorization: Bearer $CO_PANEL_NTFY_TOKEN" \
