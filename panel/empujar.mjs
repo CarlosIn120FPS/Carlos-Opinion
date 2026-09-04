@@ -31,6 +31,10 @@ const RAIZ = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const BASE = process.env.CO_PANEL_BASE || '/home/carlosalexei/carlos-opinion';
 const REMOTO = process.env.CO_PANEL_REMOTO || 'origin';
 const NTFY = process.env.CO_PANEL_NTFY || '';
+// El ntfy de casa es deny-all: sin un token con escritura en el tema, cada
+// POST devuelve 403 y el aviso no llega a nadie (pasó, en silencio, durante
+// semanas). El token vive en panel.env, fuera del repositorio.
+const NTFY_TOKEN = process.env.CO_PANEL_NTFY_TOKEN || '';
 // La copia: remoto `github` del clon (con su clave de despliegue en
 // core.sshCommand) y rama v2, que es donde vive el trabajo en GitHub.
 const GITHUB = process.env.CO_PANEL_GITHUB ?? 'github';
@@ -42,7 +46,9 @@ const repo = repoGit(RAIZ);
 async function avisar(texto) {
   console.error(texto);
   if (!NTFY) return;
-  await fetch(NTFY, { method: 'POST', body: texto }).catch(() => {});
+  const headers = NTFY_TOKEN ? { Authorization: `Bearer ${NTFY_TOKEN}` } : {};
+  const r = await fetch(NTFY, { method: 'POST', headers, body: texto }).catch(() => null);
+  if (r && !r.ok) console.error(`(ntfy respondió ${r.status}: el aviso no ha llegado)`);
 }
 
 // Portadas locales ANTES de mirar si hay algo que empujar: una ficha publicada

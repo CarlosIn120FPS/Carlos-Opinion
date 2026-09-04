@@ -40,6 +40,9 @@ const GENERADOR = process.env.CO_GENERADOR || `${BASE}/generador/generador/gener
 const PYTHON = process.env.CO_PYTHON || 'python3';
 const REPO_BARE = process.env.CO_REPO || `${BASE}/repo.git`;
 const NTFY = process.env.CO_PANEL_NTFY || '';
+// El ntfy de casa es deny-all: sin token con escritura en el tema, 403 y nadie
+// se entera. El token vive en panel.env (ver deploy/panel/README.md).
+const NTFY_TOKEN = process.env.CO_PANEL_NTFY_TOKEN || '';
 // Un anime con Ollama y verificación de enlaces son unos minutos; «lo nuevo de
 // Jellyfin» son varios seguidos. Con esto no se cuelga para siempre y no se
 // mata a nada a medias por un tropiezo de red.
@@ -50,7 +53,9 @@ const ahora = () => new Date().toISOString();
 async function avisar(titulo, texto) {
   console.log(`${titulo}: ${texto}`);
   if (!NTFY) return;
-  await fetch(NTFY, { method: 'POST', headers: { Title: titulo }, body: texto }).catch(() => {});
+  const headers = { Title: titulo, ...(NTFY_TOKEN ? { Authorization: `Bearer ${NTFY_TOKEN}` } : {}) };
+  const r = await fetch(NTFY, { method: 'POST', headers, body: texto }).catch(() => null);
+  if (r && !r.ok) console.log(`(ntfy respondió ${r.status}: el aviso no ha llegado)`);
 }
 
 async function escribirHecho(resultado) {

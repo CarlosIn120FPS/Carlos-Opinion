@@ -430,6 +430,15 @@ saga *Rascal*), 7 sin resultado.
   si el push vino del panel, también desde `empujar.mjs`. Hook `update`:
   `main` no se puede reescribir. El build deja además `sitemap.xml`,
   `feed.xml` y `robots.txt` en la raíz de la web.
+- **ntfy** (`192.168.50.148:8090`, público en `ntfy.carlosin120fps.duckdns.org`)
+  es `deny-all`: hasta el 4-9-2026 ningún usuario tenía escritura en el tema
+  `carlos-opinion`, así que **ningún aviso llegó nunca** (403 en silencio). El
+  código ya manda `Authorization: Bearer $CO_PANEL_NTFY_TOKEN` si la variable
+  está en `panel.env` (el hook lee ese fichero; las unidades lo cargan con
+  `EnvironmentFile=`). Crear el usuario `carlos-opinion-bot` con escritura en
+  el tema, su token, y `movil` con lectura, es cosa de Carlos
+  (`deploy/panel/README.md` trae los comandos). No se abre el tema a anónimos:
+  ntfy es público.
 - **Incidente del 3-9-2026**: al actualizar Pavilion al kernel 6.12.105, su
   adaptador de red USB (ASIX AX88179B, en una controladora USB3 Renesas sin
   firmware) dejó de recibir tramas mayores de ~1500 bytes con la MTU a 9000:

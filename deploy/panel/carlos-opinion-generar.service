@@ -20,6 +20,9 @@ ExecStart=/usr/bin/node panel/generar.mjs
 Environment=HOME=/home/carlosalexei
 Environment=CO_PANEL_BASE=/home/carlosalexei/carlos-opinion
 Environment=CO_PANEL_NTFY=http://192.168.50.148:8090/carlos-opinion
+# CO_PANEL_NTFY_TOKEN vive en panel.env: sin él, el ntfy de casa (deny-all)
+# responde 403 y el aviso no llega. El guion: arranca igual sin el fichero.
+EnvironmentFile=-/home/carlosalexei/carlos-opinion/panel.env
 
 # Un pedido tarda minutos; «lo nuevo de Jellyfin» son varios seguidos. El
 # propio script para al generador a los 45 min (CO_GENERAR_TIMEOUT_MS) sin

@@ -175,6 +175,36 @@ roto da un push con éxito y una web sin actualizar, en silencio. Por el mismo
 tema llegan «Borrador listo», «Borrador: hay que elegir» y «Borrador fallido»
 del generador, y el aviso de que la copia en GitHub no se pudo hacer.
 
+### Los avisos no llegan hasta que exista el token (el paso que hace Carlos)
+
+Descubierto el 4-9-2026: el ntfy de casa tiene `NTFY_AUTH_DEFAULT_ACCESS=deny-all`
+y **ningún usuario tiene escritura en el tema `carlos-opinion`**, así que cada
+aviso respondía 403 y nunca llegó ninguno. Está expuesto en
+`ntfy.carlosin120fps.duckdns.org`, o sea que abrir el tema a anónimos no es
+opción: cualquiera que supiera el nombre podría mandarte notificaciones.
+
+El patrón que ya usas para `backups` (un bot que escribe, `movil` que lee) es
+el bueno. En Pavilion:
+
+```bash
+docker exec ntfy ntfy user add --role=user carlos-opinion-bot      # te pide una contraseña; da igual cuál
+docker exec ntfy ntfy access carlos-opinion-bot carlos-opinion write-only
+docker exec ntfy ntfy access movil carlos-opinion read-only
+docker exec ntfy ntfy token add carlos-opinion-bot                 # imprime tk_...
+printf 'CO_PANEL_NTFY_TOKEN=tk_...\n' >> ~/carlos-opinion/panel.env
+```
+
+Y nada más: el hook lee `panel.env`, y las unidades del timer y del generador
+lo cargan con `EnvironmentFile=`. Comprobar:
+
+```bash
+. ~/carlos-opinion/panel.env && curl -s -H "Authorization: Bearer $CO_PANEL_NTFY_TOKEN" \
+  -d "prueba" http://192.168.50.148:8090/carlos-opinion     # debe devolver un JSON, no 403
+```
+
+Mientras tanto los avisos salen por el `journalctl` de cada unidad con «(ntfy
+respondió 403: el aviso no ha llegado)», que es la pista si se vuelve a olvidar.
+
 ## Decisiones que parecen olvidos y no lo son
 
 - **El servicio que empuja NO lleva `MemoryMax`.** El límite de 100 MB del nodo

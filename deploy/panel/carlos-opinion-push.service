@@ -21,6 +21,10 @@ ExecStart=/usr/bin/node panel/empujar.mjs
 Environment=HOME=/home/carlosalexei
 Environment=CO_PANEL_BASE=/home/carlosalexei/carlos-opinion
 Environment=CO_PANEL_NTFY=http://192.168.50.148:8090/carlos-opinion
+# El ntfy de casa es deny-all: sin CO_PANEL_NTFY_TOKEN (en panel.env, un token
+# de un usuario con escritura en el tema) cada aviso es un 403 y no llega. El
+# guion (-) hace que la unidad arranque igual si el fichero no está.
+EnvironmentFile=-/home/carlosalexei/carlos-opinion/panel.env
 
 # SIN MemoryMax A PROPÓSITO. El límite de 100 MB del nodo va en el escritor, que
 # es el que está siempre en pie. Aquí dentro corre `vite build`: encerrarlo en un

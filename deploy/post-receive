@@ -17,9 +17,12 @@ BRANCH="main"
 
 # Aviso por ntfy cuando NO se publica. Hace falta porque git ignora el código de
 # salida de este hook: un push desde el PC lo enseña en pantalla, pero el timer
-# del panel no tiene a nadie mirando. El del panel trae su URL en el entorno;
-# un push desde el PC no trae nada y usa el tema de casa.
+# del panel no tiene a nadie mirando. El ntfy de casa es deny-all: sin el token
+# (CO_PANEL_NTFY_TOKEN, en panel.env) responde 403 y el aviso no llega. Un push
+# desde el PC no trae entorno, así que se lee panel.env si existe.
+[ -f "$BASE/panel.env" ] && . "$BASE/panel.env"
 NTFY="${CO_PANEL_NTFY:-http://192.168.50.148:8090/carlos-opinion}"
+NTFY_TOKEN="${CO_PANEL_NTFY_TOKEN:-}"
 
 # Durante un hook, git deja GIT_DIR apuntando al repo bare. Si no lo quitamos,
 # los comandos de git dentro de $BUILD creerían que su repo es el bare.
@@ -47,6 +50,7 @@ fallo() {
   # `|| true`: estamos bajo set -e y el aviso no puede tapar el motivo real.
   [ -n "$NTFY" ] && curl -s -m 5 -o /dev/null \
     -H "Title: Carlos' Opinion: NO se ha publicado" \
+    ${NTFY_TOKEN:+-H "Authorization: Bearer $NTFY_TOKEN"} \
     -d "Despliegue de ${REV_ACTUAL:0:7} fallido: $*. La web sigue con la versión anterior." \
     "$NTFY" || true
   exit 1
