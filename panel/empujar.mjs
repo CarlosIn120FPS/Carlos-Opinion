@@ -88,9 +88,10 @@ async function respaldar() {
     await unlink(FICHERO_FALLO).catch(() => {});
     console.log(`GitHub: ${GITHUB_RAMA} al día en ${publicado.slice(0, 7)}`);
   } catch (e) {
-    const motivo = (e.stderr || e.message || '').trim().split('\n').slice(-3).join(' ');
+    // git habla en el idioma del sistema (en Pavilion, español): la pista mira las dos.
+    const motivo = (e.stderr || e.message || '').trim().split('\n').slice(-4).join(' ');
     await writeFile(FICHERO_FALLO, JSON.stringify(anotarFallo(publicado, Date.now(), motivo)), 'utf8').catch(() => {});
-    const pista = /publickey|permission denied/i.test(motivo)
+    const pista = /publickey|permission denied|permisos de acceso/i.test(motivo)
       ? '\nFalta registrar la clave de Pavilion en GitHub (deploy/panel/README.md).'
       : '';
     await avisar(

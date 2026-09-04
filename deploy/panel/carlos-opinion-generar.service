@@ -31,9 +31,11 @@ TimeoutStartSec=2h
 
 # La regla del nodo son 100 MB por servicio. Aquí corre python con el JSON de
 # AniList y el clon de git del generador: MemoryHigh estrangula antes de que
-# MemoryMax mate. Tras las primeras ejecuciones reales, mirar
+# MemoryMax mate. Medido el 2026-09-04 en un pedido por título (búsqueda en
+# AniList, sin Ollama): MemoryPeak=27 MB. Tras un pedido entero con Ollama y
+# temas, volver a mirar
 #   systemctl show carlos-opinion-generar -p MemoryPeak
-# y ajustar. Un OOM aquí no rompe nada: el pedido sale como fallido y se avisa.
+# Un OOM aquí no rompe nada: el pedido sale como fallido y se avisa.
 MemoryHigh=96M
 MemoryMax=192M
 
