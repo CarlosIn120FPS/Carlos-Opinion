@@ -442,6 +442,9 @@
       "episodes": "1 temporada/12 episodios",
       "hasManga": true,
       "hasLightNovel": true,
+      "related": {
+        "manga": 2
+      },
       "willReadSource": "Si el manga sale en español, sí.",
       "doIRecommend": "Si, mucho!",
       "platforms": [

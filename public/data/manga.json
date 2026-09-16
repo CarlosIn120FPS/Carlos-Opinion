@@ -83,6 +83,37 @@
       "anilistIds": [
         105778
       ]
+    },
+    {
+      "id": 2,
+      "title": "I made friends with the second prettiest girl in my class",
+      "spanishTitle": "",
+      "japaneseTitle": "Class de 2-banme ni Kawaii Onnanoko to Tomodachi ni Natta (クラスで2番目に可愛い女の子と友だちになった)",
+      "category": "No leído",
+      "image": "covers/anime-5.jpg",
+      "description": "Maki Maehara se hace amigo en secreto de Umi Asanagi, la segunda chica más guapa de su clase, y pasan tiempo juntos los viernes.",
+      "genres": [
+        "Romance",
+        "Comedia",
+        "Escolar"
+      ],
+      "fullSynopsis": "Yo, Maehara Maki, no lograba conectar con nadie durante mis años de instituto, y me resultaba difícil hacer amigos. Entonces, llegó un punto de inflexión. Una chica llamada Asanagi entró en mi vida. A pesar de ser conocida clandestinamente como la 'segunda chica más guapa de la clase' por los chicos, ella eligió pasar sus viernes conmigo en lugar de con su mejor amiga Amami, quien ostentaba el título de 'chica más guapa de la clase'. En la comodidad de mi casa, nos adentrábamos en el mundo de los videojuegos, veíamos películas, nos sumergíamos en los mangas, nos dábamos atracones de comida basura y bebíamos refrescos, despreocupados y contentos. Para el mundo exterior, puede que pareciésemos un poco desastrosos, pero tanto para Asanagi como para mí, era un tiempo juntos secreto y muy preciado.",
+      "chapters": "",
+      "volumes": "",
+      "author": "",
+      "hasAnime": true,
+      "hasLightNovel": true,
+      "related": {
+        "anime": 5
+      },
+      "doIRecommend": "",
+      "platforms": [],
+      "languages": [],
+      "rating": "",
+      "ratingFinal": "",
+      "personalOpinion": "",
+      "personalOpinionFinal": "",
+      "physicalStores": []
     }
   ]
 }
