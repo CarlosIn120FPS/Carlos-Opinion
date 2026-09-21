@@ -1,1 +1,17 @@
-{}
+{
+  "anime": {
+    "9": {
+      "campos": [
+        "description",
+        "episodes",
+        "fullSynopsis",
+        "genres"
+      ],
+      "avisos": [
+        "18 enlace(s) no se pudieron comprobar (se dejan tal cual)"
+      ],
+      "fuente": "anilist",
+      "fecha": "2026-09-21"
+    }
+  }
+}

@@ -564,6 +564,150 @@
         199029,
         213581
       ]
+    },
+    {
+      "id": 9,
+      "title": "That Time I Got Reincarnated as a Slime",
+      "japaneseTitle": "Tensei Shitara Slime Datta Ken (転生したらスライムだった件)",
+      "category": "Viendo",
+      "image": "https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx101280-tDxCVJm714nt.jpg",
+      "description": "Un solitario atrapado en un trabajo sin futuro despierta tras morir como una bestia de fango, iniciando hazañas que cambiarán su nuevo mundo.",
+      "genres": [
+        "Acción",
+        "Aventura",
+        "Comedia",
+        "Fantasía",
+        "Isekai",
+        "Ecchi",
+        "Harem"
+      ],
+      "fullSynopsis": "Satoru Mikami, de treinta y siete años y solitario, se encuentra atrapado en un trabajo sin futuro, insatisfecho con su vida mundana, pero tras morir a manos de un ladrón, despierta para un nuevo comienzo en un reino fantástico... ¡como una bestia de fango! Mientras se adapta a su nueva existencia pegajosa, sus hazañas junto a las demás criaturas desencadenan una cadena de eventos que cambiará para siempre su nuevo mundo. (Fuente: Yen Press)",
+      "episodes": "5 temporadas/96 episodios + 1 película + 3 OVA/especiales",
+      "hasManga": true,
+      "hasLightNovel": true,
+      "willReadSource": "",
+      "doIRecommend": "",
+      "platforms": [],
+      "languages": [],
+      "rating": "",
+      "ratingFinal": "",
+      "personalOpinion": "",
+      "personalOpinionFinal": "",
+      "openings": [
+        {
+          "name": "Nameless Story - Takuma Terashima (Temporada 1)",
+          "url": "https://v.animethemes.moe/Tensura-OP1-NCBD1080.webm"
+        },
+        {
+          "name": "Meguru Mono - Takuma Terashima (Temporada 1)",
+          "url": "https://v.animethemes.moe/Tensura-OP2-NCBD1080.webm"
+        },
+        {
+          "name": "Nameless Story - Takuma Terashima",
+          "url": "https://v.animethemes.moe/Tensura-OP1-NCBD1080.webm"
+        },
+        {
+          "name": "Meguru Mono - Takuma Terashima",
+          "url": "https://v.animethemes.moe/Tensura-OP2-NCBD1080.webm"
+        },
+        {
+          "name": "Storyteller - TRUE (Temporada 2)",
+          "url": "https://v.animethemes.moe/TensuraS2-OP1.webm"
+        },
+        {
+          "name": "Like Flames - MindaRyn (Temporada 3)",
+          "url": "https://v.animethemes.moe/TensuraS2Part2-OP1.webm"
+        },
+        {
+          "name": "Hikari Hanatsu - Takuma Terashima",
+          "url": "https://v.animethemes.moe/TensuraColeusNoYume-OP1.webm"
+        },
+        {
+          "name": "PEACEKEEPER - STEREO DIVE FOUNDATION (Temporada 4)",
+          "url": "https://v.animethemes.moe/TensuraS3-OP1.webm"
+        },
+        {
+          "name": "Renasale Serenade - Momoiro Clover Z (Temporada 4)",
+          "url": "https://v.animethemes.moe/TensuraS3-OP2.webm"
+        },
+        {
+          "name": "Esoragoto - Eir Aoi (Temporada 5)",
+          "url": "https://v.animethemes.moe/TensuraS4-OP1.webm"
+        },
+        {
+          "name": "TACTIC - Daoko (Temporada 5)",
+          "url": "https://v.animethemes.moe/TensuraS4-OP2.webm"
+        }
+      ],
+      "endings": [
+        {
+          "name": "Another colony - TRUE (Temporada 1)",
+          "url": "https://v.animethemes.moe/Tensura-ED1-NCBD1080.webm"
+        },
+        {
+          "name": "Little Soldier - Azusa Tadokoro (Temporada 1)",
+          "url": "https://v.animethemes.moe/Tensura-ED2-NCBD1080.webm"
+        },
+        {
+          "name": "Another colony - TRUE",
+          "url": "https://v.animethemes.moe/Tensura-ED1-NCBD1080.webm"
+        },
+        {
+          "name": "Little Soldier - Azusa Tadokoro",
+          "url": "https://v.animethemes.moe/Tensura-ED2-NCBD1080.webm"
+        },
+        {
+          "name": "STORYSEEKER - STEREO DIVE FOUNDATION (Temporada 2)",
+          "url": "https://v.animethemes.moe/TensuraS2-ED1.webm"
+        },
+        {
+          "name": "Reincarnate - Takuma Terashima (Temporada 3)",
+          "url": "https://v.animethemes.moe/TensuraS2Part2-ED1.webm"
+        },
+        {
+          "name": "Kokoro Travel - Miho Okasaki",
+          "url": "https://v.animethemes.moe/TensuraColeusNoYume-ED1.webm"
+        },
+        {
+          "name": "Believer - Rin Kurusu (Temporada 4)",
+          "url": "https://v.animethemes.moe/TensuraS3-ED1.webm"
+        },
+        {
+          "name": "Miracle soup - MindaRyn (Temporada 4)",
+          "url": "https://v.animethemes.moe/TensuraS3-ED2.webm"
+        },
+        {
+          "name": "PEACEKEEPER - STEREO DIVE FOUNDATION (Temporada 4) (Ep 24)",
+          "url": "https://v.animethemes.moe/TensuraS3-ED3.webm"
+        },
+        {
+          "name": "Katsubou - CiON (Temporada 5)",
+          "url": "https://v.animethemes.moe/TensuraS4-ED1.webm"
+        },
+        {
+          "name": "Walk on you way - Eir Aoi (Temporada 5) (Ep 12)",
+          "url": "https://v.animethemes.moe/TensuraS4-ED2.webm"
+        },
+        {
+          "name": "Hymnal - Azusa Tadokoro (Temporada 5)",
+          "url": "https://v.animethemes.moe/TensuraS4-ED3.webm"
+        },
+        {
+          "name": "Utopia - TRUE (Película)",
+          "url": "https://www.youtube.com/results?search_query=Tensei%20Shitara%20Slime%20Datta%20Ken%3A%20Soukai%20no%20Namida-hen%20Utopia%20-%20TRUE"
+        }
+      ],
+      "anilistIds": [
+        101280,
+        106509,
+        108511,
+        116742,
+        146503,
+        161802,
+        156822,
+        182205,
+        182206
+      ]
     }
   ]
 }
