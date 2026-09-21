@@ -59,5 +59,11 @@
     "fecha": "2026-09-03",
     "bytes": 158346,
     "sustituye": "https://cdn.myanimelist.net/images/manga/3/118335l.jpg"
+  },
+  "anime-9": {
+    "url": "https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx101280-tDxCVJm714nt.jpg",
+    "fichero": "anime-9.jpg",
+    "fecha": "2026-09-21",
+    "bytes": 113387
   }
 }
