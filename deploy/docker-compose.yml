@@ -8,6 +8,8 @@
 
 services:
   carlos-opinion:
+    environment:
+      - TZ=Europe/Madrid
     image: nginx:alpine
     container_name: carlos-opinion
     restart: unless-stopped
